@@ -116,7 +116,7 @@ EOF
 ## Task 2: `lws-protocol` skill
 
 **Files:**
-- Create: `.claude/skills/lws-protocol/references/` (vendored verbatim)
+- Create: `.claude/skills/lws-protocol/references/` — all eight LWS 1.0 modules, vendored verbatim
 - Create: `.claude/skills/lws-protocol/UPSTREAM.md`
 - Create: `.claude/skills/lws-protocol/SKILL.md`
 - Test: `scripts/check-skill-grounding.sh .claude/skills/lws-protocol`
@@ -125,29 +125,42 @@ EOF
 - Consumes: `scripts/check-skill-grounding.sh` (Task 1).
 - Produces: discoverable skill `lws-protocol`.
 
-- [ ] **Step 1: Vendor verbatim spec sources (pinned by sha)**
+The eight LWS 1.0 modules (per https://w3c.github.io/lws-protocol/): `lws10-core` (Core),
+`lws10-vocab` (Vocabulary), `lws10-authn-openid` (OpenID Connect authn), `lws10-authn-saml`
+(SAML 2.0 authn), `lws10-authn-ssi-cid` (self-signed CID authn), `lws10-authn-ssi-did-key`
+(self-signed did:key authn), `lws10-notifications` (Notifications), `lws10-searchindex`
+(Search and Type Index Services). All are vendored — plus `lws-ucs` use cases as companion.
+
+- [ ] **Step 1: Vendor all eight modules verbatim via pinned tarball**
 
 ```bash
-S=.claude/skills/lws-protocol/references; mkdir -p "$S/lws10-core" "$S/lws10-authn-ssi-cid" "$S/lws-ucs"
+S=.claude/skills/lws-protocol/references; mkdir -p "$S"
 SHA_P=91e6d6e2f3a2840883df9792d7ddfa9a78808200
 SHA_U=9bb23408d31f5150072c191ec250664a6a2e2258
-# core protocol documents
-for f in index.html Authentication.html Authorization.html Discovery.html operations.md \
-         Resource-Identification.md container-representation.md lws-media-type.md jsonld-context.md; do
-  gh api "repos/w3c/lws-protocol/contents/lws10-core/$f?ref=$SHA_P" --jq '.content' | base64 -d > "$S/lws10-core/$f"
+TMP=$(mktemp -d)
+# whole repo at pinned sha → copy the eight module dirs verbatim
+gh api "repos/w3c/lws-protocol/tarball/$SHA_P" > "$TMP/lws.tgz"
+tar -xzf "$TMP/lws.tgz" -C "$TMP"
+SRC=$(find "$TMP" -maxdepth 1 -type d -name 'w3c-lws-protocol-*')
+for m in lws10-core lws10-vocab lws10-authn-openid lws10-authn-saml \
+         lws10-authn-ssi-cid lws10-authn-ssi-did-key lws10-notifications lws10-searchindex; do
+  cp -R "$SRC/$m" "$S/$m"
 done
-# self-signed CID authentication suite
-gh api "repos/w3c/lws-protocol/contents/lws10-authn-ssi-cid/index.html?ref=$SHA_P" --jq '.content' | base64 -d > "$S/lws10-authn-ssi-cid/index.html"
 # use cases (companion)
-for f in requirements.md user-stories.md glossary.md; do
-  gh api "repos/w3c/lws-ucs/contents/spec/$f?ref=$SHA_U" --jq '.content' | base64 -d > "$S/lws-ucs/$f"
-done
+gh api "repos/w3c/lws-ucs/tarball/$SHA_U" > "$TMP/ucs.tgz"
+tar -xzf "$TMP/ucs.tgz" -C "$TMP"
+USRC=$(find "$TMP" -maxdepth 1 -type d -name 'w3c-lws-ucs-*')
+mkdir -p "$S/lws-ucs"; cp -R "$USRC/spec/." "$S/lws-ucs/"
+# prune non-spec noise: old dated snapshots and stylesheets (keep all normative docs)
+find "$S" -type d -name SNAPSHOTS -prune -exec rm -rf {} +
+find "$S" -name '*.css' -delete
+rm -rf "$TMP"
 ```
 
-- [ ] **Step 2: Verify references are non-empty verbatim**
+- [ ] **Step 2: Verify all eight modules vendored and non-empty**
 
-Run: `wc -c .claude/skills/lws-protocol/references/lws10-core/index.html .claude/skills/lws-protocol/references/lws10-authn-ssi-cid/index.html`
-Expected: both > 1000 bytes.
+Run: `ls -1 .claude/skills/lws-protocol/references/ && for m in lws10-core lws10-vocab lws10-authn-openid lws10-authn-saml lws10-authn-ssi-cid lws10-authn-ssi-did-key lws10-notifications lws10-searchindex; do test -s ".claude/skills/lws-protocol/references/$m/index.html" && echo "ok: $m" || echo "MISSING index: $m"; done`
+Expected: nine entries listed (eight modules + `lws-ucs`); eight `ok:` lines.
 
 - [ ] **Step 3: Write UPSTREAM.md**
 
@@ -155,13 +168,23 @@ Expected: both > 1000 bytes.
 cat > .claude/skills/lws-protocol/UPSTREAM.md <<'EOF'
 # Upstream provenance — lws-protocol
 
-| Reference | Source | Snapshot |
-|---|---|---|
-| references/lws10-core/* | https://github.com/w3c/lws-protocol (lws10-core) — rendered: https://w3c.github.io/lws-protocol/ | sha 91e6d6e2f3a2840883df9792d7ddfa9a78808200 |
-| references/lws10-authn-ssi-cid/index.html | https://github.com/w3c/lws-protocol (lws10-authn-ssi-cid) — rendered: https://w3c.github.io/lws-protocol/lws10-authn-ssi-cid/ | sha 91e6d6e2f3a2840883df9792d7ddfa9a78808200 |
-| references/lws-ucs/* | https://github.com/w3c/lws-ucs (spec) — rendered: https://w3c.github.io/lws-ucs/spec/ | sha 9bb23408d31f5150072c191ec250664a6a2e2258 |
+All eight LWS 1.0 modules + use cases, verbatim, unmodified (SNAPSHOTS/ and *.css pruned).
 
-License: W3C Software and Document License (see source LICENSE.md). Verbatim, unmodified.
+| Reference | Module | Snapshot |
+|---|---|---|
+| references/lws10-core/ | Core protocol | w3c/lws-protocol sha 91e6d6e2f3a2840883df9792d7ddfa9a78808200 |
+| references/lws10-vocab/ | Vocabulary | same sha |
+| references/lws10-authn-openid/ | OpenID Connect Authentication Suite | same sha |
+| references/lws10-authn-saml/ | SAML 2.0 Authentication Suite | same sha |
+| references/lws10-authn-ssi-cid/ | Self-signed Controlled Identifier Authentication Suite | same sha |
+| references/lws10-authn-ssi-did-key/ | Self-signed did:key Authentication Suite | same sha |
+| references/lws10-notifications/ | Notifications | same sha |
+| references/lws10-searchindex/ | Search and Type Index Services | same sha |
+| references/lws-ucs/ | Use cases | w3c/lws-ucs sha 9bb23408d31f5150072c191ec250664a6a2e2258 |
+
+Repo: https://github.com/w3c/lws-protocol — rendered: https://w3c.github.io/lws-protocol/
+Use cases: https://github.com/w3c/lws-ucs — rendered: https://w3c.github.io/lws-ucs/spec/
+License: W3C Software and Document License (see each module's source). Verbatim, unmodified.
 EOF
 ```
 
@@ -171,25 +194,29 @@ EOF
 cat > .claude/skills/lws-protocol/SKILL.md <<'EOF'
 ---
 name: lws-protocol
-description: W3C Linked Web Storage (LWS) Protocol — core operations, resource identification, content negotiation, and the self-signed CID authentication suite. The Solid standardization JSS implements. Verbatim spec, pinned.
-when_to_use: When checking JSS behavior against the LWS spec — headless auth / self-signed CID identity, LDP-style operations, resource identification, conneg, or notifications. Ground truth only; for how lws-pod applies it see the pointer below.
+description: W3C Linked Web Storage (LWS) Protocol 1.0 — all eight modules: core, vocabulary, four authentication suites (OpenID Connect, SAML 2.0, self-signed CID, self-signed did:key), notifications, and search/type index. The Solid standardization JSS implements. Verbatim spec, pinned.
+when_to_use: When checking JSS behavior against any part of the LWS 1.0 spec — core operations/resource ID/conneg, the LWS vocabulary, any of the four authentication suites (incl. the self-signed CID / did:key identity primitives), notifications, or search/type index services. Ground truth only; for how lws-pod applies it see the pointer below.
 upstream: see UPSTREAM.md
 license: W3C Software and Document License
 ---
 
-# LWS Protocol (W3C) — grounded reference
+# LWS Protocol 1.0 (W3C) — grounded reference
 
-Verbatim W3C source, pinned in `UPSTREAM.md`. This skill is ground truth, not project guidance.
+Verbatim W3C source for all eight modules, pinned in `UPSTREAM.md`. Ground truth, not project guidance.
 
 ## When to read which
 
 | Question | Read |
 |---|---|
-| Self-signed agent identity via Controlled Identifiers (the LWS-CID primitive) | `references/lws10-authn-ssi-cid/index.html` |
-| Authentication / authorization flow | `references/lws10-core/Authentication.html`, `Authorization.html` |
-| Operations (CRUD semantics), media type, container representation | `references/lws10-core/operations.md`, `lws-media-type.md`, `container-representation.md` |
-| Resource identification, discovery, JSON-LD context | `references/lws10-core/Resource-Identification.md`, `Discovery.html`, `jsonld-context.md` |
-| Why LWS exists / target use cases | `references/lws-ucs/requirements.md`, `user-stories.md`, `glossary.md` |
+| Core operations, resource identification, conneg, container representation | `references/lws10-core/` |
+| The LWS RDF vocabulary | `references/lws10-vocab/` |
+| Self-signed agent identity (the LWS-CID primitive) | `references/lws10-authn-ssi-cid/` |
+| Self-signed did:key identity | `references/lws10-authn-ssi-did-key/` |
+| OpenID Connect authentication | `references/lws10-authn-openid/` |
+| SAML 2.0 authentication | `references/lws10-authn-saml/` |
+| Change notifications | `references/lws10-notifications/` |
+| Search and Type Index Services | `references/lws10-searchindex/` |
+| Why LWS exists / target use cases | `references/lws-ucs/` |
 
 ## Related skills
 
@@ -703,7 +730,7 @@ decisions, eval results, or research questions live in a skill — those stay in
 
 | Skill | Grounds | Repo surface |
 |---|---|---|
-| `lws-protocol` | W3C LWS (core + self-signed CID authn + use cases) | `--idp` headless auth, `--provision-keys` LWS-CID identity |
+| `lws-protocol` | W3C LWS 1.0 — all 8 modules (core, vocab, 4 authn suites, notifications, search/type index) + use cases | `--idp` headless auth, `--provision-keys` LWS-CID identity, `--notifications` |
 | `solid-protocol` | Solid Protocol (LDP, WAC, Solid-OIDC) | `--conneg`, ACL/WAC, OIDC, `ldp:constrainedBy` |
 | `shacl-constraints` | W3C SHACL | `constrained-container/` admission proxy |
 | `comunica-sparql` | Comunica client-side SPARQL | `.graph`-aggregate traversal |
