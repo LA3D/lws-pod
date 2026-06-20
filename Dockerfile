@@ -22,11 +22,14 @@ EXPOSE 3000
 # Flags exercise exactly what we're evaluating, nothing more:
 #   --idp            built-in Solid-OIDC IdP + headless POST /idp/credentials (agent auth)
 #   --mcp            MCP server at /mcp (the agent consumption surface)
-#   --conneg         Turtle <-> JSON-LD content negotiation
+#   --conneg         Turtle <-> JSON-LD content negotiation (mashlib needs this for Turtle)
+#   --mashlib-cdn    SolidOS Mashlib data browser, loaded from unpkg CDN (browser HTML render).
+#                    CDN mode needs no local files; --mashlib (local) would require an unshipped
+#                    src/mashlib-local/dist/ build, and --solidos-ui needs a local dist too.
 #   --git            git clone/push backend (the versioning angle)
 #   --notifications  WebSocket change notifications
 #   --provision-keys auto-generate a CID v1 owner key per pod (LWS-CID identity)
 # Kitchen-sink surfaces (nostr relay / webrtc / tunnel / activitypub / terminal) stay OFF.
 ENTRYPOINT ["tini", "--"]
 CMD ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data", \
-     "--idp", "--mcp", "--conneg", "--git", "--notifications", "--provision-keys"]
+     "--idp", "--mcp", "--conneg", "--mashlib-cdn", "--git", "--notifications", "--provision-keys"]
