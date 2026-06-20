@@ -1,0 +1,4 @@
+node_modules/
+vocabulary.ttl
+vocabulary.jsonld
+vocabulary.context.jsonld
