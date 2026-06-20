@@ -15,7 +15,7 @@ Verbatim W3C source for all eight modules, pinned in `UPSTREAM.md`. Ground truth
 | Question | Read |
 |---|---|
 | Core operations, resource identification, conneg, container representation | `references/lws10-core/` |
-| The LWS RDF vocabulary | `references/lws10-vocab/` |
+| The LWS RDF vocabulary | `references/lws10-vocab/vocabulary.yml` |
 | Self-signed agent identity (the LWS-CID primitive) | `references/lws10-authn-ssi-cid/` |
 | Self-signed did:key identity | `references/lws10-authn-ssi-did-key/` |
 | OpenID Connect authentication | `references/lws10-authn-openid/` |
