@@ -2,7 +2,7 @@
 
 Pure-spec, progressively-disclosed reference skills for lws-pod. **Grounding contract:** every
 file in a skill is verbatim from a pinned authoritative source (`UPSTREAM.md`). No project
-decisions, eval results, or research questions live in a skill — those stay in `memory/` and
+decisions, eval results, or open research threads live in a skill — those stay in `memory/` and
 `docs/foundations/`. Each `SKILL.md` only *points* to where lws-pod applies the spec.
 
 | Skill | Grounds | Repo surface |
