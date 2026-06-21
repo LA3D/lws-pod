@@ -6,8 +6,7 @@ const { namedNode, literal, quad } = DataFactory
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
 
 export function subjectIri(cardUrl) {
-  const stripped = cardUrl.replace(/\.md(#.*)?$/, '')
-  return stripped.includes('#') ? stripped : stripped + '#it'
+  return cardUrl.includes('#') ? cardUrl : cardUrl + '#it'
 }
 
 function targetIri(href, cardUrl) {
@@ -45,15 +44,12 @@ function frontmatterQuads(data, subject, cardUrl, ns) {
   return out
 }
 
-// Body Semantic-Markdown extraction. Preserves the block-subject/type-hint convention
-// ({=<#it> .skos:Concept}) for backward-compat with extract.test.mjs and
-// graph-channel.test.mjs — subject is derived from the hint, not subjectIri, so
-// cards already in production keep their .md#it IRI form when passed body-only.
-function bodyQuads(content, cardUrl, ns) {
+// Body Semantic-Markdown extraction. Uses the unified subject passed from cardToQuads
+// so frontmatter and body quads always share the same name.md#it node.
+function bodyQuads(content, subject, cardUrl, ns) {
   const out = []
   const subjM = content.match(/\{=<([^>]+)>\s*\.([\w:]+)\}/)
   if (!subjM) return out
-  const subject = namedNode(new URL(subjM[1], cardUrl).href)
   out.push(quad(subject, namedNode(RDF_TYPE), namedNode(ns.resolveCurie(subjM[2]))))
   let m
   const linkRe = /\[[^\]]+\]\(([^)]+)\)\{([\w:]+)\}/g
@@ -66,5 +62,5 @@ function bodyQuads(content, cardUrl, ns) {
 export function cardToQuads(markdown, cardUrl, ns) {
   const { data, content } = matter(markdown)
   const subject = namedNode(subjectIri(cardUrl))
-  return [...frontmatterQuads(data, subject, cardUrl, ns), ...bodyQuads(content, cardUrl, ns)]
+  return [...frontmatterQuads(data, subject, cardUrl, ns), ...bodyQuads(content, subject, cardUrl, ns)]
 }
