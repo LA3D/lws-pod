@@ -13,6 +13,7 @@ decisions, eval results, or open research threads live in a skill — those stay
 | `comunica-sparql` | Comunica client-side SPARQL | `.graph`-aggregate traversal |
 | `okf` | Open Knowledge Format v0.1 | wiki-memory content model |
 | `semantic-markdown` | Semantic Markdown (RDFa-Lite-for-md) | inline RDF in concept cards |
+| `jss-server` | JavaScriptSolidServer published docs site (implementation) | the actual server under eval — getting-started, features, guides, API/CLI/config reference |
 
 Provenance for each is in its `UPSTREAM.md`. Verify the contract with
 `scripts/check-skill-grounding.sh`.
