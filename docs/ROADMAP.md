@@ -74,6 +74,9 @@ typed-edge Link headers), and (c) the per-container **`.graph`** aggregate Comun
 - **P1 auth-plane proven** — Keycloak-in-front-of-JSS spike (`experiments/keycloak-jss/`):
   Keycloak token's `webid` claim gates JSS access via an auth-gateway. The gateway (jose JWKS
   verify) is the start of the Phase-1 sidecar auth front.
+- **P2 admission floor authed** — `constrained-container/` proxy reads `.meta`/shape under the
+  requester's auth (governs protected containers) + `set-acl.mjs` HTTP ACL provisioning for
+  public-read shapes. The Type Index's per-request authz-filter principle is now established.
 
 ---
 
@@ -84,7 +87,7 @@ These are load-bearing and several gate later phases. Tracked also in `FOLLOWUP.
 | # | Item | Why it gates | Status |
 |---|------|--------------|--------|
 | P1 | **lws-keycloak authz integration** | Solves the LWS authorization-server / token-exchange gap JSS lacks; supplies the per-client identity the Type Index's authz-filter requires, and the app's login. | ✅ **spike done (2026-06-21)** — Keycloak token (`webid` claim) → auth-gateway → JSS proven (`experiments/keycloak-jss/`, `make kc-spike`). Approach A confirmed; gateway is the PEP. Sidecar TODOs: jwtVerify audience/expiry binding, owner-bearer refresh, per-WebID WAC (candidate a). |
-| P2 | **Proxy auth on constraint/index reads** (open item 2) | The Type Index MUST authz-filter on *current* access per request; the admission proxy reads `.meta`/shapes unauthenticated today and `.acl` PUT returned 415. Either public-read ACL provisioning or forward the requester's `Authorization`. | open |
+| P2 | **Proxy auth on constraint/index reads** (open item 2) | The Type Index MUST authz-filter on *current* access per request; the admission proxy reads `.meta`/shapes unauthenticated today and `.acl` PUT returned 415. | ✅ **done (2026-06-21)** — (b) proxy reads `.meta`/shape under the requester's `Authorization` (auth-keyed caches) → governs protected containers; (a) `constrained-container/set-acl.mjs` provisions public-read shapes via HTTP `application/ld+json` `.acl` PUT (no MCP; 415 was `text/turtle` — dotfiles are JSON-LD-on-disk; `acl:mode` must be an array). Follow-ups: `acl:default`-on-file, `base` param, `validatorFor` `r.ok` guard. |
 | P3 | **Projection-on-write / git-commit-on-write** (open item 3) | Materializes the `.graph` aggregate (Comunica's cheap path) and the derived index. No native JSS write hook → runs in the sidecar. | open |
 | P4 | **Public-dev rung** (`pod-dev.crc.nd.edu` on a CRC/SAI VM) | Needed to verify LWS-CID self-signed auth (blocked on private IPs) and realistic multi-user/app-install. Adds `docker-compose.dev.yml` + `.env.dev` to the existing base. | not started |
 | P5 | **Write-funnel decision** | If agents write directly to JSS bypassing the proxy, the index/`.graph` miss it. Decide: funnel all writes through the proxy, or reconcile via Solid Notifications. | decision |
