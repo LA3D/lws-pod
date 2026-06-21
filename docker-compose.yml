@@ -1,16 +1,14 @@
-# JSS evaluation spike.  `make up` (or `docker compose up -d`), then curl http://localhost:3838/
+# Base service definition, shared across all environments. Carries nothing
+# env-specific — ports, volumes, and container_name live in the per-env override
+# (docker-compose.local.yml today; .dev.yml / .prod.yml later). The run flags are
+# baked into the image CMD (see Dockerfile).
 services:
-  lws-pod:
+  jss:
     build:
       context: .
       args:
-        JSS_VERSION: "0.0.209"
-    image: lws-pod:eval
-    container_name: lws-pod
-    ports:
-      - "3838:3000"            # host 3838 -> container 3000 (leaves 3000 free for CSS side-by-side)
-    volumes:
-      - pod-data:/data
+        JSS_VERSION: "${JSS_VERSION:-0.0.209}"
+    image: "lws-pod:${JSS_VERSION:-0.0.209}"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
@@ -18,6 +16,3 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-
-volumes:
-  pod-data:

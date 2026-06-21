@@ -1,0 +1,9 @@
+# Local development override: http on a host port, data bind-mounted to ./data
+# so the git-backed pod files (LDP containers + git repos) are inspectable on the host.
+services:
+  jss:
+    container_name: lws-pod-local
+    ports:
+      - "${JSS_HOST_PORT:-3838}:3000"
+    volumes:
+      - ./data:/data
