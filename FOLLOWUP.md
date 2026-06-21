@@ -8,6 +8,54 @@ app), see **`docs/ROADMAP.md`**.
 
 ---
 
+## ▶▶ DONE — P3 projection-on-write (2026-06-21)
+
+Shipped the OKF projection app: channel-driven, HTTP-native sidecar that reprojects a
+wiki-memory container on every card write. Spec: `docs/superpowers/specs/2026-06-21-okf-projection-app-design.md`.
+Plan: `docs/superpowers/plans/2026-06-21-okf-projection-app.md`.
+
+What shipped:
+- **Generic OKF libs** (`projection/okf/`): frontmatter parser + `index.md` channel.
+- **Channel-driven engine** (`projection/engine.mjs`): membership-from-listing, conneg GET,
+  authenticated PUT, reserved-name skip (incl. derived views), profile-parameterized.
+- **Wiki-memory profile** (`projection/profiles/wiki-memory/`): `extractCard` (Semantic-Markdown
+  → RDF quads), `graph.ttl` channel (Turtle aggregate), SHACL floor shape shared into the P2
+  proxy (synchronous per-write validation).
+- **Triggers** (`projection/triggers/`): CLI one-shot + notifications CDC (WebSocket `solid-0.1`
+  subscribe/pub, debounced). Constrained-container tests run via their own vitest config
+  (`constrained-container/vitest.config.js`).
+- **Full suite green:** projection 25/25 (unit + e2e incl. notifications WebSocket), constrained-
+  container floor 2/2 + P2 regression 5/5. Gate: `make test-projection`.
+
+**DESIGN NOTE (discovered during build):** `solid-0.1` WebSocket `sub` to a PROTECTED container
+requires the Bearer token in the WS upgrade headers — the design doc assumed anonymous subscribe
+to a public container. The trigger passes the token in the headers when present; auth-less subscribe
+returns `err … forbidden` from JSS.
+
+**Filesystem prototype retired:** `render/` (`generate.js` — readdirSync cards → writeFileSync
+HTML) removed; superseded by the projection engine.
+
+Deferred to Phase-1 / production hardening (not silently dropped):
+- `<card>.html` and `viz.html` reading-experience channels (spec §8; will be channels when built)
+- Aggregate `graph.ttl` SHACL validation (current floor is per-card at write time)
+- Incremental projection (full re-projection per container on each write now)
+- Link-rel channel discovery + LWS-native container-type URIs
+- `okf_application` root-index profile selector (engine takes profile as a parameter; single-
+  profile now; reading selector from root `index.md` deferred)
+- Proper app/agent identity via LWS-CID/did:key (current credential is the replayable RS256
+  bearer; addressed in P4)
+- WS auto-reconnect/backoff (close handler logs halt + clears the timer; manual restart now)
+- A GA4-style second profile
+- **Proxy cache keying (P4):** `shapeCache`/`shapeDsCache` in `constrained-container/proxy.js`
+  are keyed by the full bearer token and never invalidated — under token churn they grow
+  unbounded, and a container's `.meta`/constraint change is not picked up until proxy restart.
+  Acceptable for the local rung; harden at P4 alongside the app/agent identity item.
+
+Remaining Phase-0: **P4** (public-dev rung on a CRC/SAI VM — also closes the open LWS-CID
+public auth test from open-item 1).
+
+---
+
 ## ▶▶ DONE — local deployment rung (2026-06-21)
 
 Left experiment phase; began building the memory pods. Migrated the eval scaffolding into a
@@ -75,10 +123,10 @@ JSS serves `.meta`+`ldp:constrainedBy` (admission proxy ports).
    files; correct once used on containers); its signature omits the unused `base` param; and
    `proxy.js`'s `validatorFor()` should add an `r.ok` guard (symmetry with `constrainedBy`) so a
    readable-`.meta`-but-protected-shape topology fails open instead of admitting all.
-3. **In-process projection / auto-commit** (axis 7) = **P3, the next build** (deferred to a fresh
-   session by decision, 2026-06-21 — to think through the aspects below). No native JSS write hook
-   (no plugin API, docs-confirmed). Projection-on-write runs as the sidecar, not in-process. Full
-   scoping + open decisions are in **"Next session"** at the bottom of this file.
+3. **In-process projection / auto-commit** (axis 7) = **P3 DONE (2026-06-21)**. Shipped as the
+   `projection/` package: channel-driven engine + wiki-memory profile + CLI and notifications
+   triggers. See `docs/superpowers/specs/2026-06-21-okf-projection-app-design.md` and the P3
+   DONE block at the top of this file for what shipped and what is deferred.
 4. **P1 spike done (2026-06-21):** Keycloak-in-front-of-JSS proven — `experiments/keycloak-jss/`.
    Approach A (token `webid` claim) confirmed; gateway-enforces pattern kept; token-exchange /
    native-JSS-acceptance deferred. See the experiment README's decision note.
@@ -103,46 +151,13 @@ LDP containers + git repos directly on disk). `make up` / `make down` / `make lo
 `lws-pod-tls` (https :8443) via `make up-tls` / `make down-tls` is unchanged. Test cruft on the
 http pod (alice/notes, gitprobe-* repos) is harmless — `make reset` clears it.
 
-## Next session — P3: projection-on-write
+## Phase-0 status
 
-Phase 0 status: **P1 ✅** (Keycloak auth-plane, `experiments/keycloak-jss/`), **P2 ✅** (proxy auth
-+ HTTP ACL provisioning, `constrained-container/`). **P3 is next** and was deliberately deferred to
-a fresh session to think the design through. Remaining Phase-0: P4 (public-dev rung on a CRC VM),
-P5 (write-funnel — folds into P3's trigger decision below).
+**P1 ✅** (Keycloak auth-plane, `experiments/keycloak-jss/`), **P2 ✅** (proxy auth + HTTP ACL
+provisioning, `constrained-container/`), **P3 ✅** (OKF projection app, `projection/`). Remaining
+Phase-0: **P4** (public-dev rung on a CRC/SAI VM).
 
-**What P3 is** (full design: `docs/wiki-memory-dual-projection.md`): on each concept-card write,
-the sidecar (1) **extracts** the card's triples from its Semantic-Markdown body, (2) **aggregates**
-all member cards → the container's **`.graph`** (the single Comunica source), (3) **regenerates
-`index.md`** (OKF navigation). The SHACL floor (already in the P2 proxy) validates.
-
-**What it needs to build:**
-- **Semantic-Markdown → RDF extractor** — the load-bearing piece. Parse frontmatter + the
-  curly-brace RDFa-Lite annotations (`{=<#it> .skos:Concept}`, `[span]{skos:prefLabel}`,
-  `[text](url){predicate}`) → quads. No parser in the repo yet; build a focused one or find a
-  Sparna JS lib. Pure + unit-testable against the **three example cards** in the design doc.
-- **Aggregator** → union members' quads → PUT `.graph` (authenticated; reuses P2 auth).
-- **`index.md` renderer** (frontmatter `description` → OKF list). Small.
-- **Projection trigger** (the decision below).
-
-**Open decisions to think through (the reason this is a fresh session):**
-1. **Trigger: sync-in-proxy vs notifications-driven.** Regenerate synchronously after the
-   constrained-container proxy admits a write (simple, deterministic, only catches writes *through*
-   the proxy), OR subscribe to JSS `--notifications` (CDC; catches *all* writes incl. bypass; but
-   eventual-consistency + more moving parts). **This is P5's write-funnel question — P3 forces it.**
-2. **Scope: which derived views.** The doc lists four (`.graph`, `index.md`, `<card>.html`,
-   `viz.html`). Recommend building **`.graph` + `index.md`** for P3 (unblocks Comunica + the
-   derived index + the floor); defer the HTML/`viz` *reading-experience* renders to Phase-1 app work.
-3. **Floor location:** keep the P2 proxy's per-write-body SHACL validation, or move it to validate
-   over the aggregate **`.graph`** (the doc's intent — needed for cross-card constraints).
-4. **git-commit-on-write:** rely on JSS `--git` auto-checkout (don't build a separate commit step).
-
-**Recommended approach:** **decompose** — first spec/build/test the **Semantic-Markdown→RDF
-extractor** alone (the load-bearing unknown, pure, unit-testable against the doc's example cards),
-THEN projection-on-write on top, settling the trigger decision with the extractor already proven.
-
-Start the new session with `/brainstorming` on the extractor slice (or the combined slice if you
-prefer). Read `docs/wiki-memory-dual-projection.md` + the `semantic-markdown` skill first.
-
-**Alternative threads if you'd rather not do P3 next:** P4 public-dev rung (`pod-dev.crc.nd.edu`
-on a CRC/SAI VM — also unblocks the open-item-1 LWS-CID public auth test); or the P1/P2 follow-ups
-(sidecar jwtVerify audience/expiry + bearer refresh; `validatorFor` `r.ok` guard).
+**Next: P4** — public-dev rung on a CRC/SAI VM (`pod-dev.crc.nd.edu`). Deploys the stack to a
+public host with a domain name and institutional TLS, which also closes the open-item-1 LWS-CID
+public auth test (JSS's `blockPrivateIPs` guard blocks the loopback WebID fetch locally). See
+`docs/ROADMAP.md` for the full forward plan.

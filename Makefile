@@ -2,7 +2,7 @@ ENV  ?= local
 BASE ?= http://localhost:3838
 COMPOSE = docker compose --env-file .env.$(ENV) -f docker-compose.yml -f docker-compose.$(ENV).yml
 
-.PHONY: build up down logs reset test shell cert up-tls down-tls cid-tls
+.PHONY: build up down logs reset test test-projection shell cert up-tls down-tls cid-tls
 
 build:
 	$(COMPOSE) build
@@ -28,6 +28,10 @@ reset:
 # The local verification gate — Vitest e2e against the running pod (Task 2-3).
 test:
 	BASE=$(BASE) npm test
+
+# Projection app gate — pure unit tests + e2e against the running pod (Task 6-8).
+test-projection:
+	cd projection && npm test
 
 shell:
 	$(COMPOSE) exec jss bash

@@ -9,12 +9,13 @@ import http from 'node:http';
 import { Parser } from 'n3';
 import rdf from 'rdf-ext';
 import { Validator } from 'shacl-engine';
+import { extractCard, quadsToTurtle } from '../projection/profiles/wiki-memory/extract.mjs';
 
 const UPSTREAM = process.env.UPSTREAM || 'http://localhost:3838';
 const PORT = Number(process.env.PORT || 3839);
 const CB = 'http://www.w3.org/ns/ldp#constrainedBy';
 
-const dataset = (ttl, base) => rdf.dataset(new Parser({ baseIRI: base }).parse(ttl));
+const mkDataset = (ttl, base) => rdf.dataset(new Parser({ baseIRI: base }).parse(ttl));
 const shapeCache = new Map();   // container path -> shape URL | null
 const shapeDsCache = new Map(); // shape URL -> validator
 
@@ -31,7 +32,7 @@ async function constrainedBy(container, auth) {
     const r = await fetch(`${UPSTREAM}${container}.meta`, {
       headers: { Accept: 'text/turtle', ...(auth ? { Authorization: auth } : {}) },
     });
-    if (r.ok) for (const q of dataset(await r.text(), `${UPSTREAM}${container}`))
+    if (r.ok) for (const q of mkDataset(await r.text(), `${UPSTREAM}${container}`))
       if (q.predicate.value === CB) { shape = q.object.value; break; }
   } catch { /* no .meta / unreadable -> unconstrained */ }
   shapeCache.set(key, shape);
@@ -44,7 +45,7 @@ async function validatorFor(shapeUrl, auth) {
   const r = await fetch(shapeUrl, {
     headers: { Accept: 'text/turtle', ...(auth ? { Authorization: auth } : {}) },
   });
-  const v = new Validator(dataset(await r.text(), shapeUrl), { factory: rdf });
+  const v = new Validator(mkDataset(await r.text(), shapeUrl), { factory: rdf });
   shapeDsCache.set(key, v);
   return v;
 }
@@ -62,7 +63,16 @@ const server = http.createServer(async (req, res) => {
     if (shapeUrl) {
       try {
         const validator = await validatorFor(shapeUrl, auth);
-        const report = await validator.validate({ dataset: dataset(body.toString('utf8'), `${UPSTREAM}${url}`) });
+        const ctype = req.headers['content-type'] || '';
+        const baseIri = `${UPSTREAM}${url}`;
+        let ds;
+        if (ctype.includes('markdown')) {
+          const ttl = await quadsToTurtle(extractCard(body.toString('utf8'), baseIri));
+          ds = mkDataset(ttl, baseIri);
+        } else {
+          ds = mkDataset(body.toString('utf8'), baseIri);
+        }
+        const report = await validator.validate({ dataset: ds });
         if (!report.conforms) {
           const lines = report.results.map(r => {
             const msg = (Array.isArray(r.message) ? r.message[0]?.value : r.message) || 'constraint violation';
