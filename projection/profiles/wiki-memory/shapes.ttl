@@ -1,0 +1,18 @@
+# projection/profiles/wiki-memory/shapes.ttl
+#
+# Tier 2 — wiki-memory per-type shape, referenced via ldp:constrainedBy in a
+# container's .meta. Applied only to containers that opt in; NOT the always-on path.
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wm:   <https://w3id.org/cogitarelink/wm#> .
+
+# A Concept must declare how it is implemented.
+wm:ConceptWiringShape a sh:NodeShape ;
+    sh:targetClass skos:Concept ;
+    sh:property [
+        sh:path     wm:implementedBy ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:severity sh:Violation ;
+        sh:message  "Declare how this concept is implemented: add a wm:implementedBy link. The target need not exist yet."
+    ] .

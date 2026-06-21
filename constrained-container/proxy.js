@@ -6,6 +6,7 @@
 // writes with 422 + the `constrainedBy` Link header (Solid Protocol §5.6). Every other
 // request — and every write to an UNconstrained container — passes through unchanged.
 import http from 'node:http';
+import { readFileSync } from 'node:fs';
 import { Parser } from 'n3';
 import rdf from 'rdf-ext';
 import { Validator } from 'shacl-engine';
@@ -15,9 +16,21 @@ const UPSTREAM = process.env.UPSTREAM || 'http://localhost:3838';
 const PORT = Number(process.env.PORT || 3839);
 const CB = 'http://www.w3.org/ns/ldp#constrainedBy';
 
+const BASE_SHAPE = readFileSync(new URL('../projection/okf/base-shape.ttl', import.meta.url), 'utf8');
+
 const mkDataset = (ttl, base) => rdf.dataset(new Parser({ baseIRI: base }).parse(ttl));
 const shapeCache = new Map();   // container path -> shape URL | null
 const shapeDsCache = new Map(); // shape URL -> validator
+
+function msgOf(r) {
+  return (Array.isArray(r.message) ? r.message[0]?.value : r.message) || 'constraint violation';
+}
+
+async function validateCard(body, baseIri, shapeTtl) {
+  const ttl = await quadsToTurtle(extractCard(body.toString('utf8'), baseIri));
+  const validator = new Validator(mkDataset(shapeTtl, baseIri), { factory: rdf });
+  return validator.validate({ dataset: mkDataset(ttl, baseIri) });
+}
 
 function containerOf(url, method) {
   if (method === 'POST') return url.endsWith('/') ? url : url + '/';
@@ -59,11 +72,24 @@ const server = http.createServer(async (req, res) => {
   const auth = req.headers['authorization'];
 
   if (isWrite) {
+    const ctype = req.headers['content-type'] || '';
+    if (ctype.includes('markdown')) {
+      const baseIri = `${UPSTREAM}${url}`;
+      const report = await validateCard(body, baseIri, BASE_SHAPE);
+      const violations = report.results.filter(r => !r.severity || r.severity.value.endsWith('#Violation'));
+      if (violations.length) {
+        const lines = violations.map(r => `#   - ${msgOf(r)}${r.path?.value ? ` (path: ${r.path.value})` : ''}`).join('\n');
+        res.writeHead(422, { 'Content-Type': 'text/plain' });
+        res.end(`# 422 Unprocessable: card fails the base/profile shape\n${lines}\n`);
+        console.log(`[reject] ${method} ${url} -> 422 (base/profile shape)`);
+        return;
+      }
+    }
+
     const shapeUrl = await constrainedBy(containerOf(url, method), auth);
     if (shapeUrl) {
       try {
         const validator = await validatorFor(shapeUrl, auth);
-        const ctype = req.headers['content-type'] || '';
         const baseIri = `${UPSTREAM}${url}`;
         let ds;
         if (ctype.includes('markdown')) {
@@ -74,10 +100,7 @@ const server = http.createServer(async (req, res) => {
         }
         const report = await validator.validate({ dataset: ds });
         if (!report.conforms) {
-          const lines = report.results.map(r => {
-            const msg = (Array.isArray(r.message) ? r.message[0]?.value : r.message) || 'constraint violation';
-            return `#   - ${msg}${r.path?.value ? ` (path: ${r.path.value})` : ''}`;
-          }).join('\n');
+          const lines = report.results.map(r => `#   - ${msgOf(r)}${r.path?.value ? ` (path: ${r.path.value})` : ''}`).join('\n');
           res.writeHead(422, { 'Content-Type': 'text/plain', 'Link': `<${shapeUrl}>; rel="${CB}"` });
           res.end(`# 422 Unprocessable: this container is constrained by <${shapeUrl}>\n${lines}\n# Fix the cited fields and retry. (Discover the shape via the constrainedBy Link header.)\n`);
           console.log(`[reject] ${method} ${url} -> 422 (shape ${shapeUrl})`);
