@@ -71,6 +71,9 @@ typed-edge Link headers), and (c) the per-container **`.graph`** aggregate Comun
 - **Query path verified** — Comunica over the `.graph` aggregate, live against JSS.
 - **Admission mechanism confirmed** — `constrained-container/` SHACL proxy works; JSS serves
   `.meta` + `ldp:constrainedBy`.
+- **P1 auth-plane proven** — Keycloak-in-front-of-JSS spike (`experiments/keycloak-jss/`):
+  Keycloak token's `webid` claim gates JSS access via an auth-gateway. The gateway (jose JWKS
+  verify) is the start of the Phase-1 sidecar auth front.
 
 ---
 
@@ -80,7 +83,7 @@ These are load-bearing and several gate later phases. Tracked also in `FOLLOWUP.
 
 | # | Item | Why it gates | Status |
 |---|------|--------------|--------|
-| P1 | **lws-keycloak authz integration** | Solves the LWS authorization-server / token-exchange gap JSS lacks; supplies the per-client identity the Type Index's authz-filter requires, and the app's login. Assumed in the design — needs a spike to confirm it drives JSS. | spike needed |
+| P1 | **lws-keycloak authz integration** | Solves the LWS authorization-server / token-exchange gap JSS lacks; supplies the per-client identity the Type Index's authz-filter requires, and the app's login. | ✅ **spike done (2026-06-21)** — Keycloak token (`webid` claim) → auth-gateway → JSS proven (`experiments/keycloak-jss/`, `make kc-spike`). Approach A confirmed; gateway is the PEP. Sidecar TODOs: jwtVerify audience/expiry binding, owner-bearer refresh, per-WebID WAC (candidate a). |
 | P2 | **Proxy auth on constraint/index reads** (open item 2) | The Type Index MUST authz-filter on *current* access per request; the admission proxy reads `.meta`/shapes unauthenticated today and `.acl` PUT returned 415. Either public-read ACL provisioning or forward the requester's `Authorization`. | open |
 | P3 | **Projection-on-write / git-commit-on-write** (open item 3) | Materializes the `.graph` aggregate (Comunica's cheap path) and the derived index. No native JSS write hook → runs in the sidecar. | open |
 | P4 | **Public-dev rung** (`pod-dev.crc.nd.edu` on a CRC/SAI VM) | Needed to verify LWS-CID self-signed auth (blocked on private IPs) and realistic multi-user/app-install. Adds `docker-compose.dev.yml` + `.env.dev` to the existing base. | not started |
