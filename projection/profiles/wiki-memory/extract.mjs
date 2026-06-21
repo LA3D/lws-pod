@@ -1,23 +1,19 @@
 // Semantic-Markdown → RDF extractor for wiki-memory concept cards. Pure.
 // Handles only the subset the cards use: a block subject/type hint, span properties,
 // and typed links. The rest of the SemMD spec is out of scope (YAGNI).
+import { readFileSync } from 'node:fs'
 import matter from 'gray-matter'
 import { DataFactory, Writer } from 'n3'
+import { loadNamespaces } from '../../okf/namespaces.mjs'
+
+const context = JSON.parse(readFileSync(new URL('./context.jsonld', import.meta.url)))
+const ns = loadNamespaces(context)
+export const PREFIXES = ns.prefixes
+const resolveCurie = ns.resolveCurie
 
 const { namedNode, literal, quad } = DataFactory
 
-export const PREFIXES = {
-  skos: 'http://www.w3.org/2004/02/skos/core#',
-  wm:   'https://w3id.org/cogitarelink/wm#',
-  rdf:  'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-}
 const RDF_TYPE = PREFIXES.rdf + 'type'
-
-// CURIE (prefix:local) → absolute IRI via PREFIXES; pass through anything else.
-function resolveCurie(token) {
-  const m = token.match(/^([\w-]+):(.+)$/)
-  return m && PREFIXES[m[1]] ? PREFIXES[m[1]] + m[2] : token
-}
 
 // A typed-link href → the target card's subject IRI: strip .md, resolve, append #it.
 function targetIri(href, cardUrl) {
