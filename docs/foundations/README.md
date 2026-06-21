@@ -16,6 +16,9 @@ than copying it here.
    aggregate, the traqula override, verified live on JSS.
 
 Companion design docs in this repo:
+- [**Spec-vs-JSS conformance map**](05-jss-spec-conformance.md) — the seven eval axes scored
+  CONFORMS / EXTENDS / DIVERGES / GAP against the Solid/LWS spec, with the live tests still
+  needed.
 - [`../wiki-memory-dual-projection.md`](../wiki-memory-dual-projection.md) — the container-vs-
   graph content model and the four derived views.
 - [`../../constrained-container/`](../../constrained-container/) — the standalone SHACL
