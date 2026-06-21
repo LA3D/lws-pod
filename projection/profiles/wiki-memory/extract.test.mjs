@@ -65,6 +65,23 @@ describe('extractCard — no subject hint', () => {
   })
 })
 
+const DANGLING = `---
+type: Concept
+title: Dual-Layer Linking
+---
+{=<#it> .skos:Concept}
+
+# Dual-Layer Linking
+[Dual-Layer Linking]{skos:prefLabel} realized by the
+[markdown projection](markdown-projection.md){wm:implementedBy}.`
+
+describe('extractCard — dangling-target card', () => {
+  const quads = extractCard(DANGLING, C + 'dual-layer-linking.md')
+  it('emits the wm:implementedBy edge even though the target is not-yet-written', () => {
+    expect(has(quads, C + 'dual-layer-linking.md#it', WM + 'implementedBy', C + 'markdown-projection#it')).toBe(true)
+  })
+})
+
 describe('quadsToTurtle', () => {
   it('serializes with prefixes and round-trips the type', async () => {
     const ttl = await quadsToTurtle(extractCard(NO_EDGE, C + 'hierarchical-retrieval.md'))

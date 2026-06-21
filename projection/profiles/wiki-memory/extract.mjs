@@ -21,6 +21,9 @@ function resolveCurie(token) {
 
 // A typed-link href → the target card's subject IRI: strip .md, resolve, append #it.
 function targetIri(href, cardUrl) {
+  // Fragment-only hrefs (#section) are outside the card-link grammar (card links reference
+  // other cards by path, e.g. "hierarchical-retrieval.md"). This branch is a defensive
+  // passthrough only — it is not the card-reference path.
   if (href.startsWith('#')) return new URL(href, cardUrl).href
   const stripped = href.replace(/\.md(#.*)?$/, '')
   const u = new URL(stripped, cardUrl).href
