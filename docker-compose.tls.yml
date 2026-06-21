@@ -14,7 +14,11 @@ services:
       context: .
       args:
         JSS_VERSION: "0.0.209"
-    image: lws-pod:eval
+        # The TLS pod is the LWS-CID proof rig: https WebID (passes the kid-must-use-https gate)
+        # + this patch (relaxes the SSRF private-IP guard) = the only combo that exercises the
+        # self-signed LWS-CID auth round-trip locally. Local-dev only; never in a public build.
+        PATCH_CID_PRIVATE_IPS: "true"
+    image: lws-pod:eval-cidpatch
     container_name: lws-pod-tls
     ports:
       - "8443:8443"

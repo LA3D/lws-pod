@@ -22,36 +22,42 @@ axis-6 open question in [`docs/foundations/05-jss-spec-conformance.md`](../../do
 ## Run
 
 ```bash
-# http pod (Phase 2 will be blocked at the https gate)
+# http pod — Phase 2 unreachable (the verifier requires an https kid); Phase 1 still works
 cd experiments/headless-cid && npm install
 BASE=http://localhost:3838 node run.mjs        # needs: make up
 
-# TLS pod on pod.vardeman.me:8443 (mkcert; reuses cogitarelink-solid's approach)
+# TLS pod on pod.vardeman.me:8443 (mkcert) WITH the local SSRF-relax patch baked in
+# (docker-compose.tls.yml sets PATCH_CID_PRIVATE_IPS=true) — Phase 2 WORKS here.
 make cert && make up-tls && make cid-tls
 ```
 
-## Findings (2026-06-20, JSS v0.0.209)
+## Findings (updated 2026-06-21, JSS v0.0.209)
 
 - **Phase 1 — WORKS (http and https).** Headless GET-merge-PUT lands a `verificationMethod` +
   `authentication` ref in the profile (`PUT … 204`, `If-Match`). **No browser doctor required** —
   the doctor's B.3 flow is fully scriptable with only the owner bearer. Overturns the "doctor
   required" reading of the JSS docs.
-- **Phase 2 — BLOCKED, by design, even over TLS.** Two gates, peeled in order:
-  1. http pod → `"kid must use https"` (the kid scheme check).
-  2. https pod (`pod.vardeman.me:8443`, mkcert, docker network alias) → the verifier now
-     dereferences the WebID but the **SSRF guard** rejects it:
-     `"Hostname pod.vardeman.me resolves to private IP 172.20.0.3"`.
+- **Phase 2 — WORKS locally on the patched TLS pod (2026-06-21).** Two gates, both now cleared:
+  1. **https kid** — satisfied by the TLS pod (`pod.vardeman.me:8443`, mkcert); the WebID/kid is https.
+  2. **SSRF private-IP guard** — relaxed by the opt-in `PATCH_CID_PRIVATE_IPS=true` build arg
+     (Dockerfile `sed`s `blockPrivateIPs: true → false` in `src/auth/cid-doc-fetch.js`), which the
+     TLS compose sets on. The verifier then dereferences the loopback/private WebID and authenticates.
 
-  Root cause in source: `src/auth/cid-doc-fetch.js` hardcodes `blockPrivateIPs: true` (no
-  config/env knob). JSS refuses to fetch a CID document whose WebID resolves to a
-  loopback/private IP. **LWS-CID self-signed auth cannot be exercised on any local/private
-  deployment** — it requires a WebID that resolves to a **public IP** (public DNS + TLS).
+  Full round-trip green: `LWS-CID PUT → 201` authenticated as the WebID, GET-back with the same
+  JWT, and all three negative controls reject (`expired → 401`, `sub≠iss → 401`, `unknown kid → 401`).
+  This exercises the entire auth pipeline (kid lookup, `sub=iss=client_id` equality, signature
+  verification) — everything *except* the SSRF guard itself, which is deliberately relaxed for the
+  local proof.
+
+  Original blocker (for the record): `src/auth/cid-doc-fetch.js` hardcodes `blockPrivateIPs: true`
+  with no config/env knob; over plain TLS (guard intact) the verifier rejected the WebID with
+  `"Hostname pod.vardeman.me resolves to private IP 172.20.0.3"`.
 
 ## Conclusion / next step
 
-Headless self-issued identity is **provisioning-viable today** but its auth round-trip is
-**only verifiable on a public deployment** — the blocker is JSS's SSRF policy, not a missing
-capability. To finish Phase 2: either (a) deploy JSS to a public host + domain and re-run, or
-(b) for a local proof, fork/patch `src/auth/cid-doc-fetch.js` to relax `blockPrivateIPs` in a
-clearly-labeled test build (changes the SUT). Until then, axis-2's bearer-replay concern stays
-open: the practical headless credential remains the replayable RS256 bearer.
+Headless self-issued LWS-CID identity is **both provisioning- and auth-viable**, now proven
+end-to-end on a local pod via the opt-in SSRF-relax patch + TLS. The **only** thing not yet
+exercised is JSS's SSRF guard *with the guard on*, which is purely a network-policy check, not
+an auth-logic gap. That gets a one-time confirmation whenever the pod first lands on a real
+public host (public DNS + TLS, no patch) — a checkbox, not a blocker. Until then, both the
+RS256 owner bearer and the self-signed LWS-CID JWT are validated credentials for headless agents.
