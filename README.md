@@ -12,11 +12,12 @@ curation) is portable IP that rides on top of any Solid server — so this evalu
 ## Run
 
 ```bash
+cp .env.example .env.local   # first time only — the make targets read --env-file .env.local
 make up        # build + start  (http://localhost:3838)
 make logs      # tail
 make test      # Vitest e2e: pod create -> headless token -> write/read -> MCP -> git
-make reset     # wipe volume, rebuild, restart  (down -v: deletes data by design)
-make down      # stop, keep volume (this is the persistence test: down && up)
+make reset     # wipe ./data, rebuild, restart  (deletes the local pod by design)
+make down      # stop, keep ./data (persistence check: down && up preserves the bind-mount)
 
 # TLS variant (for the LWS-CID auth experiment; mkcert, pod.vardeman.me:8443)
 make cert && make up-tls && make cid-tls
