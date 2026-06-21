@@ -6,6 +6,6 @@ export const graphChannel = {
   name: 'graph',
   mediaType: 'text/turtle',
   target: containerUrl => `${containerUrl}graph.ttl`,
-  render: async (containerUrl, cards) =>
+  render: async (containerUrl, cards, _members) =>
     quadsToTurtle(cards.flatMap(c => extractCard(c.body, c.url))),
 }
