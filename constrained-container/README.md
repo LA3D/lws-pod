@@ -46,3 +46,14 @@ UPSTREAM=http://localhost:3838 PORT=3839 node proxy.js
 Verified end-to-end against a live JSS pod: good writes admitted (201), bad writes rejected
 (422 + Link + message), unconstrained containers passed through (201), and the shape
 advertised on container GET.
+
+## Note on JSS (2026-06-21)
+
+JSS serves the `.meta` sidecar and stores `ldp:constrainedBy` — so the discovery mechanism
+works on JSS v0.0.209. **Caveat:** the proxy fetches `.meta` and the shape *unauthenticated*,
+but JSS resources are owner-only by default and its `.acl` PUT rejected `text/turtle` with
+**415** in testing. So on JSS the constraint resources must be made public-readable (settle the
+accepted `.acl` write form), **or** the proxy should forward the requester's `Authorization`
+header on its `.meta`/shape reads (the cleaner fix — also lets it govern protected containers).
+Until then, on a default JSS pod the proxy reads 401 → treats the container as unconstrained →
+writes pass through unvalidated. See `FOLLOWUP.md` open item 2.

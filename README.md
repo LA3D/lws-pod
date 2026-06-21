@@ -14,9 +14,12 @@ curation) is portable IP that rides on top of any Solid server — so this evalu
 ```bash
 make up        # build + start  (http://localhost:3838)
 make logs      # tail
-make smoke     # boot -> create pod -> headless token -> write/read -> MCP -> git
-make reset     # wipe volume, rebuild, restart
-make down
+make smoke     # boot -> pod -> headless token -> write/read -> MCP -> git, + the conformance live tests
+make reset     # wipe volume, rebuild, restart  (down -v: deletes data by design)
+make down      # stop, keep volume (this is the persistence test: down && up)
+
+# TLS variant (for the LWS-CID auth experiment; mkcert, pod.vardeman.me:8443)
+make cert && make up-tls && make cid-tls
 ```
 
 No official JSS image exists; the `Dockerfile` pins `javascript-solid-server@0.0.209`
@@ -24,6 +27,16 @@ from npm and adds `git` (required by the `--git` backend). Pinned deliberately �
 single-maintainer v0.0.x; we bump when we choose to.
 
 Port `3838` (host) → `3000` (container), leaving `3000` free for a side-by-side CSS pod.
+
+## Repo layout
+
+- `.claude/skills/` — seven grounded, source-pinned reference skills (LWS, Solid, SHACL,
+  Comunica, OKF, Semantic Markdown specs + JSS implementation docs). See `.claude/skills/README.md`.
+- `docs/foundations/` — distilled canon + the **spec-vs-JSS conformance map** (`05-…`).
+- `constrained-container/` — the standalone SHACL admission proxy (the L2 governance floor).
+- `experiments/headless-cid/` — headless LWS-CID provisioning + auth round-trip probe.
+- `smoke.sh` — diagnostic probes (steps 1-6 core surfaces, 7-11 the conformance live tests).
+- **`FOLLOWUP.md`** — between-session state + open items. **Read this first when resuming.**
 
 ## What's enabled (and why)
 
