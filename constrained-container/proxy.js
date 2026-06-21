@@ -76,14 +76,19 @@ const server = http.createServer(async (req, res) => {
     if (ctype.includes('markdown')) {
       const baseIri = `${UPSTREAM}${url}`;
       const report = await validateCard(body, baseIri, BASE_SHAPE);
-      // SHACL default severity is sh:Violation; treat an unspecified severity as Violation.
-      const violations = report.results.filter(r => (r.severity?.value || 'http://www.w3.org/ns/shacl#Violation').endsWith('#Violation'));
+      const sev = r => (r.severity?.value || 'http://www.w3.org/ns/shacl#Violation').split('#')[1];
+      const violations = report.results.filter(r => sev(r) === 'Violation');
+      const advisories = report.results.filter(r => sev(r) !== 'Violation');
       if (violations.length) {
         const lines = violations.map(r => `#   - ${msgOf(r)}${r.path?.value ? ` (path: ${r.path.value})` : ''}`).join('\n');
         res.writeHead(422, { 'Content-Type': 'text/plain' });
-        res.end(`# 422 Unprocessable: card fails the base/profile shape\n${lines}\n`);
-        console.log(`[reject] ${method} ${url} -> 422 (base/profile shape)`);
+        res.end(`# 422 Unprocessable: card fails the profile shape\n${lines}\n`);
+        console.log(`[reject] ${method} ${url} -> 422`);
         return;
+      }
+      if (advisories.length) {
+        req.__advisories = advisories.map(r => `${sev(r)}: ${msgOf(r)}`);
+        console.log(`[admit]  ${method} ${url} (with ${advisories.length} advisory finding(s))`);
       }
     }
 
@@ -122,6 +127,7 @@ const server = http.createServer(async (req, res) => {
     const sh = await constrainedBy(url, auth);
     if (sh) out['link'] = (out['link'] ? out['link'] + ', ' : '') + `<${sh}>; rel="${CB}"`;
   }
+  if (req.__advisories?.length) out['warning'] = req.__advisories.map(a => `199 - "${a.replace(/"/g, "'")}"`).join(', ');
   const buf = Buffer.from(await up.arrayBuffer());
   res.writeHead(up.status, out);
   res.end(buf);
