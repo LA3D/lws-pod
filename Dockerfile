@@ -13,6 +13,20 @@ RUN apt-get update \
 ARG JSS_VERSION=0.0.209
 RUN npm install -g "javascript-solid-server@${JSS_VERSION}"
 
+# LOCAL-DEV-ONLY override (default OFF). The LWS-CID verifier hardcodes blockPrivateIPs:true in
+# its WebID-document fetcher (src/auth/cid-doc-fetch.js), so it refuses to dereference a WebID that
+# resolves to a loopback/private IP — which makes the self-signed LWS-CID auth round-trip impossible
+# to exercise on any local/private pod. Set PATCH_CID_PRIVATE_IPS=true to relax ONLY that one fetch
+# for a local proof. PRODUCTION/PUBLIC builds MUST leave this false — blockPrivateIPs is JSS's SSRF
+# control, and the eventual public deployment proves the auth path with the guard intact.
+ARG PATCH_CID_PRIVATE_IPS=false
+RUN if [ "$PATCH_CID_PRIVATE_IPS" = "true" ]; then \
+      F=/usr/local/lib/node_modules/javascript-solid-server/src/auth/cid-doc-fetch.js ; \
+      sed -i 's/blockPrivateIPs: true/blockPrivateIPs: false/' "$F" ; \
+      echo "[lws-pod] LOCAL-DEV patch applied to cid-doc-fetch.js (SSRF private-IP guard relaxed):" ; \
+      grep -n 'blockPrivateIPs' "$F" ; \
+    fi
+
 ENV DATA_ROOT=/data
 RUN mkdir -p /data
 VOLUME ["/data"]

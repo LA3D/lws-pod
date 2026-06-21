@@ -8,6 +8,8 @@ services:
       context: .
       args:
         JSS_VERSION: "${JSS_VERSION:-0.0.209}"
+        # local-dev SSRF relax for the LWS-CID proof; default OFF (see Dockerfile). Set in .env.local.
+        PATCH_CID_PRIVATE_IPS: "${PATCH_CID_PRIVATE_IPS:-false}"
     image: "lws-pod:${JSS_VERSION:-0.0.209}"
     restart: unless-stopped
     healthcheck:

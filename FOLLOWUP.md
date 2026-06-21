@@ -8,6 +8,27 @@ app), see **`docs/ROADMAP.md`**.
 
 ---
 
+## ▶▶ DONE — LWS-CID auth proven locally (P4a, 2026-06-21)
+
+Closes the local half of open-item 1. The self-signed LWS-CID JWT auth round-trip now passes
+end-to-end against a local pod — no public host needed to prove the auth *logic*.
+
+- **Mechanism:** opt-in `PATCH_CID_PRIVATE_IPS` build arg (`Dockerfile`, default OFF). When true,
+  the image `sed`-relaxes JSS's hardcoded `blockPrivateIPs:true` in `src/auth/cid-doc-fetch.js`.
+  Wired ON for the TLS proof pod (`docker-compose.tls.yml`); opt-in for local via `.env.local`
+  (`.env.example` default false to keep the committed image pristine).
+- **Proof:** `experiments/headless-cid` against the patched TLS pod (`make up-tls && make cid-tls`,
+  JSS 0.0.209): Phase 2 WORKS — `LWS-CID PUT → 201` as the WebID, GET-back, all negative controls
+  reject (expired / `sub≠iss` / unknown `kid`). README findings updated.
+- **Why TLS too:** two gates — the verifier requires an https `kid` (the TLS pod supplies it) AND
+  the SSRF private-IP guard (the patch relaxes it). The http local pod can't reach the CID path.
+- **Still open (not a blocker):** the SSRF guard *with the guard on* is unexercised — a one-time
+  confirmation on a real public host (public DNS + TLS, no patch). Auth logic is proven; this is a
+  network-policy checkbox. So both the RS256 owner bearer and the self-signed LWS-CID JWT are now
+  validated headless credentials.
+
+---
+
 ## ▶▶ DONE — P3 projection-on-write (2026-06-21)
 
 Shipped the OKF projection app: channel-driven, HTTP-native sidecar that reprojects a
@@ -42,8 +63,9 @@ Deferred to Phase-1 / production hardening (not silently dropped):
 - Link-rel channel discovery + LWS-native container-type URIs
 - `okf_application` root-index profile selector (engine takes profile as a parameter; single-
   profile now; reading selector from root `index.md` deferred)
-- Proper app/agent identity via LWS-CID/did:key (current credential is the replayable RS256
-  bearer; addressed in P4)
+- Proper app/agent identity via LWS-CID/did:key — auth round-trip now **proven locally** (P4a
+  above); the replayable RS256 bearer remains the default credential, and the guard-on confirmation
+  is reserved for the public host (P4)
 - WS auto-reconnect/backoff (close handler logs halt + clears the timer; manual restart now)
 - A GA4-style second profile
 - **Proxy cache keying (P4):** `shapeCache`/`shapeDsCache` in `constrained-container/proxy.js`
@@ -51,8 +73,9 @@ Deferred to Phase-1 / production hardening (not silently dropped):
   unbounded, and a container's `.meta`/constraint change is not picked up until proxy restart.
   Acceptable for the local rung; harden at P4 alongside the app/agent identity item.
 
-Remaining Phase-0: **P4** (public-dev rung on a CRC/SAI VM — also closes the open LWS-CID
-public auth test from open-item 1).
+Remaining Phase-0: **P4** (public-dev rung on a CRC/SAI VM) — now deferred to LAST and **no longer
+gates "working"** (LWS-CID auth proven locally, P4a above). Gated on the local definition-of-done
+in `docs/ROADMAP.md`; on the VM, P4 only needs the one-time SSRF-guard-on confirmation.
 
 ---
 
@@ -105,12 +128,14 @@ JSS serves `.meta`+`ldp:constrainedBy` (admission proxy ports).
 
 ## ▶ OPEN — when building the L2 layer (none block the substrate decision)
 
-1. **LWS-CID auth on a PUBLIC deployment** (axis 6, DEFERRED by decision). Self-signed-JWT auth
-   is blocked locally: JSS hardcodes `blockPrivateIPs: true` in `src/auth/cid-doc-fetch.js`, so
-   the verifier refuses a WebID on a loopback/private IP. To close axis-2's **bearer-replay**
-   concern: deploy JSS to a public host + domain and re-run `experiments/headless-cid/` (Phase 1
-   provisioning already works; only Phase 2 auth is unproven). Until then the practical headless
-   credential is the **replayable RS256 bearer** — weigh that for any agent-trust design.
+1. **LWS-CID auth — guard-on confirmation on a PUBLIC deployment** (axis 6). *Auth logic now
+   proven locally* (see "DONE — LWS-CID auth proven locally (P4a)" above): the self-signed-JWT
+   round-trip passes on the patched TLS pod (`PATCH_CID_PRIVATE_IPS=true` relaxes JSS's hardcoded
+   `blockPrivateIPs` in `src/auth/cid-doc-fetch.js`). Phase 1 *and* Phase 2 of
+   `experiments/headless-cid/` are green. **What remains:** re-run on a real public host with the
+   guard ON (no patch) to confirm the SSRF path itself — a network-policy checkbox, not an auth
+   gap. Re axis-2's **bearer-replay** concern: the RS256 bearer is still the default headless
+   credential, but the self-signed LWS-CID JWT is now a validated alternative for agent-trust design.
 2. **L2 admission floor harness** (axis 7). The `constrained-container/` proxy reads `.meta`+shape
    **unauthenticated**; on JSS those are owner-only and `.acl` PUT returned **415** in testing.
    Settle either (a) public-read ACL provisioning (find JSS's accepted `.acl` write form), or
@@ -154,10 +179,12 @@ http pod (alice/notes, gitprobe-* repos) is harmless — `make reset` clears it.
 ## Phase-0 status
 
 **P1 ✅** (Keycloak auth-plane, `experiments/keycloak-jss/`), **P2 ✅** (proxy auth + HTTP ACL
-provisioning, `constrained-container/`), **P3 ✅** (OKF projection app, `projection/`). Remaining
-Phase-0: **P4** (public-dev rung on a CRC/SAI VM).
+provisioning, `constrained-container/`), **P3 ✅** (OKF projection app, `projection/`), **P5 ✅**
+(write-funnel = notifications CDC, resolved in P3), **P4a ✅** (LWS-CID auth proven locally). **P4
+(CRC VM) is deferred to LAST and no longer gates "working."**
 
-**Next: P4** — public-dev rung on a CRC/SAI VM (`pod-dev.crc.nd.edu`). Deploys the stack to a
-public host with a domain name and institutional TLS, which also closes the open-item-1 LWS-CID
-public auth test (JSS's `blockPrivateIPs` guard blocks the loopback WebID fetch locally). See
-`docs/ROADMAP.md` for the full forward plan.
+**Next: build the L2 layer + wiki-memory app to the local definition-of-done** (in `docs/ROADMAP.md`)
+entirely on the local rung — both the RS256 bearer and the now-proven self-signed LWS-CID JWT are
+available, and notifications-driven projection is live. Only once that checklist is green does **P4**
+(public-dev rung on a CRC/SAI VM) come up — and then it's the permanent home plus the one-time
+SSRF-guard-on confirmation, not a build dependency. See `docs/ROADMAP.md` for the full forward plan.
