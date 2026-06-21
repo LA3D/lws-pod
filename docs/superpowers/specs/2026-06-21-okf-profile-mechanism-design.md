@@ -229,10 +229,12 @@ control a config flag, not a separate build.
 
 ## 10. Scope
 
-**W1 delivers, primary:** the generic OKF application — the profile-agnostic engine (loader, base
-mode, profile selection via root `index.md`), the three-tier admission floor, and the two-Tier-feed
-projection (Link headers + `.graph` + `index.md` + materialization) on the existing engine, with the
-backward-compat invariant enforced and tested.
+**W1 delivers, primary:** the generic OKF application — the profile-agnostic engine, the
+three-tier admission floor, and the two-Tier-feed projection (Link headers + `.graph` + `index.md`
++ materialization) on the existing engine, with the backward-compat invariant enforced and tested.
+The profile-selection mechanism (`selectProfile` reading `okf_profile`, plus `baseProfile` / base
+OKF mode) is delivered and unit/e2e-tested **as a function**; **runtime wiring of `selectProfile`
+into the CLI/notifications triggers is deferred** (see below).
 
 **W1 delivers, as the first formalization:** the wiki-memory profile artifacts (`context.jsonld`,
 `types.ttl`, `edges.ttl`, `shapes.ttl`, channels) ported from the vault KG — proving the generic
@@ -243,7 +245,22 @@ application specializes correctly. The vault profile is a candidate second forma
 Comunica-over-`.graph` Tier-1 stopgap); `application/lws+json` / storage-description / linkset
 enrichment (Phase 2); per-resource authz on aggregates (§7.2); the W2 eval task/metric design; a
 second non-memory profile (blog/catalog) as a generality proof; CID `assertionMethod`-signed memory
-writes beyond the existing LWS-CID auth.
+writes beyond the existing LWS-CID auth. Two items surfaced by the W1 final review, deferred with
+rationale:
+
+- **`selectProfile` runtime wiring.** The CLI/notifications triggers currently hardcode
+  `wikiMemoryProfile`; `selectProfile` is built and tested but not yet called at runtime, so base
+  OKF mode is reachable only by passing `baseProfile` to `project()` directly. Wiring is deferred
+  because *where `okf_profile` is authored* is unresolved: the per-container `index.md` the engine
+  *derives* carries no frontmatter (OKF §11 permits frontmatter only in a bundle-root `index.md`),
+  so selection needs an authored bundle-root `index.md` distinct from the derived navigation view.
+  This couples to the W2 eval harness (which flips base ↔ wiki-memory as the control), so the
+  wiring lands with W2's control plumbing.
+- **Link-header target IRI normalization.** Tier-1 `Link` edge targets emit the raw frontmatter
+  value (`<impl.md>`) while the Tier-2 `.graph` uses the normalized `…/impl#it`. No W1-observable
+  effect (Link headers are emitted, not consumed until the Phase-2 LWS Type Index), but a Tier-1
+  filter would not join Tier-2 until the two forms agree. Fix when the Type Index consumes the
+  headers: run Link targets through the same `targetIri` normalization the graph uses.
 
 ---
 
