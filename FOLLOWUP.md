@@ -3,6 +3,9 @@
 Between-session state for lws-pod. Open items only; closed work lives in commit history and
 `docs/foundations/05-jss-spec-conformance.md`. **Read this first when resuming.**
 
+For the forward plan and order of operations (the build sequence: sidecar + wiki-memory Solid
+app), see **`docs/ROADMAP.md`**.
+
 ---
 
 ## ▶▶ DONE — local deployment rung (2026-06-21)
