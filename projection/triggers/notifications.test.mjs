@@ -30,6 +30,6 @@ describe('notifications trigger (e2e)', () => {
     expect(projected).toBeGreaterThan(0)
 
     const graph = await (await fetch(C + 'graph.ttl', { headers: { ...auth(token), Accept: 'text/turtle' } })).text()
-    expect(graph).toContain('n.md#it')
+    expect(graph).toContain('n#it')
   })
 })

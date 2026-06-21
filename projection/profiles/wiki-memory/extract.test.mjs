@@ -30,7 +30,7 @@ const has = (quads, s, p, o) =>
 
 describe('extractCard — resolving card', () => {
   const url = C + 'progressive-disclosure.md'
-  const subj = C + 'progressive-disclosure.md#it'
+  const subj = C + 'progressive-disclosure#it'
   const quads = extractCard(RESOLVING, url)
 
   it('sets subject + type from the block hint', () => {
@@ -78,7 +78,7 @@ title: Dual-Layer Linking
 describe('extractCard — dangling-target card', () => {
   const quads = extractCard(DANGLING, C + 'dual-layer-linking.md')
   it('emits the wm:implementedBy edge even though the target is not-yet-written', () => {
-    expect(has(quads, C + 'dual-layer-linking.md#it', WM + 'implementedBy', C + 'markdown-projection#it')).toBe(true)
+    expect(has(quads, C + 'dual-layer-linking#it', WM + 'implementedBy', C + 'markdown-projection#it')).toBe(true)
   })
 })
 

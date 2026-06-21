@@ -16,8 +16,8 @@ describe('graphChannel', () => {
   })
   it('unions every card\'s quads into one turtle document', async () => {
     const ttl = await graphChannel.render(C, cards, [])
-    expect(ttl).toContain('a.md#it')
-    expect(ttl).toContain('b.md#it')
+    expect(ttl).toContain('a#it')
+    expect(ttl).toContain('b#it')
     expect(ttl).toMatch(/wm:implementedBy/)
     expect((ttl.match(/skos:prefLabel/g) || []).length).toBe(2)
   })

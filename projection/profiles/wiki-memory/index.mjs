@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { indexChannel } from '../../okf/index-channel.mjs'
 import { graphChannel } from './graph-channel.mjs'
 import { wmConceptWiringShape } from './shape.mjs'
+
+const context = JSON.parse(readFileSync(new URL('./context.jsonld', import.meta.url)))
 
 // The first concrete OKF application profile. The engine reads this; it never names skos/wm.
 export const wikiMemoryProfile = {
@@ -8,4 +11,5 @@ export const wikiMemoryProfile = {
   types: ['Concept'],
   channels: [indexChannel, graphChannel],
   floorShape: wmConceptWiringShape,
+  context,
 }
