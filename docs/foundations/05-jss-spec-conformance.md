@@ -13,13 +13,13 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 
 | # | Axis | Verdict |
 |---|---|---|
-| 1 | Container boot / reset-with-volume | GAP (restart test pending) |
+| 1 | Container boot / reset-with-volume | CONFORMS — survives `down`/`up` *(verified live)* |
 | 2 | Headless agent auth (`/idp/credentials`) | DIVERGES — RS256 JWT bearer, no DPoP *(verified live)* |
 | 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) |
 | 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
 | 6 | LWS-CID identity | CONFORMS; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
-| 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS (proxy) · GAP (in-process hooks) |
+| 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS — `.meta`/`constrainedBy` work, proxy ports *(verified live)* · GAP (in-process hooks) |
 
 ---
 
@@ -226,16 +226,19 @@ Run `make smoke` (`smoke.sh` steps 7-11) and `experiments/headless-cid/` against
 - **LWS-CID auth requires a public-IP WebID** (axis 6) — verified over TLS: JSS hardcodes
   `blockPrivateIPs: true` in `src/auth/cid-doc-fetch.js`, so the self-signed-JWT round-trip can't
   run on any local/private deployment. Not a config issue — a deployment requirement.
+- **Restart persistence** (axis 1) — the marker survives `make down && make up` (volume kept);
+  `make reset` wipes by design.
+- **Git push → queryable** (axis 5) — a pushed `.ttl` is a first-class `ldp:BasicContainer`
+  member (`ldp:contains <…/member.ttl>`, retrievable RDF) → reachable by Comunica link-traversal.
+- **L2 admission substrate** (axis 7) — JSS serves `.meta` and stores `ldp:constrainedBy`, so the
+  `constrained-container/` SHACL-admission proxy mechanism ports.
 
-**Still open (assume nothing — test against a running pod):**
-1. **Restart persistence** (axis 1) — does `make down && make up` (volume kept) re-read
-   `--root ./data` intact? `make reset` wipes by design. The marker survives within a running
-   instance; the `down`/`up` restart test is unrun.
-2. **Pushed files in `.graph`** (axis 5) — since git-pushed files skip conneg, do they still join
-   `.graph` aggregation for the Comunica query path, or only PUT-written resources?
-3. **LWS-CID auth on a PUBLIC deployment** (axis 6) — verified over TLS that the round-trip is
-   blocked locally by JSS's hardcoded SSRF guard (private-IP WebIDs refused). To actually prove
-   it (and close axis-2's bearer-replay concern), deploy JSS to a public host + domain and re-run
-   `experiments/headless-cid/`, or fork/patch `cid-doc-fetch.js` for a labeled local test build.
-4. **In-process L2 hooks** (axis 7) — confirmed by docs (no plugin API); the proxy stays the only
-   landing point unless JSS adds a `storage.write()` hook.
+**Still open / build-time:**
+1. **LWS-CID auth on a PUBLIC deployment** (axis 6) — blocked locally by the hardcoded SSRF
+   guard. Deferred (not required for the substrate decision). To close axis-2's bearer-replay
+   concern: deploy JSS to a public host + domain and re-run `experiments/headless-cid/`.
+2. **ACL provisioning + proxy auth** (axis 7) — JSS rejected `.acl` PUT (415) in testing, and the
+   proxy reads `.meta`/shapes unauthenticated; settle public-read provisioning or have the proxy
+   forward the requester's auth on constraint reads. Build detail, not a blocker.
+3. **In-process L2 hooks** (axis 7) — no plugin API (docs-confirmed); the proxy stays the landing
+   point for projection + auto-commit unless JSS adds a `storage.write()` hook.

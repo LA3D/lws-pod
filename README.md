@@ -41,15 +41,24 @@ keep the evaluation focused on the substrate.
 
 ## Evaluation checklist (what "good" looks like)
 
-- [ ] Boots clean in a container; survives `make reset` with a persistent volume.
-- [ ] **Headless agent auth**: `POST /idp/credentials` returns a usable Bearer/DPoP token. ← the main draw
-- [ ] **Agent surface**: `/mcp` lists tools; CRUD + ACL tools work under WAC.
-- [ ] **Conneg**: a resource round-trips as both `application/ld+json` and `text/turtle`
-      (and the container `ldp:contains` is Comunica-traversable).
-- [ ] **Git**: a container is `git clone`-able; a push materializes files as resources.
-- [ ] **LWS-CID identity**: the pod profile is CID-shaped with `verificationMethod`.
-- [ ] Sketch where the **L2 port** lands: SHACL-admission as a write hook, projection on
-      the write path, git-auto-commit-on-write as versioning (QuitStore-style).
+**Verdict (2026-06-21): JSS is a good replacement for CSS — proceed to build the L2 memory layer
+on it.** Evidence per axis below; full analysis in [`docs/foundations/05-jss-spec-conformance.md`](docs/foundations/05-jss-spec-conformance.md),
+live probes in `smoke.sh` and `experiments/headless-cid/`.
+
+- [x] Boots clean in a container; survives a restart with the volume (`make down && make up`;
+      `make reset` wipes by design).
+- [x] **Headless agent auth**: `POST /idp/credentials` returns a usable bearer (RS256 JWT; *not*
+      DPoP-bound — replayable). The main draw works; the bearer-replay caveat is real.
+- [x] **Agent surface**: `/mcp` lists tools; CRUD + ACL are WAC-gated (agent identity = WAC subject).
+- [x] **Conneg**: resources round-trip `application/ld+json` ↔ `text/turtle`; containers expose
+      `ldp:contains` with conneg-able RDF members (Comunica-traversable, per `docs/foundations/04`).
+- [x] **Git**: a push materializes a first-class `ldp:contains` container member (queryable).
+- [x] **LWS-CID identity**: profile is CID-shaped; key provisioning works **headless** (no browser
+      doctor). Self-signed-JWT *auth* requires a public-IP WebID (JSS SSRF guard) — unverified locally.
+- [x] **L2 port lands**: JSS serves `.meta` + stores `ldp:constrainedBy`, so the
+      `constrained-container/` SHACL-admission proxy ports; git push gives QuitStore-style
+      versioning into the queryable graph. (Open build details: ACL provisioning, proxy auth on
+      constraint reads, in-process projection has no native JSS write hook.)
 
 ## Context
 
