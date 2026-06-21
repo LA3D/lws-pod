@@ -66,6 +66,8 @@ Dockerfile                    unchanged (JSS 0.0.209, git+tini, flags in CMD)
 | `.env.example` | committed template documenting the knobs: `JSS_VERSION`, `JSS_HOST_PORT` | new |
 | `.env.local` | real local values; gitignored | new |
 | `Makefile` | local targets pinned to the local stack | refactor |
+| `tests/` + `package.json` + `vitest.config.mjs` | **Vitest integration suite** — black-box HTTP/e2e checks against a running local pod, ported from `smoke.sh` | new |
+| `smoke.sh` | bash eval probe; superseded by the test suite | **archive** to `experiments/` (eval evidence, no longer the verification path) |
 
 ### Deliberate local choices
 
@@ -89,14 +91,28 @@ never typed by hand:
 | `make down` | stop the stack |
 | `make logs` | follow logs |
 | `make reset` | down + wipe `./data` + rebuild + up (fresh pod) |
-| `make smoke` | run `smoke.sh` against the local `BASE` — the "check the local development" step |
+| `make test` | run the Vitest suite against the local `BASE` — the "check the local development" step |
 | `make shell` | shell into the running container |
 
-### Verification ("check the local development")
+### Verification ("check the local development") — Vitest integration suite
 
-`make smoke` runs the existing `smoke.sh` against `http://localhost:<JSS_HOST_PORT>`. This is the
-acceptance check for the local rung: boot → create pod → headless token → write/read → MCP →
-git clone, all green.
+The eval-era `smoke.sh` proved the substrate works; that job is done and its evidence is captured
+in `docs/foundations/05-jss-spec-conformance.md`. It is **archived** (moved to `experiments/`),
+not deleted, and replaced by a formal **Vitest** integration suite as the ongoing verification gate.
+
+- **Shape:** black-box e2e tests against a *running* local pod. The suite reads `BASE`
+  (`http://localhost:<JSS_HOST_PORT>`) and asserts over real HTTP — no JSS internals, no
+  testcontainers. `make test` assumes `make up` has run (and can depend on it).
+- **Tooling:** Vitest + `fetch` (Node 22). A top-level `package.json` (the project's first) holds
+  the dev-dependency and the `test` script; `vitest.config.mjs` sets a generous per-test timeout
+  (pod boot / git ops are slow) and points at `tests/`. ESM `.mjs`, consistent with
+  `experiments/headless-cid/`.
+- **Coverage (ported from `smoke.sh`):** pod lifecycle (create pod → headless RS256 bearer →
+  authenticated write/read), MCP = WAC (CRUD + ACL via `/mcp`), Solid conneg (Turtle ↔ JSON-LD),
+  git push → `ldp:contains` membership, CID-shaped profile, and the surviving conformance live
+  checks (the `smoke.sh` steps 7–11 that are still meaningful as regression guards).
+- **Out of scope for the suite:** the LWS-CID self-signed auth round-trip (blocked locally by
+  `blockPrivateIPs`; it is a public-rung test). The headless RS256 bearer path *is* covered.
 
 ### Seam for the L2 sidecar (no work now)
 
@@ -112,13 +128,14 @@ LWS-CID verification. They are not folded into the base+override structure and n
 
 ## Acceptance criteria
 
-1. `make up` boots JSS from the base+local stack; `make smoke` passes against the local pod.
+1. `make up` boots JSS from the base+local stack; `make test` (Vitest) passes against the local pod.
 2. `./data` on the host shows the JSS pod files (LDP containers + git repos) after a write.
 3. `make reset` yields a clean pod.
 4. `.env.local` is gitignored; `.env.example` is committed and documents every knob.
 5. The base compose contains no env-specific values (a reviewer can see that `.dev.yml` /
    `.prod.yml` would only add, never edit, the base).
 6. The TLS/LWS-CID eval artifacts still work unchanged.
+7. `smoke.sh` is archived (moved under `experiments/`), not referenced by any `make` target.
 
 ## Open items (carried, not addressed here)
 
