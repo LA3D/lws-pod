@@ -27,7 +27,8 @@
 - `projection/profiles/wiki-memory/context.jsonld` — the single namespace-indirection point; friendly key → IRI.
 - `projection/profiles/wiki-memory/types.ttl` — punned SKOS+RDFS type scheme (`Concept`, `Implementation`).
 - `projection/profiles/wiki-memory/edges.ttl` — typed-edge vocab with `owl:inverseOf`.
-- `projection/profiles/wiki-memory/shapes.ttl` — combined SHACL: base `NoteShape` + per-type `ConceptWiringShape` (graded).
+- `projection/okf/base-shape.ttl` — engine-level universal base shape: `NoteShape` (title Violation + description Info). Profile-agnostic; applied to every markdown card write.
+- `projection/profiles/wiki-memory/shapes.ttl` — the wiki-memory profile's per-type SHACL: `ConceptWiringShape` (graded), referenced by a container's `.meta` `ldp:constrainedBy`.
 - `projection/okf/namespaces.mjs` — loads prefixes from a `context.jsonld`; exposes `resolveCurie`.
 - `projection/okf/card.mjs` — `cardToQuads(markdown, cardUrl, ns)`: frontmatter projection + body Semantic-Markdown, merged.
 - `projection/okf/links.mjs` — `typeLinkHeaders(frontmatter, profile, ns)`: derives Tier-1 `Link` header value.
@@ -452,27 +453,43 @@ EOF
 - Consumes: `cardToQuads` (Task 2) — already used by the proxy via `extractCard`.
 - Produces: a base `wm:NoteShape` always evaluated on card (markdown) writes regardless of `ldp:constrainedBy`.
 
-- [ ] **Step 1: Create `shapes.ttl` (base + per-type, graded)**
+- [ ] **Step 1a: Create the engine-level base shape (universal, profile-agnostic)**
 
 ```turtle
-# projection/profiles/wiki-memory/shapes.ttl
+# projection/okf/base-shape.ttl
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix wm:   <https://w3id.org/cogitarelink/wm#> .
+@prefix okf:  <https://w3id.org/cogitarelink/okf#> .
 
-# Tier 1 — base gate: every typed subject needs a title. Violation → 422.
-wm:NoteShape a sh:NodeShape ;
+# Tier 1 — universal base gate, applied to every markdown card write regardless
+# of profile. Uses only core dcterms; carries no profile-specific assumptions.
+okf:NoteShape a sh:NodeShape ;
     sh:targetSubjectsOf rdf:type ;
     sh:property [
         sh:path dcterms:title ;
         sh:minCount 1 ;
         sh:severity sh:Violation ;
         sh:message "Every card must declare a title (frontmatter `title:`)."
+    ] ;
+    sh:property [
+        sh:path dcterms:description ;
+        sh:minCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "Consider adding a description (frontmatter `description:`) for index.md disclosure."
     ] .
+```
 
-# Tier 2 — per-type: a Concept must declare how it is implemented. Violation → 422.
+- [ ] **Step 1b: Create the wiki-memory per-type shape (referenced by `.meta`)**
+
+```turtle
+# projection/profiles/wiki-memory/shapes.ttl
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wm:   <https://w3id.org/cogitarelink/wm#> .
+
+# Tier 2 — wiki-memory per-type: a Concept must declare how it is implemented.
+# Applied only to containers whose .meta ldp:constrainedBy points here.
 wm:ConceptWiringShape a sh:NodeShape ;
     sh:targetClass skos:Concept ;
     sh:property [
@@ -536,7 +553,7 @@ In `constrained-container/proxy.js`, load the base shape once at startup and app
 
 ```javascript
 import { readFileSync } from 'node:fs'
-const BASE_SHAPE = readFileSync(new URL('../projection/profiles/wiki-memory/shapes.ttl', import.meta.url), 'utf8')
+const BASE_SHAPE = readFileSync(new URL('../projection/okf/base-shape.ttl', import.meta.url), 'utf8')
 ```
 
 Add a helper that validates a markdown card against a Turtle shape and returns the report (reusing `extractCard`/`quadsToTurtle`/`mkDataset`/`Validator` already in the file):
@@ -575,7 +592,7 @@ function msgOf(r) {
 }
 ```
 
-Note: because `shapes.ttl` contains both `NoteShape` (targets every typed subject) and `ConceptWiringShape` (targets `skos:Concept`), this single validation already runs Tier 1 **and** Tier 2 for the wiki-memory profile. Task 5 generalizes the severity handling; this task establishes the always-on path and the type+title gate.
+Note: `base-shape.ttl` holds only the universal `NoteShape` (type+title, core `dcterms`), so the always-on gate is profile-agnostic. The wiki-memory per-type `ConceptWiringShape` is **not** in the always-on path — it applies only to containers whose `.meta` `ldp:constrainedBy` points at the profile's `shapes.ttl` (the existing `constrainedBy` proxy block, exercised by `floor.test.mjs`). Task 5 adds graded severity to the always-on path; this task establishes the path and the type+title Violation gate.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -590,9 +607,9 @@ Expected: PASS — existing behavior preserved.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add projection/profiles/wiki-memory/shapes.ttl constrained-container/proxy.js constrained-container/base-floor.test.mjs
+git add projection/okf/base-shape.ttl projection/profiles/wiki-memory/shapes.ttl constrained-container/proxy.js constrained-container/base-floor.test.mjs
 git commit -m "$(cat <<'EOF'
-[Agent: Claude] feat(w1): always-on base NoteShape (type+title) on card writes
+[Agent: Claude] feat(w1): always-on engine base NoteShape (type+title) on card writes
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 EOF
@@ -645,16 +662,7 @@ describe('graded severity', () => {
 })
 ```
 
-Add an `Info`-severity property to `shapes.ttl` `wm:ConceptWiringShape` so there is a non-blocking finding to exercise:
-
-```turtle
-    sh:property [
-        sh:path dcterms:description ;
-        sh:minCount 1 ;
-        sh:severity sh:Info ;
-        sh:message "Consider adding a description for index.md disclosure."
-    ] ;
-```
+No shape edit is needed: the `Info`-severity `dcterms:description` rule already lives in `base-shape.ttl` (`okf:NoteShape`, Task 4 Step 1a). The `WARN_OK` card below (a Concept with `title` + `implementedBy` but no `description`, on a container with no `.meta`) exercises it through the always-on base path — title passes (Violation cleared), description fires `Info`, so the card must be admitted with a `Warning` header.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -700,7 +708,7 @@ Expected: PASS — `has-title.md` admitted (2xx) despite the `Info` description 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add constrained-container/proxy.js constrained-container/graded.test.mjs projection/profiles/wiki-memory/shapes.ttl
+git add constrained-container/proxy.js constrained-container/graded.test.mjs
 git commit -m "$(cat <<'EOF'
 [Agent: Claude] feat(w1): graded severity — only Violation blocks; advisories admit + Warning header
 
