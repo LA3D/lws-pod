@@ -76,7 +76,8 @@ const server = http.createServer(async (req, res) => {
     if (ctype.includes('markdown')) {
       const baseIri = `${UPSTREAM}${url}`;
       const report = await validateCard(body, baseIri, BASE_SHAPE);
-      const violations = report.results.filter(r => !r.severity || r.severity.value.endsWith('#Violation'));
+      // SHACL default severity is sh:Violation; treat an unspecified severity as Violation.
+      const violations = report.results.filter(r => (r.severity?.value || 'http://www.w3.org/ns/shacl#Violation').endsWith('#Violation'));
       if (violations.length) {
         const lines = violations.map(r => `#   - ${msgOf(r)}${r.path?.value ? ` (path: ${r.path.value})` : ''}`).join('\n');
         res.writeHead(422, { 'Content-Type': 'text/plain' });
