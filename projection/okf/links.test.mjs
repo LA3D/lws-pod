@@ -16,4 +16,16 @@ describe('typeLinkHeaders', () => {
     const h = typeLinkHeaders({ type: 'Concept' }, ns)
     expect(h).not.toContain('implementedBy')
   })
+
+  it('percent-encodes non-ASCII characters in Link targets', () => {
+    const h = typeLinkHeaders({ type: 'Concept', implementedBy: 'implé.md' }, ns)
+    expect(h).toContain('impl%C3%A9.md')
+    expect(h).not.toContain('implé.md')
+  })
+
+  it('omits unmapped indexedRels entirely (no relative rel emitted)', () => {
+    const h = typeLinkHeaders({ type: 'Concept', bogusRel: 'some-target.md' }, ns, ['bogusRel'])
+    expect(h).not.toContain('bogusRel')
+    expect(h).not.toContain('some-target.md')
+  })
 })

@@ -20,7 +20,7 @@ describe('proxy attaches Tier-1 Link headers and still admits', () => {
     await fetch(`${JSS}/${base}/`, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: '' })
   })
 
-  it('admits the card written through the proxy (headers attached upstream)', async () => {
+  it('admits the card written through the proxy (round-trip; upstream Link emission not asserted at W1)', async () => {
     const r = await fetch(`${PROXY}/${base}/pd.md`, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/markdown' }, body: CARD })
     expect([200, 201, 204, 205]).toContain(r.status)
     const back = await fetch(`${JSS}/${base}/pd.md`, { headers: { ...auth(token), Accept: 'text/markdown' } })
