@@ -8,16 +8,17 @@ says it does). Where JSS docs are silent we mark **GAP** and defer to a live tes
 assume conformance.
 
 Verdicts: **CONFORMS** · **EXTENDS** (adds beyond spec) · **DIVERGES** (differs from spec) ·
-**GAP** (docs silent → verify live).
+**GAP** (docs silent → verify live). Axes marked *(verified live)* were probed against a running
+pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 
 | # | Axis | Verdict |
 |---|---|---|
-| 1 | Container boot / reset-with-volume | GAP |
-| 2 | Headless agent auth (`/idp/credentials`) | DIVERGES (+ conforming DPoP path) |
+| 1 | Container boot / reset-with-volume | GAP (restart test pending) |
+| 2 | Headless agent auth (`/idp/credentials`) | DIVERGES — RS256 JWT bearer, no DPoP *(verified live)* |
 | 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) |
 | 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage |
-| 5 | Git clone/push as storage | EXTENDS |
-| 6 | LWS-CID identity | CONFORMS (provisioning GAP) |
+| 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
+| 6 | LWS-CID identity | CONFORMS; headless provisioning GAP *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS (proxy) · GAP (in-process hooks) |
 
 ---
@@ -35,11 +36,15 @@ First-run is idempotent: *"The seeded landing page is skip-if-exists … JSS wil
 overwrite an operator-provided file"* (`getting-started/first-run.md`). No doc describes
 restart/reset behaviour, volume mounting, or what survives a wipe.
 
-**Verdict: GAP.** Filesystem-rooted storage *implies* a volume mount works, but persistence
-across `make reset` is undocumented — **verify live**.
+**Verdict: GAP** (restart test pending). Filesystem-rooted storage *implies* a volume mount
+works, but persistence is undocumented. Mind the Makefile: `make reset` runs `docker compose
+down -v` — it **wipes** the volume by design. The persistence test is `make down && make up`
+(volume kept). `smoke.sh` step 10 writes a marker for exactly this; the marker survived across
+runs against the same running instance, but the `down`/`up` restart test is still outstanding.
 
-**Implication.** The `--root ./data` dir is the volume boundary; the eval must confirm a
-container restart re-reads it intact (pods, ACLs, provisioned keys).
+**Implication.** The `--root ./data` dir is the volume boundary; the eval must confirm `make
+down && make up` re-reads it intact (pods, ACLs, any provisioned keys) — and treat `make reset`
+as a deliberate wipe, not a restart.
 
 ## 2. Headless agent auth — the main draw
 
@@ -50,20 +55,21 @@ exchanging a valid Solid-OIDC ID Token for an OAuth 2.0 Access Token"*. LWS core
 signed credential carrying `subject`/`issuer`/`client` URIs (`Authentication.html`). Neither
 spec defines a username/password `/idp/credentials` token endpoint.
 
-**JSS.** `POST /idp/credentials` returns a **plain Bearer** token: *"Simple HMAC tokens from
-`POST /idp/credentials`"* (`features/mcp.md`); *"returns a token, which is sent as
-`Authorization: Bearer …`"* (`features/app-install.md`). JSS *also* accepts the spec path:
-*"JSS accepts DPoP-bound tokens from any Solid IdP"* (`features/authentication.md`). The
-HMAC token is never documented as sender-constrained / DPoP-bound.
+**JSS.** The docs describe *"Simple HMAC tokens from `POST /idp/credentials`"* (`features/mcp.md`)
+sent as *"`Authorization: Bearer …`"* (`features/app-install.md`), and JSS *also* accepts the
+spec path: *"JSS accepts DPoP-bound tokens from any Solid IdP"* (`features/authentication.md`).
+**Verified live (2026-06-20, `smoke.sh` step 7):** `/idp/credentials` actually returns an
+**RS256 JWT** — claims `iss`/`sub`/`aud`/`webid`/`client_id`/`iat`/`exp`/`jti`/`scope`, header
+`alg: RS256` — with **no `cnf` claim**. So it is *not* the "HMAC" token the docs imply, but it
+*is* a plain, non-sender-constrained bearer.
 
-**Verdict: DIVERGES** for the headless HMAC path (a non-spec convenience credential), with a
-**CONFORMS** DPoP path alongside it. The exact `/idp/credentials` request shape and token
-type for the *headless agent* flow is itself undocumented → also a **GAP** to verify live.
+**Verdict: DIVERGES** *(verified live)* — the headless credential is a **replayable RS256 JWT
+bearer**, not DPoP-bound; a **CONFORMS** DPoP path exists alongside it. (The docs' "HMAC"
+wording is contradicted by the live token — mechanism differs, verdict unchanged.)
 
-**Implication.** The draw is real (one POST, no browser) but the token is a bearer secret,
-not a proof-of-possession credential — anyone who captures it can replay it. For an agent
-substrate, decide whether bearer-replay risk is acceptable or whether agents should ride the
-DPoP / LWS-CID paths (axis 6).
+**Implication.** The draw is real (one POST, no browser) but the token is a bearer secret, not
+a proof-of-possession credential — capture = replay. For an agent substrate, decide whether
+bearer-replay risk is acceptable or whether agents should ride the DPoP / LWS-CID paths (axis 6).
 
 ## 3. Agent surface: `/mcp` lists tools; CRUD + ACL under WAC
 
@@ -124,13 +130,16 @@ non-bare repository, JSS automatically updates the working directory. No post-re
 needed"* (`features/git-integration.md`). Push is WAC-gated through the same auth chain
 (`features/app-install.md`).
 
-**Verdict: EXTENDS.** A capability the spec doesn't address, gated by spec-conformant WAC.
-Whether a pushed file is immediately a conneg-able RDF *resource* (vs raw bytes in a working
-tree) is not spelled out → minor **GAP**, verify live.
+**Verdict: EXTENDS** *(verified live)*. A capability the spec doesn't address, gated by
+spec-conformant WAC. **Verified live (2026-06-20, `smoke.sh` step 9):** a `git push` of a `.ttl`
+materializes a **retrievable resource** at the pushed path — but a GET with `Accept:
+application/ld+json` comes back `Content-Type: text/turtle`. So **git-pushed files are served
+as-is and bypass conneg** — unlike a PUT-written resource, which transcodes (axis 4).
 
 **Implication.** This is the QuitStore-style versioning angle (axis 7): auto-checkout means a
-push lands as live pod resources. Confirm that pushed `.ttl`/`.jsonld` participate in conneg
-and `.graph` aggregation, not just sit on disk.
+push lands as a live pod resource. But because pushed files skip conneg, a PUT and a git-push
+are **not** equivalent on the read side — whether pushed files still join `.graph` aggregation
+(which the L2 query path needs) is the remaining live test.
 
 ## 6. LWS-CID identity: pod profile CID-shaped with `verificationMethod`
 
@@ -148,15 +157,18 @@ profile's `@id` equals the JWT's `sub`"*. CID v1 `@context` is emitted at pod cr
 0.0.174+).
 
 **Verdict: CONFORMS** — a faithful FPWD §4 implementation, the strongest alignment of the
-seven axes. **Provisioning GAP:** the CID `@context` ships at creation but
-*"`verificationMethod` … arrays are empty until you add keys via the doctor"* (browser tool),
-and `--provision-keys` is documented as generating an *owner key* (`README.md`,
-`features/account-management.md`) without a doc stating it auto-PATCHes a VM into the profile.
-Whether a headless pod ends up with a non-empty `verificationMethod` is **verify live**.
+seven axes. **Provisioning GAP — confirmed live (2026-06-20, `smoke.sh` step 8):** a freshly
+created headless pod's profile carries the CID `@context` but has **no populated
+`verificationMethod`/`authentication`** on the node (parsed from `card.jsonld` — the keys exist
+only as `@context` term definitions, never as properties). Keys are added via the browser
+doctor; `--provision-keys` (per `README.md`, `features/account-management.md`) is not documented
+to auto-PATCH a VM into the profile. **Headless self-issued identity does not work out of the
+box.**
 
-**Implication.** This is the headless self-issued identity that fixes axis-2's bearer-replay
-concern — but only if an agent can get a VM into its profile *without* the browser doctor.
-That provisioning path is the key live test for the agent-identity story.
+**Implication.** This is the identity that would fix axis-2's bearer-replay concern — but the
+live result says an agent **cannot** self-provision a VM without the browser doctor today.
+Closing that gap (a headless PATCH of a `verificationMethod` into the profile) is the single
+highest-value next step for the agent-identity story.
 
 ## 7. L2 port landing: SHACL admission, projection-on-write, git-commit-on-write
 
@@ -189,18 +201,26 @@ exposing a write hook — that absence, not a spec gap, is the L2 porting constr
 
 ---
 
-## Open questions / live tests needed
+## Live test results & open questions
 
-Aggregated GAPs (each: assume nothing, test against a running pod):
+Run `make smoke` against a booted pod (`smoke.sh` steps 7-11).
 
-1. **Reset/persistence** (axis 1) — does a container restart re-read `--root ./data`
-   intact: pods, ACLs, and any provisioned keys survive `make reset` with the volume?
-2. **Headless token shape** (axis 2) — exact `POST /idp/credentials` request/response, token
-   type, lifetime, and whether the headless agent flow can be DPoP-bound at all.
-3. **Git → resource** (axis 5) — does a pushed `.ttl`/`.jsonld` become a conneg-able RDF
-   resource and join `.graph` aggregation, or just land as bytes in the working tree?
-4. **Headless key provisioning** (axis 6) — can an agent populate its profile's
-   `verificationMethod` / `authentication` without the browser doctor (does
-   `--provision-keys` PATCH a VM in, or only mint `/private/privkey.jsonld`)?
-5. **In-process L2 hooks** (axis 7) — confirm JSS exposes no `storage.write()` / PUT hook for
-   projection + auto-commit; if true, the proxy stays the only landing point.
+**Answered live (2026-06-20):**
+- **Headless token shape** (axis 2) — `/idp/credentials` returns an **RS256 JWT** bearer with
+  **no `cnf`** → replayable, not DPoP-bound. Corrects the docs' "HMAC" wording.
+- **Git → resource** (axis 5) — a push **materializes a retrievable resource**, but it is served
+  `text/turtle` even for an `ld+json` request → **git-pushed files bypass conneg**.
+- **Headless key provisioning** (axis 6) — a headless pod's profile has an **empty
+  `verificationMethod`**; the browser doctor is required. Headless self-issued identity does not
+  work out of the box.
+
+**Still open (assume nothing — test against a running pod):**
+1. **Restart persistence** (axis 1) — does `make down && make up` (volume kept) re-read
+   `--root ./data` intact? `make reset` wipes by design. The marker survives within a running
+   instance; the `down`/`up` restart test is unrun.
+2. **Pushed files in `.graph`** (axis 5) — since git-pushed files skip conneg, do they still join
+   `.graph` aggregation for the Comunica query path, or only PUT-written resources?
+3. **Headless VM PATCH** (axis 6) — can an agent PATCH a `verificationMethod` into its own
+   profile headlessly? That is the fix for axis-2's bearer-replay risk.
+4. **In-process L2 hooks** (axis 7) — confirmed by docs (no plugin API); the proxy stays the only
+   landing point unless JSS adds a `storage.write()` hook.
