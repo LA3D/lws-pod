@@ -3,10 +3,20 @@
   "private": true,
   "type": "module",
   "description": "Standalone SHACL admission proxy: enforces ldp:constrainedBy on writes in front of any LDP/Solid server (e.g. JSS). Opt-in — unconstrained containers pass through untouched.",
-  "scripts": { "start": "node proxy.js" },
+  "scripts": {
+    "start": "node proxy.js",
+    "test": "vitest run"
+  },
   "dependencies": {
     "n3": "^1.17.4",
     "rdf-ext": "^2.5.1",
     "shacl-engine": "^1.0.2"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.0"
+  },
+  "allowScripts": {
+    "esbuild@0.27.7": true,
+    "fsevents@2.3.3": true
   }
 }

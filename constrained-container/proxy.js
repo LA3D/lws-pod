@@ -23,23 +23,29 @@ function containerOf(url, method) {
   return url.slice(0, url.lastIndexOf('/') + 1); // PUT/PATCH -> parent container
 }
 
-async function constrainedBy(container) {
-  if (shapeCache.has(container)) return shapeCache.get(container);
+async function constrainedBy(container, auth) {
+  const key = `${auth || ''} ${container}`;
+  if (shapeCache.has(key)) return shapeCache.get(key);
   let shape = null;
   try {
-    const r = await fetch(`${UPSTREAM}${container}.meta`, { headers: { Accept: 'text/turtle' } });
+    const r = await fetch(`${UPSTREAM}${container}.meta`, {
+      headers: { Accept: 'text/turtle', ...(auth ? { Authorization: auth } : {}) },
+    });
     if (r.ok) for (const q of dataset(await r.text(), `${UPSTREAM}${container}`))
       if (q.predicate.value === CB) { shape = q.object.value; break; }
   } catch { /* no .meta / unreadable -> unconstrained */ }
-  shapeCache.set(container, shape);
+  shapeCache.set(key, shape);
   return shape;
 }
 
-async function validatorFor(shapeUrl) {
-  if (shapeDsCache.has(shapeUrl)) return shapeDsCache.get(shapeUrl);
-  const r = await fetch(shapeUrl, { headers: { Accept: 'text/turtle' } });
+async function validatorFor(shapeUrl, auth) {
+  const key = `${auth || ''} ${shapeUrl}`;
+  if (shapeDsCache.has(key)) return shapeDsCache.get(key);
+  const r = await fetch(shapeUrl, {
+    headers: { Accept: 'text/turtle', ...(auth ? { Authorization: auth } : {}) },
+  });
   const v = new Validator(dataset(await r.text(), shapeUrl), { factory: rdf });
-  shapeDsCache.set(shapeUrl, v);
+  shapeDsCache.set(key, v);
   return v;
 }
 
@@ -49,12 +55,13 @@ const server = http.createServer(async (req, res) => {
   const body = await readBody(req);
   const { method, url } = req;
   const isWrite = method === 'PUT' || method === 'POST' || method === 'PATCH';
+  const auth = req.headers['authorization'];
 
   if (isWrite) {
-    const shapeUrl = await constrainedBy(containerOf(url, method));
+    const shapeUrl = await constrainedBy(containerOf(url, method), auth);
     if (shapeUrl) {
       try {
-        const validator = await validatorFor(shapeUrl);
+        const validator = await validatorFor(shapeUrl, auth);
         const report = await validator.validate({ dataset: dataset(body.toString('utf8'), `${UPSTREAM}${url}`) });
         if (!report.conforms) {
           const lines = report.results.map(r => {
@@ -78,7 +85,7 @@ const server = http.createServer(async (req, res) => {
 
   // advertise the constraint on container reads (Solid §5.6: Link may appear on other responses)
   if (!isWrite && url.endsWith('/')) {
-    const sh = await constrainedBy(url);
+    const sh = await constrainedBy(url, auth);
     if (sh) out['link'] = (out['link'] ? out['link'] + ', ' : '') + `<${sh}>; rel="${CB}"`;
   }
   const buf = Buffer.from(await up.arrayBuffer());
