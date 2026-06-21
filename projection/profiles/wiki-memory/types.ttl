@@ -1,0 +1,14 @@
+# projection/profiles/wiki-memory/types.ttl
+@prefix wm:   <https://w3id.org/cogitarelink/wm#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+wm:Concept a rdfs:Class, skos:Concept ;
+    skos:prefLabel "Concept"@en ;
+    skos:notation "Concept" ;
+    skos:definition "A named idea in the memory; pairs with an implementation."@en .
+
+wm:Implementation a rdfs:Class, skos:Concept ;
+    skos:prefLabel "Implementation"@en ;
+    skos:notation "Implementation" ;
+    skos:definition "Code, system, or experiment realizing a concept."@en .
