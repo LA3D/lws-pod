@@ -1,0 +1,65 @@
+# TLS variant of the JSS pod — for the LWS-CID auth experiment, which needs an https
+# WebID (the verifier rejects http kids: "kid must use https").
+#
+# Standalone (not an override) so it gets its own volume — the pod is created FRESH over
+# https, so its profile @id is https://localhost:8443/... and the kid gate passes.
+# Reuses cogitarelink-solid's mkcert approach (locally-trusted CA).
+#
+#   make cert        # generate ./certs (mkcert; gitignored)
+#   make up-tls      # boot JSS over https on :8443
+#   make cid-tls     # run experiments/headless-cid against it
+services:
+  lws-pod-tls:
+    build:
+      context: .
+      args:
+        JSS_VERSION: "0.0.209"
+    image: lws-pod:eval
+    container_name: lws-pod-tls
+    ports:
+      - "8443:8443"
+    networks:
+      default:
+        # The LWS-CID verifier does a same-origin https fetch of the WebID while validating
+        # the JWT, and its SSRF guard blocks loopback. This alias makes pod.vardeman.me
+        # resolve (inside the network) to the container's own non-loopback IP, so the fetch
+        # is allowed. On the host pod.vardeman.me is 127.0.0.1 (/etc/hosts) -> published :8443.
+        aliases:
+          - pod.vardeman.me
+    volumes:
+      - pod-data-tls:/data
+      - ./certs:/certs:ro
+    environment:
+      # JSS must trust its own mkcert cert — the LWS-CID verifier does a same-origin
+      # https fetch of the WebID profile while validating the JWT.
+      NODE_EXTRA_CA_CERTS: /certs/rootCA.pem
+    command:
+      - jss
+      - start
+      - -p
+      - "8443"
+      - -h
+      - 0.0.0.0
+      - -r
+      - /data
+      - --ssl-key
+      - /certs/pod.key
+      - --ssl-cert
+      - /certs/pod.crt
+      - --idp
+      - --mcp
+      - --conneg
+      - --mashlib-cdn
+      - --git
+      - --notifications
+      - --provision-keys
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.env.NODE_TLS_REJECT_UNAUTHORIZED='0';fetch('https://localhost:8443/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pod-data-tls:

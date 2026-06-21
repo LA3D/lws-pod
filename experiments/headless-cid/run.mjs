@@ -113,10 +113,15 @@ if ([200, 201, 204, 205].includes(r6.status)) {
   phase2 = 'blocked-http';
   log(`  PUT -> ${r6.status}; server: "${body6.slice(0, 120)}"`);
   log('  [BLOCKED — not a failure] The LWS-CID verifier requires an https WebID/kid.');
-  log('  This pod is http://localhost — the kid is an http URL, so the LWS-CID path is');
-  log('  unreachable here. Phase 2 needs a TLS deployment (https WebID) to be exercised.');
-  log('  Note: the negative controls below would all fail at this same https gate, so they');
-  log('  are skipped — they would not be testing what they claim over http.');
+  log('  This pod is http — the kid is an http URL, so the LWS-CID path is unreachable.');
+  log('  Re-run over TLS (make cert && make up-tls && make cid-tls).');
+} else if (/SSRF|private IP|localhost URLs/i.test(body6)) {
+  phase2 = 'blocked-ssrf';
+  log(`  PUT -> ${r6.status}; server: "${body6.slice(0, 200)}"`);
+  log('  [BLOCKED — by design] JSS hardcodes blockPrivateIPs:true in the CID-document');
+  log('  fetcher (src/auth/cid-doc-fetch.js). The verifier refuses to dereference a WebID');
+  log('  that resolves to a loopback/private IP, so LWS-CID auth cannot be exercised on any');
+  log('  local/private deployment. It requires a PUBLIC-IP WebID (public DNS + TLS).');
 } else {
   phase2 = 'unexpected';
   check(false, `LWS-CID PUT -> ${r6.status}: ${body6.slice(0, 200)}`);
@@ -129,6 +134,7 @@ log(`  Phase 1 (headless key provisioning):  ${phase1 ? 'WORKS ✓ — no browse
 log(`  Phase 2 (self-signed LWS-CID auth):   ${
   phase2 === 'works' ? 'WORKS ✓' :
   phase2 === 'blocked-http' ? 'BLOCKED on http — requires an https/TLS deployment' :
+  phase2 === 'blocked-ssrf' ? 'BLOCKED by design — verifier requires a public-IP WebID (SSRF guard); needs a public deployment' :
   'UNEXPECTED — read above'}`);
 log(`  (BASE=${BASE}, WebID=${WEBID}, kid=${VMID})`);
 process.exit(0);

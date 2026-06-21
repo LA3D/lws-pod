@@ -18,7 +18,7 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 | 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) |
 | 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
-| 6 | LWS-CID identity | CONFORMS; headless provisioning WORKS, auth needs https *(verified live)* |
+| 6 | LWS-CID identity | CONFORMS; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS (proxy) · GAP (in-process hooks) |
 
 ---
@@ -162,19 +162,21 @@ seven axes. **At creation the profile carries the CID `@context` but an empty
 But the "browser doctor required" reading is **wrong**: an agent can provision the key
 **headlessly**.
 
-**Verified live (2026-06-20, `experiments/headless-cid/`):**
+**Verified live (2026-06-20, `experiments/headless-cid/`, http + TLS):**
 - **Provisioning WORKS headless.** The doctor's recipe — authenticated GET-merge-PUT of
   `card.jsonld` with `If-Match`, splicing in a `JsonWebKey` `verificationMethod` + an
   `authentication` reference — succeeds from a script with only the owner bearer (`PUT … 204`).
   No browser needed.
-- **Self-signed auth is BLOCKED on http.** A self-signed LWS-CID JWT is rejected with
-  `"kid must use https"` — the verifier (`src/auth/lws-cid.js`) demands an **https WebID/kid**.
-  A localhost http pod can't exercise the LWS-CID path at all; it needs a TLS deployment.
+- **Self-signed auth is BLOCKED — by design — even over TLS.** Two gates: over http the verifier
+  rejects `"kid must use https"`; over TLS (mkcert `pod.vardeman.me:8443`) it dereferences the
+  WebID but the **SSRF guard** rejects it — `"Hostname … resolves to private IP"`. Root cause:
+  `src/auth/cid-doc-fetch.js` hardcodes `blockPrivateIPs: true` (no config knob). JSS won't fetch
+  a CID document on a loopback/private IP, so **LWS-CID auth requires a public-IP WebID**.
 
-**Implication.** Headless self-issued identity is *provisioning-viable today* but *unproven
-end-to-end* until JSS runs over TLS. The remaining test — re-run `experiments/headless-cid/`
-against an https pod — is what closes axis-2's bearer-replay concern. The blocker is deployment
-(https), not a missing capability.
+**Implication.** Headless self-issued identity is *provisioning-viable today* but its auth
+round-trip is *only verifiable on a public deployment* — the blocker is JSS's SSRF policy, not a
+missing capability. Until that's run (public host + domain, or a patched test build), axis-2's
+bearer-replay risk stands: the practical headless credential is the replayable RS256 bearer.
 
 ## 7. L2 port landing: SHACL admission, projection-on-write, git-commit-on-write
 
@@ -221,6 +223,9 @@ Run `make smoke` (`smoke.sh` steps 7-11) and `experiments/headless-cid/` against
 - **Headless key provisioning WORKS** (axis 6, `experiments/headless-cid/`) — an agent **can**
   add a `JsonWebKey` VM via authenticated GET-merge-PUT with `If-Match`, **no browser doctor**.
   The "doctor required" reading is wrong.
+- **LWS-CID auth requires a public-IP WebID** (axis 6) — verified over TLS: JSS hardcodes
+  `blockPrivateIPs: true` in `src/auth/cid-doc-fetch.js`, so the self-signed-JWT round-trip can't
+  run on any local/private deployment. Not a config issue — a deployment requirement.
 
 **Still open (assume nothing — test against a running pod):**
 1. **Restart persistence** (axis 1) — does `make down && make up` (volume kept) re-read
@@ -228,9 +233,9 @@ Run `make smoke` (`smoke.sh` steps 7-11) and `experiments/headless-cid/` against
    instance; the `down`/`up` restart test is unrun.
 2. **Pushed files in `.graph`** (axis 5) — since git-pushed files skip conneg, do they still join
    `.graph` aggregation for the Comunica query path, or only PUT-written resources?
-3. **LWS-CID auth over TLS** (axis 6) — the verifier rejects http kids (`"kid must use https"`),
-   so the self-signed-JWT round-trip is unproven. Stand up JSS over https and re-run
-   `experiments/headless-cid/` (Phase 2 + negative controls). This is what actually closes
-   axis-2's bearer-replay concern.
+3. **LWS-CID auth on a PUBLIC deployment** (axis 6) — verified over TLS that the round-trip is
+   blocked locally by JSS's hardcoded SSRF guard (private-IP WebIDs refused). To actually prove
+   it (and close axis-2's bearer-replay concern), deploy JSS to a public host + domain and re-run
+   `experiments/headless-cid/`, or fork/patch `cid-doc-fetch.js` for a labeled local test build.
 4. **In-process L2 hooks** (axis 7) — confirmed by docs (no plugin API); the proxy stays the only
    landing point unless JSS adds a `storage.write()` hook.

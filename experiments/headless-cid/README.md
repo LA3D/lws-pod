@@ -22,25 +22,36 @@ axis-6 open question in [`docs/foundations/05-jss-spec-conformance.md`](../../do
 ## Run
 
 ```bash
+# http pod (Phase 2 will be blocked at the https gate)
 cd experiments/headless-cid && npm install
-node run.mjs                 # BASE=http://localhost:3838 (needs a pod up: make up)
-BASE=https://pod.example node run.mjs
+BASE=http://localhost:3838 node run.mjs        # needs: make up
+
+# TLS pod on pod.vardeman.me:8443 (mkcert; reuses cogitarelink-solid's approach)
+make cert && make up-tls && make cid-tls
 ```
 
-## Findings (2026-06-20, against JSS v0.0.209 on http://localhost:3838)
+## Findings (2026-06-20, JSS v0.0.209)
 
-- **Phase 1 — WORKS.** Headless GET-merge-PUT lands a `verificationMethod` and `authentication`
-  ref in the profile (`PUT … 204` with `If-Match`). **No browser doctor is required** — the
-  doctor's B.3 flow is reproducible from a script with only the owner bearer. This overturns the
-  "browser doctor required" reading of the JSS docs.
-- **Phase 2 — BLOCKED on http.** The verifier (`src/auth/lws-cid.js`) rejects the JWT with
-  `"kid must use https"`. The LWS-CID path requires an **https WebID/kid**; a localhost http pod
-  cannot exercise it. The negative controls fail at this same gate, so they prove nothing over
-  http and are skipped.
+- **Phase 1 — WORKS (http and https).** Headless GET-merge-PUT lands a `verificationMethod` +
+  `authentication` ref in the profile (`PUT … 204`, `If-Match`). **No browser doctor required** —
+  the doctor's B.3 flow is fully scriptable with only the owner bearer. Overturns the "doctor
+  required" reading of the JSS docs.
+- **Phase 2 — BLOCKED, by design, even over TLS.** Two gates, peeled in order:
+  1. http pod → `"kid must use https"` (the kid scheme check).
+  2. https pod (`pod.vardeman.me:8443`, mkcert, docker network alias) → the verifier now
+     dereferences the WebID but the **SSRF guard** rejects it:
+     `"Hostname pod.vardeman.me resolves to private IP 172.20.0.3"`.
 
-## Next step
+  Root cause in source: `src/auth/cid-doc-fetch.js` hardcodes `blockPrivateIPs: true` (no
+  config/env knob). JSS refuses to fetch a CID document whose WebID resolves to a
+  loopback/private IP. **LWS-CID self-signed auth cannot be exercised on any local/private
+  deployment** — it requires a WebID that resolves to a **public IP** (public DNS + TLS).
 
-Stand up JSS over **TLS** (see the `jss-server` skill: `guides/deploy-production.md`,
-`reference/configuration.md`) so the WebID is `https://…`, then re-run — Phase 2 should complete
-and the negative controls become meaningful. That confirms whether headless self-issued identity
-is fully viable (closing the axis-2 bearer-replay concern).
+## Conclusion / next step
+
+Headless self-issued identity is **provisioning-viable today** but its auth round-trip is
+**only verifiable on a public deployment** — the blocker is JSS's SSRF policy, not a missing
+capability. To finish Phase 2: either (a) deploy JSS to a public host + domain and re-run, or
+(b) for a local proof, fork/patch `src/auth/cid-doc-fetch.js` to relax `blockPrivateIPs` in a
+clearly-labeled test build (changes the SUT). Until then, axis-2's bearer-replay concern stays
+open: the practical headless credential remains the replayable RS256 bearer.
