@@ -72,6 +72,9 @@ JSS serves `.meta`+`ldp:constrainedBy` (admission proxy ports).
    docs-confirmed). Projection-on-write and git-commit-on-write run as the sidecar proxy, not
    in-process, unless JSS exposes `storage.write()`. The proxy is server-agnostic, so this is
    acceptable — note it in the L2 design.
+4. **P1 spike done (2026-06-21):** Keycloak-in-front-of-JSS proven — `experiments/keycloak-jss/`.
+   Approach A (token `webid` claim) confirmed; gateway-enforces pattern kept; token-exchange /
+   native-JSS-acceptance deferred. See the experiment README's decision note.
 
 ---
 
