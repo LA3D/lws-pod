@@ -59,10 +59,11 @@ describe('(b) proxy governs a protected constrained container', () => {
 
 describe('(a) HTTP ACL provisioning makes a shape public-read', () => {
   let token, webid
-  const shape = `${JSS}/alice/p2a/shape.ttl`
+  const base = `alice/p2a-${process.pid}-${Date.now()}`
+  const shape = `${JSS}/${base}/shape.ttl`
   beforeAll(async () => {
     ;({ token, webid } = await owner())
-    await fetch(`${JSS}/alice/p2a/`, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: '' })
+    await fetch(`${JSS}/${base}/`, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: '' })
     await fetch(shape, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: SHAPE })
   })
 

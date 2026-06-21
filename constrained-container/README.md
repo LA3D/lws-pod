@@ -63,4 +63,5 @@ curl, the app). Accepted ACL form: WAC in JSON-LD with `acl:agent`/`acl:agentCla
 
 **Edge case:** an agent with write-but-not-read on a container's `.meta` cannot have the constraint
 discovered under its own auth (the `.meta` stays owner-only by design). Acceptable for the
-owner-centric memory-pod model.
+owner-centric memory-pod model. Concretely: a requester who cannot read `<container>/.meta`
+still receives unvalidated pass-through — the proxy is **opt-in admission, not deny-by-default**.
