@@ -23,6 +23,7 @@ export function watch(containerUrl, opts = {}) {
   ws.on('open', () => ws.send('sub ' + containerUrl))
   ws.on('message', d => { if (d.toString().startsWith('pub ')) schedule() })
   ws.on('error', e => console.error('[ws]', e.message))
+  ws.on('close', () => { clearTimeout(timer); console.error('[ws] socket closed — watcher halted (no auto-reconnect)') })
   return ws
 }
 

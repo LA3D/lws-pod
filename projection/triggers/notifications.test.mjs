@@ -13,6 +13,7 @@ describe('notifications trigger (e2e)', () => {
   beforeAll(async () => {
     await fetch(`${BASE}/.pods`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(POD) })
     token = (await (await fetch(`${BASE}/idp/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: POD.email, password: POD.password }) })).json()).access_token
+    if (!token) throw new Error('auth setup failed: no access_token from /idp/credentials')
     await fetch(C, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: '' })
   })
   afterAll(() => ws?.close())
