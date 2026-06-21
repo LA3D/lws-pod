@@ -1,32 +1,36 @@
+ENV  ?= local
 BASE ?= http://localhost:3838
+COMPOSE = docker compose --env-file .env.$(ENV) -f docker-compose.yml -f docker-compose.$(ENV).yml
 
-.PHONY: build up down logs reset smoke shell cert up-tls down-tls cid-tls
+.PHONY: build up down logs reset test shell cert up-tls down-tls cid-tls
 
 build:
-	docker compose build
+	$(COMPOSE) build
 
 up:
-	docker compose up -d
-	@echo "JSS up at $(BASE)  (logs: make logs)"
+	$(COMPOSE) up -d --build
+	@echo "JSS ($(ENV)) up at $(BASE)  (logs: make logs)"
 
 down:
-	docker compose down
+	$(COMPOSE) down
 
 logs:
-	docker compose logs -f
+	$(COMPOSE) logs -f
 
-# Fresh volume — wipes all pod data, rebuilds, restarts.
+# Fresh pod: stop, wipe the bind-mounted ./data, rebuild, restart.
+# (On Linux, ./data may be root-owned by the container — use sudo if rm fails.)
 reset:
-	docker compose down -v
-	docker compose up -d --build
-	@echo "JSS reset + up at $(BASE)"
+	$(COMPOSE) down
+	rm -rf ./data
+	$(COMPOSE) up -d --build
+	@echo "JSS ($(ENV)) reset + up at $(BASE)"
 
-# First-pass evaluation: boot -> create pod -> headless token -> write/read -> MCP -> git clone.
-smoke:
-	BASE=$(BASE) ./smoke.sh
+# The local verification gate — Vitest e2e against the running pod (Task 2-3).
+test:
+	BASE=$(BASE) npm test
 
 shell:
-	docker compose exec lws-pod bash
+	$(COMPOSE) exec jss bash
 
 # --- TLS variant (for the LWS-CID auth experiment; needs an https WebID) ---
 

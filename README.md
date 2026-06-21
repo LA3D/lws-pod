@@ -12,11 +12,12 @@ curation) is portable IP that rides on top of any Solid server — so this evalu
 ## Run
 
 ```bash
+cp .env.example .env.local   # first time only — the make targets read --env-file .env.local
 make up        # build + start  (http://localhost:3838)
 make logs      # tail
-make smoke     # boot -> pod -> headless token -> write/read -> MCP -> git, + the conformance live tests
-make reset     # wipe volume, rebuild, restart  (down -v: deletes data by design)
-make down      # stop, keep volume (this is the persistence test: down && up)
+make test      # Vitest e2e: pod create -> headless token -> write/read -> MCP -> git
+make reset     # wipe ./data, rebuild, restart  (deletes the local pod by design)
+make down      # stop, keep ./data (persistence check: down && up preserves the bind-mount)
 
 # TLS variant (for the LWS-CID auth experiment; mkcert, pod.vardeman.me:8443)
 make cert && make up-tls && make cid-tls
@@ -35,7 +36,8 @@ Port `3838` (host) → `3000` (container), leaving `3000` free for a side-by-sid
 - `docs/foundations/` — distilled canon + the **spec-vs-JSS conformance map** (`05-…`).
 - `constrained-container/` — the standalone SHACL admission proxy (the L2 governance floor).
 - `experiments/headless-cid/` — headless LWS-CID provisioning + auth round-trip probe.
-- `smoke.sh` — diagnostic probes (steps 1-6 core surfaces, 7-11 the conformance live tests).
+- `tests/` — Vitest integration suite (the local verification gate; `make test`).
+- `experiments/smoke.sh` — archived eval probe (superseded; evidence in the conformance map).
 - **`FOLLOWUP.md`** — between-session state + open items. **Read this first when resuming.**
 
 ## What's enabled (and why)
@@ -56,7 +58,7 @@ keep the evaluation focused on the substrate.
 
 **Verdict (2026-06-21): JSS is a good replacement for CSS — proceed to build the L2 memory layer
 on it.** Evidence per axis below; full analysis in [`docs/foundations/05-jss-spec-conformance.md`](docs/foundations/05-jss-spec-conformance.md),
-live probes in `smoke.sh` and `experiments/headless-cid/`.
+live probes in `experiments/smoke.sh` and `experiments/headless-cid/`.
 
 - [x] Boots clean in a container; survives a restart with the volume (`make down && make up`;
       `make reset` wipes by design).

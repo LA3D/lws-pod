@@ -10,14 +10,14 @@ Between-session state for lws-pod. Open items only; closed work lives in commit 
 **Verdict: JSS is a good replacement for CSS — proceed to build the L2 memory layer on it.**
 Eval pinned to JSS **v0.0.209**. Full evidence: `README.md` checklist (all checked) +
 `docs/foundations/05-jss-spec-conformance.md` (per-axis CONFORMS/EXTENDS/DIVERGES/GAP, every
-claim cited). Live probes: `smoke.sh` (steps 7-11) and `experiments/headless-cid/`.
+claim cited). Live probes: `experiments/smoke.sh` (steps 7-11) and `experiments/headless-cid/`.
 
 What shipped this eval (all on `main`):
 - **7 grounded skills** in `.claude/skills/` — verbatim, source-pinned, contamination-free
   (`scripts/check-skill-grounding.sh` enforces). Spec: lws-protocol, solid-protocol,
   shacl-constraints, comunica-sparql, okf, semantic-markdown. Implementation: jss-server.
 - **Conformance map** `docs/foundations/05-jss-spec-conformance.md`.
-- **`smoke.sh`** extended with the 5 live tests.
+- **`experiments/smoke.sh`** (archived) carried the 5 live tests; now ported to the Vitest suite (`make test`).
 - **`experiments/headless-cid/`** — headless LWS-CID provisioning + auth probe (Node + jose).
 - **TLS variant** — `make cert` / `up-tls` / `cid-tls`, `docker-compose.tls.yml` (mkcert,
   `pod.vardeman.me:8443`), reusing cogitarelink-solid's approach. `certs/` gitignored.
