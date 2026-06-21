@@ -155,6 +155,16 @@ Build order follows the §5–11 coupling (see `05-jss-spec-conformance.md` sani
   exactly the gap our L2 fills.
 - **`jss install`** — the app distribution mechanism (git repo → `/public/apps/<name>/`).
 - **solid/dev** ([dev.solidproject.org](https://dev.solidproject.org/)) — Solid app-dev patterns.
+- **`linkedwebstorage/lws-server`** ([repo](https://github.com/linkedwebstorage/lws-server)) —
+  Melvin Carvalho's (JSS's author) minimal LWS CRUD core *extracted and simplified from JSS*
+  (~1000 LOC, AGPL). A clean reference read of the LWS resource core stripped of conneg/auth/
+  notifications; implements none of the LWS storage layer (lws+json, storage desc, linkset, type
+  index). Reference only — JSS is its superset, not a substrate candidate.
+
+> **Ecosystem note:** four LWS-ish servers checked — JSS, lws-keycloak's storage-server,
+> `jeswr/solid-server-rs`, and `lws-server` — and **none implement the LWS storage layer** (lws+json,
+> storage description, linkset, Type Index/Search). That layer, and the Type Index especially, is
+> unbuilt across the ecosystem — our sidecar is novel work regardless of substrate.
 
 ---
 
