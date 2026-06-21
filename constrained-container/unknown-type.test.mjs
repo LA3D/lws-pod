@@ -23,6 +23,9 @@ describe('unknown-to-profile type', () => {
   it('admits a card with an unknown type but warns it is ungoverned', async () => {
     const r = await fetch(`${PROXY}/${base}/playbook.md`, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/markdown' }, body: NOVEL })
     expect([200, 201, 204, 205]).toContain(r.status)
-    expect(r.headers.get('warning') || '').toMatch(/new|ungoverned|Playbook/i)
+    const w = r.headers.get('warning')
+    expect(w).toBeTruthy()
+    expect(w).toMatch(/ungoverned/i)   // the unknown-type advisory's distinctive word
+    expect(w).toMatch(/Playbook/i)     // names the actual unknown type
   })
 })
