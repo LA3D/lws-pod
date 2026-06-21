@@ -1,0 +1,9 @@
+{
+  "name": "headless-cid",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Headless LWS-CID provisioning + auth round-trip experiment against JSS",
+  "scripts": { "start": "node run.mjs" },
+  "dependencies": { "jose": "^5.9.6" }
+}

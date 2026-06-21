@@ -18,7 +18,7 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 | 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) |
 | 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
-| 6 | LWS-CID identity | CONFORMS; headless provisioning GAP *(verified live)* |
+| 6 | LWS-CID identity | CONFORMS; headless provisioning WORKS, auth needs https *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS (proxy) · GAP (in-process hooks) |
 
 ---
@@ -157,18 +157,24 @@ profile's `@id` equals the JWT's `sub`"*. CID v1 `@context` is emitted at pod cr
 0.0.174+).
 
 **Verdict: CONFORMS** — a faithful FPWD §4 implementation, the strongest alignment of the
-seven axes. **Provisioning GAP — confirmed live (2026-06-20, `smoke.sh` step 8):** a freshly
-created headless pod's profile carries the CID `@context` but has **no populated
-`verificationMethod`/`authentication`** on the node (parsed from `card.jsonld` — the keys exist
-only as `@context` term definitions, never as properties). Keys are added via the browser
-doctor; `--provision-keys` (per `README.md`, `features/account-management.md`) is not documented
-to auto-PATCH a VM into the profile. **Headless self-issued identity does not work out of the
-box.**
+seven axes. **At creation the profile carries the CID `@context` but an empty
+`verificationMethod`** (confirmed live, `smoke.sh` step 8) — keys are not minted automatically.
+But the "browser doctor required" reading is **wrong**: an agent can provision the key
+**headlessly**.
 
-**Implication.** This is the identity that would fix axis-2's bearer-replay concern — but the
-live result says an agent **cannot** self-provision a VM without the browser doctor today.
-Closing that gap (a headless PATCH of a `verificationMethod` into the profile) is the single
-highest-value next step for the agent-identity story.
+**Verified live (2026-06-20, `experiments/headless-cid/`):**
+- **Provisioning WORKS headless.** The doctor's recipe — authenticated GET-merge-PUT of
+  `card.jsonld` with `If-Match`, splicing in a `JsonWebKey` `verificationMethod` + an
+  `authentication` reference — succeeds from a script with only the owner bearer (`PUT … 204`).
+  No browser needed.
+- **Self-signed auth is BLOCKED on http.** A self-signed LWS-CID JWT is rejected with
+  `"kid must use https"` — the verifier (`src/auth/lws-cid.js`) demands an **https WebID/kid**.
+  A localhost http pod can't exercise the LWS-CID path at all; it needs a TLS deployment.
+
+**Implication.** Headless self-issued identity is *provisioning-viable today* but *unproven
+end-to-end* until JSS runs over TLS. The remaining test — re-run `experiments/headless-cid/`
+against an https pod — is what closes axis-2's bearer-replay concern. The blocker is deployment
+(https), not a missing capability.
 
 ## 7. L2 port landing: SHACL admission, projection-on-write, git-commit-on-write
 
@@ -203,16 +209,18 @@ exposing a write hook — that absence, not a spec gap, is the L2 porting constr
 
 ## Live test results & open questions
 
-Run `make smoke` against a booted pod (`smoke.sh` steps 7-11).
+Run `make smoke` (`smoke.sh` steps 7-11) and `experiments/headless-cid/` against a booted pod.
 
 **Answered live (2026-06-20):**
 - **Headless token shape** (axis 2) — `/idp/credentials` returns an **RS256 JWT** bearer with
   **no `cnf`** → replayable, not DPoP-bound. Corrects the docs' "HMAC" wording.
 - **Git → resource** (axis 5) — a push **materializes a retrievable resource**, but it is served
   `text/turtle` even for an `ld+json` request → **git-pushed files bypass conneg**.
-- **Headless key provisioning** (axis 6) — a headless pod's profile has an **empty
-  `verificationMethod`**; the browser doctor is required. Headless self-issued identity does not
-  work out of the box.
+- **Empty VM at creation** (axis 6) — a fresh headless pod's profile has an **empty
+  `verificationMethod`** (keys aren't auto-minted).
+- **Headless key provisioning WORKS** (axis 6, `experiments/headless-cid/`) — an agent **can**
+  add a `JsonWebKey` VM via authenticated GET-merge-PUT with `If-Match`, **no browser doctor**.
+  The "doctor required" reading is wrong.
 
 **Still open (assume nothing — test against a running pod):**
 1. **Restart persistence** (axis 1) — does `make down && make up` (volume kept) re-read
@@ -220,7 +228,9 @@ Run `make smoke` against a booted pod (`smoke.sh` steps 7-11).
    instance; the `down`/`up` restart test is unrun.
 2. **Pushed files in `.graph`** (axis 5) — since git-pushed files skip conneg, do they still join
    `.graph` aggregation for the Comunica query path, or only PUT-written resources?
-3. **Headless VM PATCH** (axis 6) — can an agent PATCH a `verificationMethod` into its own
-   profile headlessly? That is the fix for axis-2's bearer-replay risk.
+3. **LWS-CID auth over TLS** (axis 6) — the verifier rejects http kids (`"kid must use https"`),
+   so the self-signed-JWT round-trip is unproven. Stand up JSS over https and re-run
+   `experiments/headless-cid/` (Phase 2 + negative controls). This is what actually closes
+   axis-2's bearer-replay concern.
 4. **In-process L2 hooks** (axis 7) — confirmed by docs (no plugin API); the proxy stays the only
    landing point unless JSS adds a `storage.write()` hook.
