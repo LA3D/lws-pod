@@ -211,7 +211,7 @@ exposing a write hook — that absence, not a spec gap, is the L2 porting constr
 
 ## Live test results & open questions
 
-Run `make smoke` (`smoke.sh` steps 7-11) and `experiments/headless-cid/` against a booted pod.
+Run `make test` (Vitest suite) and `bash experiments/smoke.sh` (the archived probe, steps 7-11) and `experiments/headless-cid/` against a booted pod.
 
 **Answered live (2026-06-20):**
 - **Headless token shape** (axis 2) — `/idp/credentials` returns an **RS256 JWT** bearer with
