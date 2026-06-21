@@ -21,6 +21,7 @@ async function readMembers(containerUrl, token) {
   for (const q of new Parser({ baseIRI: containerUrl }).parse(ttl)) {
     if (q.predicate.value === LDP_CONTAINS) {
       const url = q.object.value
+      // LDP convention: a trailing '/' marks a container member (JSS follows this).
       out.push({ url, type: url.endsWith('/') ? 'container' : 'data' })
     }
   }
@@ -34,7 +35,7 @@ export async function project(containerUrl, token, profile) {
   const cards = []
   for (const m of conceptMembers) {
     const r = await fetch(m.url, { headers: { Accept: 'text/markdown, text/plain, */*', ...authH(token) } })
-    if (!r.ok) continue
+    if (!r.ok) { console.warn(`[project] skip ${m.url} -> ${r.status}`); continue }
     const { frontmatter, body } = parseFrontmatter(await r.text())
     if (!profile.types || profile.types.includes(frontmatter.type)) cards.push({ url: m.url, body, frontmatter })
   }

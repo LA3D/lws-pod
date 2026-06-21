@@ -37,6 +37,7 @@ describe('project (e2e against the live local pod)', () => {
       body: JSON.stringify({ email: POD.email, password: POD.password }),
     })
     token = (await r.json()).access_token
+    if (!token) throw new Error('auth setup failed: no access_token from /idp/credentials')
     await fetch(C, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: '' })
     await fetch(C + 'progressive-disclosure.md', { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/markdown' }, body: CARD_A })
     await fetch(C + 'hierarchical-retrieval.md', { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/markdown' }, body: CARD_B })
