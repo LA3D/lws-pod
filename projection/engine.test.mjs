@@ -48,7 +48,7 @@ describe('project (e2e against the live local pod)', () => {
     for (const r of res) expect([200, 201, 204, 205], `${r.channel} -> ${r.status}`).toContain(r.status)
 
     const graph = await (await fetch(C + 'graph.ttl', { headers: { ...auth(token), Accept: 'text/turtle' } })).text()
-    expect(graph).toContain('progressive-disclosure.md#it')
+    expect(graph).toContain('progressive-disclosure#it')
     expect(graph).toMatch(/implementedBy/)
 
     const index = await (await fetch(C + 'index.md', { headers: { ...auth(token), Accept: 'text/markdown' } })).text()
