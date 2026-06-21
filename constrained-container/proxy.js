@@ -7,10 +7,17 @@
 // request — and every write to an UNconstrained container — passes through unchanged.
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
-import { Parser } from 'n3';
+import { Parser, Parser as TtlParser } from 'n3';
 import rdf from 'rdf-ext';
 import { Validator } from 'shacl-engine';
+import matter from 'gray-matter';
 import { extractCard, quadsToTurtle } from '../projection/profiles/wiki-memory/extract.mjs';
+
+const PROFILE_TYPES = new Set(
+  new TtlParser().parse(readFileSync(new URL('../projection/profiles/wiki-memory/types.ttl', import.meta.url), 'utf8'))
+    .filter(q => q.predicate.value === 'http://www.w3.org/2004/02/skos/core#notation')
+    .map(q => q.object.value)
+);
 
 const UPSTREAM = process.env.UPSTREAM || 'http://localhost:3838';
 const PORT = Number(process.env.PORT || 3839);
@@ -89,6 +96,11 @@ const server = http.createServer(async (req, res) => {
       if (advisories.length) {
         req.__advisories = advisories.map(r => `${sev(r)}: ${msgOf(r)}`);
         console.log(`[admit]  ${method} ${url} (with ${advisories.length} advisory finding(s))`);
+      }
+      const fmType = matter(body.toString('utf8')).data?.type;
+      if (fmType && !PROFILE_TYPES.has(fmType)) {
+        (req.__advisories ||= []).push(`Unknown: type "${fmType}" is new to the wiki-memory profile - admitted ungoverned; register a shape or pick an existing type`);
+        console.log(`[warn]   ${method} ${url} type "${fmType}" not in profile (admitted ungoverned)`);
       }
     }
 
