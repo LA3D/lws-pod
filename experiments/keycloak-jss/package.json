@@ -1,0 +1,11 @@
+{
+  "name": "keycloak-jss-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node gateway.js",
+    "test": "vitest run"
+  },
+  "dependencies": { "jose": "^5.9.0" },
+  "devDependencies": { "vitest": "^3.2.0" }
+}

@@ -56,3 +56,17 @@ down-tls:
 cid-tls:
 	cd experiments/headless-cid && npm install --silent
 	NODE_EXTRA_CA_CERTS="$$(mkcert -CAROOT)/rootCA.pem" BASE=https://$(TLS_HOST):8443 node experiments/headless-cid/run.mjs
+
+# --- P1 spike: Keycloak in front of JSS (experiments/keycloak-jss) ---
+KC = docker compose -f experiments/keycloak-jss/docker-compose.yml
+
+kc-up:
+	$(KC) up -d
+	@echo "Keycloak (spike) at http://localhost:8080 (realm: lws). Start gateway: cd experiments/keycloak-jss && node gateway.js"
+
+kc-down:
+	$(KC) down
+
+# Full spike check: assumes `make up` (JSS) and `make kc-up` (Keycloak) are running.
+kc-spike:
+	cd experiments/keycloak-jss && npm install --silent && node gateway.js & GW_PID=$$!; sleep 2; cd experiments/keycloak-jss && npx vitest run; RC=$$?; kill $$GW_PID 2>/dev/null || true; exit $$RC

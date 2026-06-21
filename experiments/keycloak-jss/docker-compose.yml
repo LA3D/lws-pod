@@ -1,0 +1,14 @@
+# Keycloak for the P1 spike. Dev mode, in-memory, realm imported at boot.
+# Issuer: http://localhost:8080/realms/lws
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: lws-keycloak-spike
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./realm-lws.json:/opt/keycloak/data/import/realm-lws.json:ro
