@@ -47,13 +47,21 @@ Verified end-to-end against a live JSS pod: good writes admitted (201), bad writ
 (422 + Link + message), unconstrained containers passed through (201), and the shape
 advertised on container GET.
 
-## Note on JSS (2026-06-21)
+## Note on JSS (2026-06-21, resolved P2)
 
-JSS serves the `.meta` sidecar and stores `ldp:constrainedBy` — so the discovery mechanism
-works on JSS v0.0.209. **Caveat:** the proxy fetches `.meta` and the shape *unauthenticated*,
-but JSS resources are owner-only by default and its `.acl` PUT rejected `text/turtle` with
-**415** in testing. So on JSS the constraint resources must be made public-readable (settle the
-accepted `.acl` write form), **or** the proxy should forward the requester's `Authorization`
-header on its `.meta`/shape reads (the cleaner fix — also lets it govern protected containers).
-Until then, on a default JSS pod the proxy reads 401 → treats the container as unconstrained →
-writes pass through unvalidated. See `FOLLOWUP.md` open item 2.
+The proxy now reads `.meta` and the shape under the **requester's `Authorization`** (auth-keyed
+caches), so it governs **protected owner-only constrained containers** — not just public ones.
+Shapes are made **public-read** via `set-acl.mjs`, an HTTP-native helper that `PUT`s
+`<resource>.acl` as **`application/ld+json`** (the earlier 415 was `text/turtle`; JSS stores
+dotfiles as JSON-LD on disk). No MCP dependency — works from any HTTP client (Claude Code CLI,
+curl, the app). Accepted ACL form: WAC in JSON-LD with `acl:agent`/`acl:agentClass foaf:Agent`,
+`acl:mode acl:Read|Write|Control`, `acl:accessTo`/`acl:default`; the `.acl` URL is discovered via
+`Link: rel="acl"` (falls back to `<resource>.acl`).
+
+**`acl:mode` gotcha:** JSS requires `acl:mode` as a JSON **array** even for a single mode —
+`"acl:mode": ["acl:Read"]` is accepted; `"acl:mode": "acl:Read"` (bare string) is rejected.
+
+**Edge case:** an agent with write-but-not-read on a container's `.meta` cannot have the constraint
+discovered under its own auth (the `.meta` stays owner-only by design). Acceptable for the
+owner-centric memory-pod model. Concretely: a requester who cannot read `<container>/.meta`
+still receives unvalidated pass-through — the proxy is **opt-in admission, not deny-by-default**.

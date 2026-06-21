@@ -68,6 +68,13 @@ JSS serves `.meta`+`ldp:constrainedBy` (admission proxy ports).
    Settle either (a) public-read ACL provisioning (find JSS's accepted `.acl` write form), or
    (b) have the proxy forward the requester's `Authorization` on its constraint reads (the
    cleaner fix — lets it govern protected containers). Mechanism itself is confirmed working.
+   **Resolved (P2, 2026-06-21):** proxy forwards the requester's Authorization on `.meta`/shape
+   reads (governs protected containers); `constrained-container/set-acl.mjs` provisions public-read
+   shapes via HTTP `application/ld+json` `.acl` PUT (no MCP). See `constrained-container/README.md`.
+   *P2 follow-ups (non-blocking):* `set-acl.mjs` sets `acl:default` on file resources (no-op on
+   files; correct once used on containers); its signature omits the unused `base` param; and
+   `proxy.js`'s `validatorFor()` should add an `r.ok` guard (symmetry with `constrainedBy`) so a
+   readable-`.meta`-but-protected-shape topology fails open instead of admitting all.
 3. **In-process projection / auto-commit** (axis 7). No native JSS write hook (no plugin API,
    docs-confirmed). Projection-on-write and git-commit-on-write run as the sidecar proxy, not
    in-process, unless JSS exposes `storage.write()`. The proxy is server-agnostic, so this is
