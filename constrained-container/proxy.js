@@ -12,6 +12,9 @@ import rdf from 'rdf-ext';
 import { Validator } from 'shacl-engine';
 import matter from 'gray-matter';
 import { extractCard, quadsToTurtle } from '../projection/profiles/wiki-memory/extract.mjs';
+import { loadNamespaces } from '../projection/okf/namespaces.mjs';
+import { typeLinkHeaders } from '../projection/okf/links.mjs';
+const NS = loadNamespaces(JSON.parse(readFileSync(new URL('../projection/profiles/wiki-memory/context.jsonld', import.meta.url))));
 
 const PROFILE_TYPES = new Set(
   new TtlParser().parse(readFileSync(new URL('../projection/profiles/wiki-memory/types.ttl', import.meta.url), 'utf8'))
@@ -97,11 +100,13 @@ const server = http.createServer(async (req, res) => {
         req.__advisories = advisories.map(r => `${sev(r)}: ${msgOf(r)}`);
         console.log(`[admit]  ${method} ${url} (with ${advisories.length} advisory finding(s))`);
       }
-      const fmType = matter(body.toString('utf8')).data?.type;
+      const fm = matter(body.toString('utf8')).data || {};
+      const fmType = fm.type;
       if (fmType && !PROFILE_TYPES.has(fmType)) {
         (req.__advisories ||= []).push(`Unknown: type "${fmType}" is new to the wiki-memory profile - admitted ungoverned; register a shape or pick an existing type`);
         console.log(`[warn]   ${method} ${url} type "${fmType}" not in profile (admitted ungoverned)`);
       }
+      req.__linkHeader = typeLinkHeaders(fm, NS);
     }
 
     const shapeUrl = await constrainedBy(containerOf(url, method), auth);
@@ -131,6 +136,7 @@ const server = http.createServer(async (req, res) => {
 
   // transparent forward
   const headers = { ...req.headers }; delete headers.host; delete headers['content-length'];
+  if (req.__linkHeader) headers['link'] = (headers['link'] ? headers['link'] + ', ' : '') + req.__linkHeader;
   const up = await fetch(`${UPSTREAM}${url}`, { method, headers, body: isWrite ? body : undefined, redirect: 'manual' });
   const out = {}; up.headers.forEach((v, k) => { if (k !== 'content-length') out[k] = v; });
 
