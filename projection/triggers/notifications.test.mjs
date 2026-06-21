@@ -20,8 +20,10 @@ describe('notifications trigger (e2e)', () => {
 
   it('re-projects after a card is written', async () => {
     let projected = 0
-    ws = watch(C, { token, debounceMs: 150, onProject: () => projected++ })
-    await sleep(500) // allow socket open + subscribe
+    let resolveReady
+    const ready = new Promise(r => { resolveReady = r })
+    ws = watch(C, { token, debounceMs: 150, onReady: () => resolveReady(), onProject: () => projected++ })
+    await ready
     await fetch(C + 'n.md', { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/markdown' }, body: CARD })
 
     for (let i = 0; i < 40 && projected === 0; i++) await sleep(100) // up to 4s

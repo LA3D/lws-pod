@@ -46,6 +46,10 @@ Deferred to Phase-1 / production hardening (not silently dropped):
   bearer; addressed in P4)
 - WS auto-reconnect/backoff (close handler logs halt + clears the timer; manual restart now)
 - A GA4-style second profile
+- **Proxy cache keying (P4):** `shapeCache`/`shapeDsCache` in `constrained-container/proxy.js`
+  are keyed by the full bearer token and never invalidated — under token churn they grow
+  unbounded, and a container's `.meta`/constraint change is not picked up until proxy restart.
+  Acceptable for the local rung; harden at P4 alongside the app/agent identity item.
 
 Remaining Phase-0: **P4** (public-dev rung on a CRC/SAI VM — also closes the open LWS-CID
 public auth test from open-item 1).

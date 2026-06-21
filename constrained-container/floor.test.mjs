@@ -1,5 +1,4 @@
 import { describe, it, beforeAll, expect } from 'vitest'
-import { setPublicReadAcl } from './set-acl.mjs'
 import { wmConceptWiringShape } from '../projection/profiles/wiki-memory/shape.mjs'
 
 const JSS = 'http://localhost:3838'

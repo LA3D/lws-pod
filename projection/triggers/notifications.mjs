@@ -6,7 +6,7 @@ import { project } from '../engine.mjs'
 import { wikiMemoryProfile } from '../profiles/wiki-memory/index.mjs'
 
 export function watch(containerUrl, opts = {}) {
-  const { token = null, debounceMs = 300, profile = wikiMemoryProfile, onProject } = opts
+  const { token = null, debounceMs = 300, profile = wikiMemoryProfile, onProject, onReady } = opts
   const wsUrl = opts.wsUrl || `ws://${new URL(containerUrl).host}/.notifications`
   const wsOpts = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
   const ws = new WebSocket(wsUrl, wsOpts)
@@ -21,7 +21,12 @@ export function watch(containerUrl, opts = {}) {
   }
 
   ws.on('open', () => ws.send('sub ' + containerUrl))
-  ws.on('message', d => { if (d.toString().startsWith('pub ')) schedule() })
+  ws.on('message', d => {
+    const s = d.toString()
+    if (s.startsWith('ack ')) onReady?.()
+    else if (s.startsWith('pub ')) schedule()
+    else if (s.startsWith('err ')) console.error('[ws] subscribe failed:', s.slice(4))
+  })
   ws.on('error', e => console.error('[ws]', e.message))
   ws.on('close', () => { clearTimeout(timer); console.error('[ws] socket closed — watcher halted (no auto-reconnect)') })
   return ws
