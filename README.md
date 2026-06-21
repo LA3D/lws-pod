@@ -1,13 +1,17 @@
 # lws-pod
 
-Evaluation spike: **is [JavaScriptSolidServer](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer) (JSS) a good substrate to move the memory pods onto, replacing CSS?**
+The substrate for the **memory pods**, built on a containerized, pinned
+[JavaScriptSolidServer](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer) (JSS).
 
-A containerized, pinned JSS instance configured to exercise the things CSS does *not*
-give us and we'd otherwise have to build ourselves: a self-issued agent-identity stack
-(LWS-CID / did:nostr), headless agent auth, an MCP agent surface, and git-backed
-versioning. Our L2 memory layer (governed projection, write contract, SHACL admission,
-curation) is portable IP that rides on top of any Solid server — so this evaluates the
-*substrate*, not the memory semantics.
+**Status:** the JSS-vs-CSS evaluation concluded — *JSS is a good replacement, build on it*
+(verdict + evidence below). Now in build phase. The deployment workflow has a **local rung**
+today (`make up` / `make test`); public dev/prod rungs on a CRC/SAI VM are designed-for and
+deferred (see `FOLLOWUP.md` and `docs/superpowers/specs/`).
+
+JSS gives us what CSS does *not*: a self-issued agent-identity stack (LWS-CID / did:nostr),
+headless agent auth, an MCP agent surface, and git-backed versioning. Our L2 memory layer
+(governed projection, write contract, SHACL admission, curation) is portable IP that rides on
+top of any Solid server.
 
 ## Run
 

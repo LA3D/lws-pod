@@ -5,6 +5,30 @@ Between-session state for lws-pod. Open items only; closed work lives in commit 
 
 ---
 
+## ▶▶ DONE — local deployment rung (2026-06-21)
+
+Left experiment phase; began building the memory pods. Migrated the eval scaffolding into a
+base+override deployment workflow — **local rung only**; public dev/prod deferred. Spec + plan
+in `docs/superpowers/specs/` and `docs/superpowers/plans/` (2026-06-21). Merged to `main`.
+
+- **Base+override compose:** `docker-compose.yml` (env-neutral `jss` service — no ports/volumes/
+  container_name) + `docker-compose.local.yml` (http :3838, `./data` bind-mount for on-disk
+  inspection). `.env.local` (gitignored) copied from `.env.example`; make targets wrap
+  `-f base -f local --env-file .env.local`.
+- **Vitest gate:** `tests/` via `make test` replaces `smoke.sh` (archived to `experiments/`).
+  9/9 e2e green — lifecycle (pod create, headless RS256 bearer, write/read, conneg) + agent
+  surfaces (MCP, CID-shaped profile, git push → retrievable resource).
+- **Deferred by decision:** public rungs target a **CRC/SAI provisioned VM** + Docker Compose +
+  Caddy at `*.crc.nd.edu` (`pod-dev.crc.nd.edu`, `pod.crc.nd.edu`); TLS via institutional
+  wildcard cert (mounted) or Caddy/LE; deploy manual-now → GitHub-Actions CI later. The base is
+  env-neutral so `.dev.yml`/`.prod.yml` will only ADD, never edit it.
+
+Follow-ups (none blocking): Makefile `BASE` should track `ENV` when dev/prod arrive; `make up`
+could add `--remove-orphans`; `mcp()` test helper could check HTTP status before `.json()`;
+profile test pinned to `card.jsonld` until JSS adds extension-free conneg.
+
+---
+
 ## ▶▶ DONE — JSS substrate evaluation (2026-06-21)
 
 **Verdict: JSS is a good replacement for CSS — proceed to build the L2 memory layer on it.**
@@ -58,13 +82,20 @@ JSS serves `.meta`+`ldp:constrainedBy` (admission proxy ports).
 5. The L2 IP to port: `constrained-container/` (admission), `docs/wiki-memory-dual-projection.md`
    (content model), `docs/foundations/04-comunica-patterns.md` (query path).
 
-## Eval pods (still running as of 2026-06-21)
+## Local pod (deployment workflow)
 
-`lws-pod` (http :3838), `lws-pod-tls` (https :8443). `make down` / `make down-tls` to stop.
-Test cruft left on the http pod (alice/notes, alice/gitq, alice/concepts, gitprobe-* repos) —
-harmless; `make reset` clears it.
+Local stack: container `lws-pod-local`, http :3838, data bind-mounted to `./data` (inspect the
+LDP containers + git repos directly on disk). `make up` / `make down` / `make logs` / `make shell`;
+`make test` runs the Vitest gate; `make reset` wipes `./data` for a fresh pod. TLS eval pod
+`lws-pod-tls` (https :8443) via `make up-tls` / `make down-tls` is unchanged. Test cruft on the
+http pod (alice/notes, gitprobe-* repos) is harmless — `make reset` clears it.
 
 ## Next session
 
-Brainstorm phase 1 of the L2 build — likely `constrained-container` hardening (open item 2) +
-the projection-on-write path. Start with `/brainstorming`, scope, then plan.
+Two threads, pick by what's unblocked:
+- **Public-dev rung** (open item 1): stand up `pod-dev.crc.nd.edu` on a CRC/SAI VM (Compose +
+  Caddy) — this is the rung where LWS-CID self-signed auth can finally be verified (the
+  `blockPrivateIPs` blocker needs a public IP). Needs CRC VM + DNS provisioning first; add
+  `docker-compose.dev.yml` + `.env.dev` to the existing base. Start with `/brainstorming`.
+- **L2 build** (open items 2-3): `constrained-container` hardening (auth on constraint reads) +
+  the projection-on-write / git-commit path. Start with `/brainstorming`, scope, then plan.
