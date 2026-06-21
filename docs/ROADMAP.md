@@ -26,6 +26,17 @@ It has two halves:
    standard Solid app patterns ([dev.solidproject.org](https://dev.solidproject.org/), the
    `solid/dev` resource hub).
 
+### Secondary purpose: an agentic-behavior testbed
+
+The wiki-memory pod is not just a product — it's the **experimental apparatus** for the
+"structure helps agents" thesis. Because it exposes an agent-facing surface (MCP / headless), the
+same `make test` harness that gates the storage layer extends to **agentic-behavior evaluation**:
+does typed, authz-filtered, progressively-disclosed memory (TypeIndex → Comunica) produce better
+agent task outcomes than flat retrieval? **Porter's flat shared graph is the natural control
+group** — same substrate (LWS pods), opposite memory model (untyped dump + SPARQL-the-pile vs
+typed edges + progressive disclosure + SHACL admission). This makes the agent surface a
+first-class deliverable, not an afterthought, and the evaluation rig a real workstream (Phase 3).
+
 ### Layered architecture
 
 ```
