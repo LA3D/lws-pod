@@ -9,7 +9,7 @@ const registry = { 'wiki-memory': wikiMemoryProfile }
 describe('selectProfile', () => {
   it('selects the declared profile from root index.md frontmatter', () => {
     const root = `---\nokf_profile: wiki-memory\n---\n# Root`
-    expect(selectProfile(root, registry).application).toBe('wiki-memory')
+    expect(selectProfile(root, registry)).toBe(wikiMemoryProfile)
   })
 
   it('falls back to base mode when no profile is declared', () => {
