@@ -1,4 +1,5 @@
 import { describe, it, beforeAll, expect } from 'vitest'
+import { setPublicReadAcl } from './set-acl.mjs'
 
 const JSS = 'http://localhost:3838'
 const PROXY = 'http://localhost:3839'
@@ -53,5 +54,30 @@ describe('(b) proxy governs a protected constrained container', () => {
       method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: CONFORMING,
     })
     expect([200, 201, 204, 205]).toContain(r.status)
+  })
+})
+
+describe('(a) HTTP ACL provisioning makes a shape public-read', () => {
+  let token, webid
+  const shape = `${JSS}/alice/p2a/shape.ttl`
+  beforeAll(async () => {
+    ;({ token, webid } = await owner())
+    await fetch(`${JSS}/alice/p2a/`, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: '' })
+    await fetch(shape, { method: 'PUT', headers: { ...auth(token), 'Content-Type': 'text/turtle' }, body: SHAPE })
+  })
+
+  it('shape is owner-only before provisioning (unauth GET != 200)', async () => {
+    const r = await fetch(shape)
+    expect(r.status).not.toBe(200)
+  })
+
+  it('writes a public-read .acl via HTTP application/ld+json (no MCP)', async () => {
+    const { status, body } = await setPublicReadAcl({ resource: shape, ownerWebId: webid, token })
+    expect([200, 201, 204, 205], `acl PUT body: ${body}`).toContain(status)
+  })
+
+  it('shape is GET-able unauthenticated after provisioning (200)', async () => {
+    const r = await fetch(shape)
+    expect(r.status).toBe(200)
   })
 })
