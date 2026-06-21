@@ -10,17 +10,18 @@ The pod hosts **no** SPARQL endpoint. Queries run **client-side** in Comunica
 service, not a storage endpoint. The substrate serves RDF resources; the client assembles the
 query.
 
-## Query the `.graph` aggregate as one source (the default)
+## Query the `graph.ttl` aggregate as one source (the default)
 
-The architecture materializes a **per-container `.graph` aggregate** (the union of the
-members' typed edges). Query it as a *single explicit source* — no per-resource `.meta`
-enumeration, no link-traversal needed:
+The architecture materializes a **per-container `graph.ttl` aggregate** (the union of the
+members' typed edges). The aggregate is materialized at `graph.ttl` (a plain DataResource)
+by the projection app; see `projection/`. Query it as a *single explicit source* — no
+per-resource `.meta` enumeration, no link-traversal needed:
 
 ```js
 import { QueryEngine } from '@comunica/query-sparql-link-traversal';
 const engine = new QueryEngine();
 const rows = await (await engine.queryBindings(query, {
-  sources: ['http://pod/alice/concepts/.graph'],   // one source
+  sources: ['http://pod/alice/concepts/graph.ttl'],   // one source
   lenient: true,
 })).toArray();
 ```
@@ -50,7 +51,7 @@ SELECT ?c ?l WHERE { ?c a skos:Concept ; skos:prefLabel ?l .
 2. **Link-traversal needs the `ldp:contains` actor.** The *vanilla* engine config does **not**
    follow `ldp:contains` to enumerate container members (returns 0 results). The reference repo
    adds the `predicates-ldp` extract actor via a custom config. **But our architecture doesn't
-   rely on traversal** — we query the `.graph` aggregate as a single source, so this only
+   rely on traversal** — we query the `graph.ttl` aggregate as a single source, so this only
    matters if you want auto-discovery traversal later.
 
 Use `lenient: true` so the engine logs parse errors on non-RDF responses instead of failing.
@@ -58,7 +59,7 @@ Use `lenient: true` so the engine logs parse errors on non-RDF responses instead
 ## Verified on JSS (2026-06-20)
 
 Against a live JSS pod: single-source query ✅, multi-source (explicit list) ✅, and the
-`.graph`-aggregate relational query ("concepts with no `implementedBy`") ✅ returned the right
+`graph.ttl`-aggregate relational query ("concepts with no `implementedBy`") ✅ returned the right
 answer. The graph-query layer survives the CSS→JSS move intact.
 
 ## Reference
