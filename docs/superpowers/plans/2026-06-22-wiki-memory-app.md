@@ -11,6 +11,14 @@
 >    `@comunica/...` entry** (N3 is already in the map).
 > 2. The plan's `@comunica/query-sparql-link-traversal@^4.0.0` pin was wrong (that package's latest
 >    is `0.8.0`); moot now that the engine is N3, but `n3` stays.
+> 3. **Content root: user pod space, not server root.** The pod's root ACL forbids writing at
+>    `/concepts/` (alice writes only under `/alice/`). Content lives at `/<user>/concepts/` +
+>    `/<user>/implementations/`, derived from the login WebID. `<wm-app>` mounts at
+>    `${storageBase(webid)}concepts/` (Task 9b fix). Task 10's seed creates `/alice/concepts/` +
+>    `/alice/implementations/` and must (a) write `hierarchical-retrieval` DIRECT to JSS (bypass the
+>    proxy) so the ungoverned card lands on the worklist — the floor 422s it through the proxy, so it
+>    can't be both proxy-rejected AND on the worklist; and (b) run the projection CLI per container
+>    to generate `index.md`+`graph.ttl` (projection is not auto-running).
 
 **Goal:** An installable static Solid/LWS curation console that lets a human browse agent-written concept cards, traverse their typed graph across containers, and correct them through the SHACL floor.
 

@@ -13,6 +13,15 @@ Status: design approved 2026-06-22.
 > revisited. References to Comunica below describe the original design intent; read "N3 over
 > explicitly-derived container sources" for v1.
 
+> **Deviation (2026-06-22, during implementation):** content lives under the **authenticated
+> user's pod space**, not server-root `/concepts/`. The JSS pod's root container is read-only for
+> all agents (alice can write only under `/alice/`), matching Solid's per-user storage model and
+> this repo's own projection tests (`${BASE}/alice/...`). `<wm-app>` derives the content base from
+> the login WebID (`http://host/alice/profile/card.jsonld#me` → base `http://host/alice/`) and mounts
+> `<wm-index>` at `${base}concepts/`. Read every bare `/concepts/` and `/implementations/` below as
+> `/<user>/concepts/` and `/<user>/implementations/`. (Proper storage discovery via the profile's
+> `pim:storage` is a v1+ refinement; first-path-segment derivation suffices for JSS per-user pods.)
+
 The client half of the wiki-memory system (`docs/ROADMAP.md` §"two halves"): an installable
 Solid/LWS app that lets a human **curate** agent-written memory. Builds on the projection engine
 (P3, `projection/`), the SHACL admission floor (P2, `constrained-container/`), and the credentials
