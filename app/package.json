@@ -1,0 +1,15 @@
+{
+  "name": "wiki-memory-app",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "vitest run" },
+  "devDependencies": {
+    "vitest": "^4.1.9",
+    "jsdom": "^25.0.0",
+    "marked": "^14.1.0",
+    "js-yaml": "^4.1.0",
+    "n3": "^1.21.0",
+    "cytoscape": "^3.30.0",
+    "@comunica/query-sparql-link-traversal": "^0.8.0"
+  }
+}
