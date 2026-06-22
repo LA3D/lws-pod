@@ -4,6 +4,8 @@ import { getSession } from '../pod.js'
 const containerOf = url => url.slice(0, url.lastIndexOf('/') + 1)
 const subjectOf = url => url.replace(/\.md$/, '') + '#it'
 const esc = s => String(s).replace(/[<&"]/g, c => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' }[c]))
+// user's pod storage base from the webid: http://host/alice/profile/card#me -> http://host/alice/
+const storageBase = webid => { const u = new URL(webid); return `${u.origin}/${u.pathname.split('/').filter(Boolean)[0]}/` }
 
 class WmApp extends HTMLElement {
   connectedCallback() {
@@ -15,7 +17,12 @@ class WmApp extends HTMLElement {
     this.addEventListener('wm-saved', e => this._showCard(e.detail.url))
   }
   get _main() { return this.shadowRoot.querySelector('main') }
-  _onAuth() { this.shadowRoot.querySelector('wm-login')?.remove(); this._showContainer(`${getSession().podUrl}/concepts/`) }
+  _onAuth() {
+    this.shadowRoot.querySelector('wm-login')?.remove()
+    const { webid } = getSession()
+    if (!webid) return
+    this._showContainer(`${storageBase(webid)}concepts/`)
+  }
   _showContainer(url) { this._main.innerHTML = `<wm-index container="${esc(url)}"></wm-index>` }
   _showCard(url) {
     this._main.innerHTML =

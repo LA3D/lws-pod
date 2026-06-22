@@ -20,5 +20,6 @@ describe('<wm-login>', () => {
     expect(detail.webid).toBe('https://pod/alice#me')
     expect(getSession().token).toBe('tok')
     expect(getSession().proxyUrl).toBe('http://localhost:8080')
+    expect(getSession().webid).toBe('https://pod/alice#me')
   })
 })

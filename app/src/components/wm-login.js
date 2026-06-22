@@ -17,7 +17,7 @@ class WmLogin extends HTMLElement {
     const v = n => this.shadowRoot.querySelector(`[name=${n}]`).value.trim()
     try {
       const { token, webid } = await login(v('pod'), v('email'), v('password'))
-      setSession({ podUrl: v('pod'), token, proxyUrl: v('proxy') })
+      setSession({ podUrl: v('pod'), token, proxyUrl: v('proxy'), webid })
       this.dispatchEvent(new CustomEvent('wm-authenticated', { bubbles: true, composed: true, detail: { webid } }))
     } catch (e) { this.shadowRoot.querySelector('.err').textContent = e.message }
   }

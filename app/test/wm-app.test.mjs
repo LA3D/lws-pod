@@ -27,9 +27,10 @@ describe('<wm-app>', () => {
     const el = document.createElement('wm-app'); document.body.appendChild(el)
     el.dispatchEvent(new CustomEvent('wm-authenticated', { bubbles: true, composed: true, detail: { webid: 'w' } }))
     // session podUrl is read from getSession(); set it directly for the test
-    const { setSession } = await import('../src/pod.js'); setSession({ podUrl: 'http://localhost:3838' })
+    const { setSession } = await import('../src/pod.js')
+    setSession({ podUrl: 'http://localhost:3838', webid: 'http://localhost:3838/alice/profile/card.jsonld#me' })
     el._onAuth()
     expect(el.shadowRoot.querySelector('wm-index')).toBeTruthy()
-    expect(el.shadowRoot.querySelector('wm-index').getAttribute('container')).toBe('http://localhost:3838/concepts/')
+    expect(el.shadowRoot.querySelector('wm-index').getAttribute('container')).toBe('http://localhost:3838/alice/concepts/')
   })
 })
