@@ -84,3 +84,9 @@ into the user's writable space (`/alice/apps/wiki-memory/`) and serving from the
 - Comunica link-traversal (the original design's graph engine) is deferred to the Phase-2 agent layer;
   v1 uses N3 over explicitly-derived sources (`@comunica/query-sparql-link-traversal@0.8.0` is broken
   in Node ESM). See the design's deviation notes.
+- **Backlinks** are resolved from the card's own container `graph.ttl`, so concept→concept backlinks
+  (all in `/alice/concepts/`) show correctly, but a card whose incoming edges live in another container
+  (e.g. an implementation pointed at by concepts) shows none. Cross-container backlinks need either a
+  global index or inverse-edge materialization into the target's container — a follow-up.
+- N3's `Store.match()` throws in the esm.sh browser build; `graph.js` uses `getObjects`/`getSubjects`
+  instead, guarded by `test/browser-safe.test.mjs`.

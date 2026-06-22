@@ -1,7 +1,14 @@
 // Data-access core. The ONE module that talks to the pod/proxy. No DOM.
-let session = { podUrl: '', token: '', proxyUrl: '' }
-export const setSession = s => { session = { ...session, ...s } }
+// Session is persisted to localStorage so a page reload keeps the bearer (design §6).
+const KEY = 'wm-session'
+const blank = { podUrl: '', token: '', proxyUrl: '', webid: '' }
+const storage = () => { try { return globalThis.localStorage ?? null } catch { return null } }   // lazy: always available in a browser
+const load = () => { try { return { ...blank, ...JSON.parse(storage()?.getItem(KEY) || '{}') } } catch { return { ...blank } } }
+
+let session = load()
+export const setSession = s => { session = { ...session, ...s }; try { storage()?.setItem(KEY, JSON.stringify(session)) } catch {} }
 export const getSession = () => ({ ...session })
+export const clearSession = () => { session = { ...blank }; try { storage()?.removeItem(KEY) } catch {} }
 
 const pathOf = url => new URL(url).pathname
 

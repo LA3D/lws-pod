@@ -61,21 +61,20 @@ export async function worklist(graphUrl) {
 // Returns the focus node's direct typed edges (skos:broader, wm:implementedBy)
 // and labeled/stub targets. Resolves cross-container labels by loading derived
 // container graph.ttl URLs for each edge target.
+// NOTE: uses store.getObjects/getSubjects, NOT the N3 store match method — it throws
+// "Class constructor E cannot be invoked without 'new'" in the esm.sh browser build.
 export async function neighborhood(seedGraphUrl, focusIri) {
   const seedStore = await loadStore(seedGraphUrl)
   const prefLabel = namedNode(SKOS + 'prefLabel')
-  const broader = namedNode(SKOS + 'broader')
-  const implementedBy = namedNode(WM + 'implementedBy')
   const focus = namedNode(focusIri)
 
   // Collect direct typed edges and targets
   const edges = []
   const targets = new Set()
-  for (const pred of [broader, implementedBy]) {
-    for (const quad of seedStore.match(focus, pred, null, null)) {
-      const o = quad.object.value
-      edges.push({ source: focusIri, target: o, label: pred.value.split(/[#/]/).pop() })
-      targets.add(o)
+  for (const pred of [namedNode(SKOS + 'broader'), namedNode(WM + 'implementedBy')]) {
+    for (const o of seedStore.getObjects(focus, pred, null)) {
+      edges.push({ source: focusIri, target: o.value, label: pred.value.split(/[#/]/).pop() })
+      targets.add(o.value)
     }
   }
 
@@ -88,20 +87,29 @@ export async function neighborhood(seedGraphUrl, focusIri) {
     }
   }))
 
-  // Collect all labels across stores
-  const labels = new Map()
-  for (const s of stores) {
-    for (const quad of s.match(null, prefLabel, null, null)) {
-      labels.set(quad.subject.value, quad.object.value)
-    }
+  const labelFor = id => {
+    for (const s of stores) { const objs = s.getObjects(namedNode(id), prefLabel, null); if (objs.length) return objs[0].value }
+    return null
   }
-
   const ids = new Set([focusIri, ...targets])
-  const nodes = [...ids].map(id => ({
-    id,
-    label: labels.get(id) || id.split(/[#/]/).pop(),
-    stub: !labels.has(id)
-  }))
+  const nodes = [...ids].map(id => { const l = labelFor(id); return { id, label: l ?? id.split(/[#/]/).pop(), stub: l === null } })
 
   return { nodes, edges }
+}
+
+// backlinks(seedGraphUrl, focusIri) → [{source, label, sourceLabel}]
+// Incoming typed edges: subjects S with (skos:broader | wm:implementedBy) pointing AT the focus.
+// Queried over the focus's container graph (where sibling concepts' forward edges live).
+export async function backlinks(seedGraphUrl, focusIri) {
+  const store = await loadStore(seedGraphUrl)
+  const prefLabel = namedNode(SKOS + 'prefLabel')
+  const focus = namedNode(focusIri)
+  const out = []
+  for (const pred of [namedNode(SKOS + 'broader'), namedNode(WM + 'implementedBy')]) {
+    for (const s of store.getSubjects(pred, focus, null)) {
+      const labels = store.getObjects(s, prefLabel, null)
+      out.push({ source: s.value, label: pred.value.split(/[#/]/).pop(), sourceLabel: labels[0]?.value || s.value.split(/[#/]/).pop() })
+    }
+  }
+  return out
 }

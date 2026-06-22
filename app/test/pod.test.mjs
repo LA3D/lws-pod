@@ -1,8 +1,28 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setSession, login, podFetch, putCard, getGraph } from '../src/pod.js'
+import { setSession, getSession, clearSession, login, podFetch, putCard, getGraph } from '../src/pod.js'
 
 describe('pod', () => {
   beforeEach(() => setSession({ podUrl: '', token: '', proxyUrl: '' }))
+
+  it('persists the session to localStorage and restores it on a fresh module load', async () => {
+    // inject an in-memory localStorage (jsdom here doesn't expose one); a real browser always has it
+    let mem = {}
+    const mock = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v) }, removeItem: k => { delete mem[k] } }
+    vi.stubGlobal('localStorage', mock)
+    const { setSession, clearSession } = await import('../src/pod.js')
+    clearSession()
+    setSession({ podUrl: 'http://localhost:3838', token: 'tok', proxyUrl: 'http://localhost:8080', webid: 'https://pod/alice#me' })
+    // written through to storage (survives a page reload)
+    expect(JSON.parse(mock.getItem('wm-session')).token).toBe('tok')
+    // simulate a reload: drop the module cache and re-import — load() should hydrate from storage
+    vi.resetModules()
+    const fresh = await import('../src/pod.js')
+    expect(fresh.getSession().token).toBe('tok')
+    expect(fresh.getSession().webid).toBe('https://pod/alice#me')
+    fresh.clearSession()
+    expect(mock.getItem('wm-session')).toBeNull()
+    vi.unstubAllGlobals()
+  })
 
   it('login posts credentials and returns token + webid', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
