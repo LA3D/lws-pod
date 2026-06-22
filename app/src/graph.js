@@ -6,8 +6,6 @@
 // N3.js (already a dep) provides equivalent functionality without the Comunica bug.
 
 import { Store, Parser as N3Parser, DataFactory } from 'n3'
-import { readFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
 
 const SKOS = 'http://www.w3.org/2004/02/skos/core#'
 const WM = 'https://w3id.org/cogitarelink/wm#'
@@ -25,6 +23,8 @@ const containerGraphOf = iri => {
 async function loadStore(graphUrl) {
   let turtle
   if (graphUrl.startsWith('file://')) {
+    const { readFile } = await import('node:fs/promises')
+    const { fileURLToPath } = await import('node:url')
     turtle = await readFile(fileURLToPath(graphUrl), 'utf8')
   } else {
     const res = await fetch(graphUrl, { headers: { Accept: 'text/turtle' } })

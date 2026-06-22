@@ -1,6 +1,7 @@
 import { getText } from '../pod.js'
 import { splitCard, renderBody } from '../parse.js'
 import { neighborhood } from '../graph.js'
+import { esc } from '../esc.js'
 
 const containerOf = url => url.slice(0, url.lastIndexOf('/') + 1)
 const subjectOf = url => url.replace(/\.md$/, '') + '#it'
@@ -14,7 +15,6 @@ class WmCard extends HTMLElement {
     const { frontmatter, body } = splitCard(this._md)
     let nb = { nodes: [], edges: [] }
     try { nb = await neighborhood(`${containerOf(this.url)}graph.ttl`, subjectOf(this.url)) } catch {}
-    const esc = s => String(s).replace(/[<&"]/g, c => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' }[c]))
     const labelOf = id => (nb.nodes.find(n => n.id === id) || {}).label || id
     const rel = nb.edges.length ? `<aside class="relates"><h3>Relates / Implements</h3><ul>${
       nb.edges.map(e => `<li>${esc(e.label)} → ${esc(labelOf(e.target))}</li>`).join('')}</ul></aside>` : ''

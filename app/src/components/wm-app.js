@@ -1,9 +1,9 @@
 import './wm-login.js'; import './wm-index.js'; import './wm-card.js'; import './wm-editor.js'; import './wm-graph.js'
 import { getSession } from '../pod.js'
+import { esc } from '../esc.js'
 
 const containerOf = url => url.slice(0, url.lastIndexOf('/') + 1)
 const subjectOf = url => url.replace(/\.md$/, '') + '#it'
-const esc = s => String(s).replace(/[<&"]/g, c => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' }[c]))
 // user's pod storage base from the webid: http://host/alice/profile/card#me -> http://host/alice/
 const storageBase = webid => { const u = new URL(webid); return `${u.origin}/${u.pathname.split('/').filter(Boolean)[0]}/` }
 
