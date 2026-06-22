@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { worklist, neighborhood } from '../src/graph.js'
+import { worklist, neighborhood, backlinks } from '../src/graph.js'
 
 const concepts = pathToFileURL(new URL('../fixtures/concepts.ttl', import.meta.url).pathname).href
 
@@ -12,6 +12,15 @@ describe('graph', () => {
   it('worklist returns concepts with no wm:implementedBy', async () => {
     const rows = await worklist(concepts)
     expect(rows.map(r => r.label).sort()).toEqual(['Hierarchical Retrieval'])
+  })
+
+  it('backlinks returns incoming typed edges with resolved source labels', async () => {
+    // progressive-disclosure --broader--> hierarchical-retrieval, so HR has PD as a backlink
+    const rows = await backlinks(concepts, 'http://pod.test/concepts/hierarchical-retrieval#it')
+    expect(rows).toContainEqual(expect.objectContaining({
+      source: 'http://pod.test/concepts/progressive-disclosure#it', label: 'broader', sourceLabel: 'Progressive Disclosure' }))
+    // a concept nothing points to has no backlinks
+    expect(await backlinks(concepts, 'http://pod.test/concepts/progressive-disclosure#it')).toEqual([])
   })
 
   // S4: label-less concept must be absent from worklist

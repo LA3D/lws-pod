@@ -52,6 +52,15 @@ describe('browser-safe source modules', () => {
   }
 })
 
+// Regression guard: N3's Store.match() throws "Class constructor E cannot be invoked
+// without 'new'" in the esm.sh browser build (it pulls in readable-stream). Node tests
+// pass because Node's N3 build is fine, so this is invisible to unit tests — encode it.
+// Use store.getObjects / getSubjects / getQuads instead.
+it('graph.js does not call N3 store.match() (browser-broken via esm.sh)', async () => {
+  const source = await readFile(path.join(srcDir, 'graph.js'), 'utf8')
+  expect(source).not.toMatch(/\.match\s*\(/)
+})
+
 // Sanity-check: verify the regex WOULD catch a top-level static import
 it('regex catches top-level node: import (sanity check)', () => {
   const bad = `import { readFile } from 'node:fs/promises'\n\nexport function foo() {}`

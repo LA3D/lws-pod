@@ -22,15 +22,39 @@ describe('<wm-graph>', () => {
 })
 
 describe('<wm-app>', () => {
-  beforeEach(() => { document.body.innerHTML = '' })
-  it('mounts index after authentication', async () => {
-    const el = document.createElement('wm-app'); document.body.appendChild(el)
-    el.dispatchEvent(new CustomEvent('wm-authenticated', { bubbles: true, composed: true, detail: { webid: 'w' } }))
-    // session podUrl is read from getSession(); set it directly for the test
+  const WEBID = 'http://localhost:3838/alice/profile/card.jsonld#me'
+  const tick = () => new Promise(r => setTimeout(r, 0))
+  beforeEach(async () => {
+    document.body.innerHTML = ''
+    const { clearSession } = await import('../src/pod.js')
+    clearSession(); location.hash = ''
+  })
+
+  it('restores a persisted session, skips login, and routes to the user container', async () => {
     const { setSession } = await import('../src/pod.js')
-    setSession({ podUrl: 'http://localhost:3838', webid: 'http://localhost:3838/alice/profile/card.jsonld#me' })
-    el._onAuth()
+    setSession({ podUrl: 'http://localhost:3838', token: 'tok', webid: WEBID })
+    const el = document.createElement('wm-app'); document.body.appendChild(el)
+    await tick()
+    const idx = el.shadowRoot.querySelector('wm-index')
+    expect(idx).toBeTruthy()
+    expect(idx.getAttribute('container')).toBe('http://localhost:3838/alice/concepts/')
+    expect(el.shadowRoot.querySelector('wm-login')).toBeFalsy()   // login skipped on restore
+  })
+
+  it('opens a card via hash routing and Back returns to the index', async () => {
+    const { setSession } = await import('../src/pod.js')
+    setSession({ podUrl: 'http://localhost:3838', token: 'tok', webid: WEBID })
+    const el = document.createElement('wm-app'); document.body.appendChild(el)
+    await tick()
+    el.dispatchEvent(new CustomEvent('wm-open-card', { bubbles: true, composed: true,
+      detail: { url: 'http://localhost:3838/alice/concepts/progressive-disclosure.md' } }))
+    await tick()
+    expect(location.hash).toContain('card=')               // navigation is a history entry
+    expect(el.shadowRoot.querySelector('wm-card')).toBeTruthy()
+    // simulate the browser Back button (hash returns to the container route)
+    location.hash = 'container=' + encodeURIComponent('http://localhost:3838/alice/concepts/')
+    await tick()
     expect(el.shadowRoot.querySelector('wm-index')).toBeTruthy()
-    expect(el.shadowRoot.querySelector('wm-index').getAttribute('container')).toBe('http://localhost:3838/alice/concepts/')
+    expect(el.shadowRoot.querySelector('wm-card')).toBeFalsy()
   })
 })
