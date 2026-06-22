@@ -128,8 +128,8 @@ async function putDirect(podPath, localFile) {
   return r.status
 }
 
-// Step 4: PUT index-view.md through proxy (implementations is unconstrained — base shape only)
-await putViaProxy('/alice/implementations/index-view.md', 'implementations/index-view.md')
+// Step 4: PUT the implementation card through proxy (implementations is unconstrained — base shape only)
+await putViaProxy('/alice/implementations/projection-engine.md', 'implementations/projection-engine.md')
 
 // Step 5: PUT progressive-disclosure.md and dual-layer-linking.md through proxy
 // (they have wm:implementedBy so they pass ConceptWiringShape)

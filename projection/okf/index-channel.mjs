@@ -8,6 +8,12 @@ const lastSeg = url => {
   return u.slice(u.lastIndexOf('/') + 1)
 }
 
+const entry = (containerUrl, c) => {
+  const title = c.frontmatter.title || lastSeg(c.url)
+  const desc = c.frontmatter.description ? ` - ${c.frontmatter.description}` : ''
+  return `* [${title}](${relOf(containerUrl, c.url)})${desc}`
+}
+
 export function renderIndex(containerUrl, cards, members) {
   const subs = members.filter(m => m.type === 'container')
   const lines = []
@@ -16,13 +22,21 @@ export function renderIndex(containerUrl, cards, members) {
     for (const s of subs) lines.push(`* [${lastSeg(s.url)}](${relOf(containerUrl, s.url)})`)
     lines.push('')
   }
-  lines.push('# Concepts', '')
+  // A section per card type (frontmatter `type`, default 'Concept'), heading = pluralized type.
+  // Concept-only containers still read "# Concepts"; an implementation container reads "# Implementations".
+  const groups = new Map()
   for (const c of cards) {
-    const title = c.frontmatter.title || lastSeg(c.url)
-    const desc = c.frontmatter.description ? ` - ${c.frontmatter.description}` : ''
-    lines.push(`* [${title}](${relOf(containerUrl, c.url)})${desc}`)
+    const t = c.frontmatter.type || 'Concept'
+    if (!groups.has(t)) groups.set(t, [])
+    groups.get(t).push(c)
   }
-  return lines.join('\n') + '\n'
+  const order = [...groups.keys()].sort((a, b) => (a === 'Concept' ? -1 : b === 'Concept' ? 1 : a.localeCompare(b)))
+  for (const t of order) {
+    lines.push(`# ${t}s`, '')
+    for (const c of groups.get(t)) lines.push(entry(containerUrl, c))
+    lines.push('')
+  }
+  return lines.join('\n').replace(/\n+$/, '\n')
 }
 
 export const indexChannel = {

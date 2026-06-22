@@ -15,8 +15,8 @@ describe('wmConceptWiringShape', () => {
 })
 
 describe('wikiMemoryProfile', () => {
-  it('declares the Concept type, two channels, and the floor shape', () => {
-    expect(wikiMemoryProfile.types).toEqual(['Concept'])
+  it('declares the Concept + Implementation types, two channels, and the floor shape', () => {
+    expect(wikiMemoryProfile.types).toEqual(['Concept', 'Implementation'])
     expect(wikiMemoryProfile.channels.map(c => c.name)).toEqual(['index', 'graph'])
     expect(wikiMemoryProfile.floorShape).toBe(wmConceptWiringShape)
   })
