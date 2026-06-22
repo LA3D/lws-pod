@@ -50,9 +50,10 @@ export async function worklist(graphUrl) {
   const concepts = store.getSubjects(type, Concept, null)
   return concepts
     .filter(c => store.getObjects(c, implementedBy, null).length === 0)
+    .filter(c => store.getObjects(c, prefLabel, null).length > 0)
     .map(c => {
       const labels = store.getObjects(c, prefLabel, null)
-      return { concept: c.value, label: labels[0]?.value || c.value.split(/[#/]/).pop() }
+      return { concept: c.value, label: labels[0].value }
     })
 }
 

@@ -6,3 +6,4 @@
   wm:implementedBy <http://pod.test/implementations/index-view#it> .
 <http://pod.test/concepts/hierarchical-retrieval#it> a skos:Concept ;
   skos:prefLabel "Hierarchical Retrieval" .
+<http://pod.test/concepts/unlabeled-concept#it> a skos:Concept .
