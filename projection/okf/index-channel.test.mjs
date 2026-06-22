@@ -31,6 +31,18 @@ describe('renderIndex', () => {
   it('has no frontmatter (OKF index files carry none)', () => {
     expect(renderIndex(C, cards, members).startsWith('---')).toBe(false)
   })
+  it('groups cards into a section per type, with Concepts first', () => {
+    const mixed = [
+      { url: C + 'progressive-disclosure.md', frontmatter: { type: 'Concept', title: 'Progressive Disclosure' }, body: '' },
+      { url: C + 'projection-engine.md', frontmatter: { type: 'Implementation', title: 'Projection Engine' }, body: '' },
+    ]
+    const md = renderIndex(C, mixed, [])
+    expect(md).toContain('# Concepts')
+    expect(md).toContain('# Implementations')
+    expect(md.indexOf('# Concepts')).toBeLessThan(md.indexOf('# Implementations'))   // Concepts first
+    expect(md).toMatch(/# Implementations[\s\S]*Projection Engine/)
+    expect(md).toMatch(/# Concepts[\s\S]*Progressive Disclosure/)
+  })
 })
 
 describe('indexChannel', () => {

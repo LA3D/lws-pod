@@ -8,7 +8,7 @@ const context = JSON.parse(readFileSync(new URL('./context.jsonld', import.meta.
 // The first concrete OKF application profile. The engine reads this; it never names skos/wm.
 export const wikiMemoryProfile = {
   application: 'wiki-memory',
-  types: ['Concept'],
+  types: ['Concept', 'Implementation'],
   channels: [indexChannel, graphChannel],
   floorShape: wmConceptWiringShape,
   context,

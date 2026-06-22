@@ -7,4 +7,4 @@ description: Markdown wikilinks at the token layer plus RDF predicates at the da
 
 # Dual-Layer Linking
 
-[Dual-Layer Linking]{skos:prefLabel} realized by the [markdown projection](/alice/implementations/index-view.md){wm:implementedBy}.
+[Dual-Layer Linking]{skos:prefLabel} realized by the [projection engine](/alice/implementations/projection-engine.md){wm:implementedBy}.

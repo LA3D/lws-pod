@@ -7,4 +7,4 @@ description: Layered retrieval — orientation first, drill into detail on deman
 
 # Progressive Disclosure
 
-[Progressive Disclosure]{skos:prefLabel} is a kind of [Hierarchical Retrieval](hierarchical-retrieval.md){skos:broader}, realized by the [index view](/alice/implementations/index-view.md){wm:implementedBy}.
+[Progressive Disclosure]{skos:prefLabel} is a kind of [Hierarchical Retrieval](hierarchical-retrieval.md){skos:broader}, realized by the [projection engine](/alice/implementations/projection-engine.md){wm:implementedBy}.
