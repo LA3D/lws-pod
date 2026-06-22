@@ -37,8 +37,9 @@ cd app && python3 -m http.server 5173      # http://localhost:5173
 Open `http://localhost:5173/`, log in (pod `http://localhost:3838`, proxy `http://localhost:8080`,
 `alice@example.com` / `alicepassword123`).
 
-- Deps (`marked`, `js-yaml`, `n3`, `cytoscape`) load from esm.sh via the import map in `index.html` —
-  no bundler.
+- Deps (`marked`, `js-yaml`, `n3`, `cytoscape`) are **vendored** in `vendor/` and served as static
+  files via the import map in `index.html` — no bundler, and no runtime dependency on any CDN. See
+  `vendor/README.md` for provenance and the re-vendor recipe.
 - The pod must run with `--idp` (headless `POST /idp/credentials` bearer) and `--conneg`.
 - The proxy must send CORS (it does — it exposes `link`/`warning` so the browser can read the 422
   `constrainedBy` Link and advisory Warning).
