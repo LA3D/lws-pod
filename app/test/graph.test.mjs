@@ -42,6 +42,23 @@ describe('graph', () => {
     expect(n.edges.find(e => e.label === 'implementedBy')).toBeTruthy()
   })
 
+  // Generic traversal: ANY non-describing predicate is an edge (not just broader/implementedBy),
+  // so the graph works for any profile (e.g. a data-lineage bundle using wm:partOf/derivedFrom).
+  it('neighborhood traverses arbitrary typed predicates and ignores describing ones', async () => {
+    const tmp = await mkdtemp(join(tmpdir(), 'graph-generic-'))
+    const a = `file://${tmp}/a#it`, b = `file://${tmp}/b#it`
+    await writeFile(join(tmp, 'graph.ttl'), `
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wm:   <https://w3id.org/cogitarelink/wm#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+<${a}> a skos:Concept ; skos:prefLabel "A" ; dct:description "desc" ; wm:derivedFrom <${b}> .
+<${b}> skos:prefLabel "B" .
+`)
+    const n = await neighborhood(`file://${tmp}/graph.ttl`, a)
+    expect(n.edges).toEqual([{ source: a, target: b, label: 'derivedFrom' }])  // wm:derivedFrom traversed
+    expect(n.edges.find(e => e.label === 'description' || e.label === 'prefLabel' || e.label === 'type')).toBeUndefined()  // describing preds ignored
+  })
+
   // S3: target whose container graph is unreachable → stub:true + localname label
   it('neighborhood returns stub:true with localname for unresolvable container target', async () => {
     const n = await neighborhood(concepts, 'http://pod.test/concepts/progressive-disclosure#it')
