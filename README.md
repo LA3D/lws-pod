@@ -4,7 +4,9 @@ The substrate for the **memory pods**, built on a containerized, pinned
 [JavaScriptSolidServer](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer) (JSS).
 
 **Status:** the JSS-vs-CSS evaluation concluded — *JSS is a good replacement, build on it*
-(verdict + evidence below). Now in build phase. The deployment workflow has a **local rung**
+(verdict + evidence below). The **L2 memory layer is now built on the local rung**: the OKF
+**projection engine** (`projection/`), the **SHACL admission floor** (`constrained-container/`),
+and a **curation console** (`app/` — see its README). The deployment workflow has a **local rung**
 today (`make up` / `make test`); public dev/prod rungs on a CRC/SAI VM are designed-for and
 deferred (see `FOLLOWUP.md` and `docs/superpowers/specs/`).
 
@@ -27,6 +29,9 @@ make down      # stop, keep ./data (persistence check: down && up preserves the 
 make cert && make up-tls && make cid-tls
 ```
 
+L2 component gates: `make test-projection` and `make test-app` (unit, no pod needed);
+`make test-app-e2e` runs the curation-console e2e against a running, seeded pod + proxy.
+
 No official JSS image exists; the `Dockerfile` pins `javascript-solid-server@0.0.209`
 from npm and adds `git` (required by the `--git` backend). Pinned deliberately — JSS is a
 single-maintainer v0.0.x; we bump when we choose to.
@@ -38,7 +43,16 @@ Port `3838` (host) → `3000` (container), leaving `3000` free for a side-by-sid
 - `.claude/skills/` — seven grounded, source-pinned reference skills (LWS, Solid, SHACL,
   Comunica, OKF, Semantic Markdown specs + JSS implementation docs). See `.claude/skills/README.md`.
 - `docs/foundations/` — distilled canon + the **spec-vs-JSS conformance map** (`05-…`).
-- `constrained-container/` — the standalone SHACL admission proxy (the L2 governance floor).
+- `constrained-container/` — the standalone SHACL admission proxy (the L2 governance floor): writes
+  through it are validated against an always-on base shape plus a per-container `ldp:constrainedBy`
+  shape; a violation returns `422` + the teaching `sh:message`.
+- `projection/` — the OKF **projection engine**: derives each container's `index.md` + `graph.ttl`
+  from its cards (generic OKF base + a `wiki-memory` profile with typed edges and inverse
+  materialization). `triggers/` runs it via a manual CLI or a WebSocket CDC watcher. The
+  governed-projection / write-contract piece of L2.
+- `app/` — the **wiki-memory curation console**: a static Solid/LWS app (vanilla custom elements, no
+  build, vendored deps) to browse agent-written cards, traverse their typed graph across containers,
+  and correct them through the floor. Also renders any OKF bundle. See `app/README.md`.
 - `experiments/headless-cid/` — headless LWS-CID provisioning + auth round-trip probe.
 - `tests/` — Vitest integration suite (the local verification gate; `make test`).
 - `experiments/smoke.sh` — archived eval probe (superseded; evidence in the conformance map).
@@ -74,10 +88,12 @@ live probes in `experiments/smoke.sh` and `experiments/headless-cid/`.
 - [x] **Git**: a push materializes a first-class `ldp:contains` container member (queryable).
 - [x] **LWS-CID identity**: profile is CID-shaped; key provisioning works **headless** (no browser
       doctor). Self-signed-JWT *auth* requires a public-IP WebID (JSS SSRF guard) — unverified locally.
-- [x] **L2 port lands**: JSS serves `.meta` + stores `ldp:constrainedBy`, so the
+- [x] **L2 port lands** (now built): JSS serves `.meta` + stores `ldp:constrainedBy`, so the
       `constrained-container/` SHACL-admission proxy ports; git push gives QuitStore-style
-      versioning into the queryable graph. (Open build details: ACL provisioning, proxy auth on
-      constraint reads, in-process projection has no native JSS write hook.)
+      versioning into the queryable graph. The build resolved the open details — ACL provisioning
+      (seed grants per-container read), proxy auth on constraint reads (it fetches `.meta`/shape with
+      the inbound bearer) — and projection runs out-of-process via `projection/triggers/` (manual CLI
+      or CDC watcher), since JSS has no native in-process write hook.
 
 ## Context
 
