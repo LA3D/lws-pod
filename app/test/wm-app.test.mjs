@@ -30,5 +30,6 @@ describe('<wm-app>', () => {
     const { setSession } = await import('../src/pod.js'); setSession({ podUrl: 'http://localhost:3838' })
     el._onAuth()
     expect(el.shadowRoot.querySelector('wm-index')).toBeTruthy()
+    expect(el.shadowRoot.querySelector('wm-index').getAttribute('container')).toBe('http://localhost:3838/concepts/')
   })
 })
