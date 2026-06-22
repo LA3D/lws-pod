@@ -9,8 +9,19 @@ import { Store, Parser as N3Parser, DataFactory } from 'n3'
 
 const SKOS = 'http://www.w3.org/2004/02/skos/core#'
 const WM = 'https://w3id.org/cogitarelink/wm#'
+const RDFS = 'http://www.w3.org/2000/01/rdf-schema#'
+const DCTERMS = 'http://purl.org/dc/terms/'
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
 const { namedNode } = DataFactory
+
+// Predicates that describe a node (type/label/desc) rather than link to another node.
+// Everything else is treated as a navigable typed edge, so the graph works for ANY profile.
+const NON_EDGE = new Set([
+  RDF_TYPE,
+  SKOS + 'prefLabel', SKOS + 'altLabel', SKOS + 'definition', SKOS + 'notation',
+  DCTERMS + 'title', DCTERMS + 'description',
+  RDFS + 'label', RDFS + 'comment',
+])
 
 // Derive the container graph.ttl URL from an edge-target IRI
 const containerGraphOf = iri => {
@@ -58,21 +69,23 @@ export async function worklist(graphUrl) {
 }
 
 // neighborhood(seedGraphUrl, focusIri) → {nodes, edges}
-// Returns the focus node's direct typed edges (skos:broader, wm:implementedBy)
-// and labeled/stub targets. Resolves cross-container labels by loading derived
-// container graph.ttl URLs for each edge target.
-// NOTE: uses store.getObjects/getSubjects, NOT the N3 store match method — it throws
-// "Class constructor E cannot be invoked without 'new'" in the esm.sh browser build.
+// Returns the focus node's direct typed edges (ANY predicate that isn't a NON_EDGE
+// describing-predicate) and labeled/stub targets. Resolves cross-container labels by
+// loading derived container graph.ttl URLs for each IRI edge target.
+// NOTE: uses store.getPredicates/getObjects/getSubjects, NOT the N3 store match method —
+// match() throws "Class constructor E cannot be invoked without 'new'" in the esm.sh browser build.
 export async function neighborhood(seedGraphUrl, focusIri) {
   const seedStore = await loadStore(seedGraphUrl)
   const prefLabel = namedNode(SKOS + 'prefLabel')
   const focus = namedNode(focusIri)
 
-  // Collect direct typed edges and targets
+  // Collect direct typed edges (any non-describing predicate to an IRI) and targets
   const edges = []
   const targets = new Set()
-  for (const pred of [namedNode(SKOS + 'broader'), namedNode(WM + 'implementedBy')]) {
+  for (const pred of seedStore.getPredicates(focus, null, null)) {
+    if (NON_EDGE.has(pred.value)) continue
     for (const o of seedStore.getObjects(focus, pred, null)) {
+      if (o.termType !== 'NamedNode') continue   // only IRI targets are navigable nodes
       edges.push({ source: focusIri, target: o.value, label: pred.value.split(/[#/]/).pop() })
       targets.add(o.value)
     }
@@ -98,14 +111,15 @@ export async function neighborhood(seedGraphUrl, focusIri) {
 }
 
 // backlinks(seedGraphUrl, focusIri) → [{source, label, sourceLabel}]
-// Incoming typed edges: subjects S with (skos:broader | wm:implementedBy) pointing AT the focus.
-// Queried over the focus's container graph (where sibling concepts' forward edges live).
+// Incoming typed edges: subjects S with ANY non-describing predicate pointing AT the focus,
+// queried over the focus's container graph (where sibling cards' forward edges live).
 export async function backlinks(seedGraphUrl, focusIri) {
   const store = await loadStore(seedGraphUrl)
   const prefLabel = namedNode(SKOS + 'prefLabel')
   const focus = namedNode(focusIri)
   const out = []
-  for (const pred of [namedNode(SKOS + 'broader'), namedNode(WM + 'implementedBy')]) {
+  for (const pred of store.getPredicates(null, focus, null)) {
+    if (NON_EDGE.has(pred.value)) continue
     for (const s of store.getSubjects(pred, focus, null)) {
       const labels = store.getObjects(s, prefLabel, null)
       out.push({ source: s.value, label: pred.value.split(/[#/]/).pop(), sourceLabel: labels[0]?.value || s.value.split(/[#/]/).pop() })
