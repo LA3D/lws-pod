@@ -80,6 +80,13 @@ const server = http.createServer(async (req, res) => {
   const { method, url } = req;
   const isWrite = method === 'PUT' || method === 'POST' || method === 'PATCH';
   const auth = req.headers['authorization'];
+  const CORS = {
+    'access-control-allow-origin': req.headers.origin || '*',
+    'access-control-allow-methods': 'GET, HEAD, PUT, POST, PATCH, OPTIONS',
+    'access-control-allow-headers': 'authorization, content-type, accept',
+    'access-control-expose-headers': 'link, warning',
+  };
+  if (method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
 
   if (isWrite) {
     const ctype = req.headers['content-type'] || '';
@@ -91,7 +98,7 @@ const server = http.createServer(async (req, res) => {
       const advisories = report.results.filter(r => sev(r) !== 'Violation');
       if (violations.length) {
         const lines = violations.map(r => `#   - ${msgOf(r)}${r.path?.value ? ` (path: ${r.path.value})` : ''}`).join('\n');
-        res.writeHead(422, { 'Content-Type': 'text/plain' });
+        res.writeHead(422, { 'Content-Type': 'text/plain', ...CORS });
         res.end(`# 422 Unprocessable: card fails the profile shape\n${lines}\n`);
         console.log(`[reject] ${method} ${url} -> 422`);
         return;
@@ -124,7 +131,7 @@ const server = http.createServer(async (req, res) => {
         const report = await validator.validate({ dataset: ds });
         if (!report.conforms) {
           const lines = report.results.map(r => `#   - ${msgOf(r)}${r.path?.value ? ` (path: ${r.path.value})` : ''}`).join('\n');
-          res.writeHead(422, { 'Content-Type': 'text/plain', 'Link': `<${shapeUrl}>; rel="${CB}"` });
+          res.writeHead(422, { 'Content-Type': 'text/plain', 'Link': `<${shapeUrl}>; rel="${CB}"`, ...CORS });
           res.end(`# 422 Unprocessable: this container is constrained by <${shapeUrl}>\n${lines}\n# Fix the cited fields and retry. (Discover the shape via the constrainedBy Link header.)\n`);
           console.log(`[reject] ${method} ${url} -> 422 (shape ${shapeUrl})`);
           return;
@@ -147,7 +154,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.__advisories?.length) out['warning'] = req.__advisories.map(a => `199 - "${a.replace(/"/g, "'")}"`).join(', ');
   const buf = Buffer.from(await up.arrayBuffer());
-  res.writeHead(up.status, out);
+  res.writeHead(up.status, { ...out, ...CORS });
   res.end(buf);
 });
 
