@@ -1,0 +1,36 @@
+import './wm-login.js'; import './wm-index.js'; import './wm-card.js'; import './wm-editor.js'; import './wm-graph.js'
+import { getSession } from '../pod.js'
+import { esc } from '../esc.js'
+
+const containerOf = url => url.slice(0, url.lastIndexOf('/') + 1)
+const subjectOf = url => url.replace(/\.md$/, '') + '#it'
+// user's pod storage base from the webid: http://host/alice/profile/card#me -> http://host/alice/
+const storageBase = webid => { const u = new URL(webid); return `${u.origin}/${u.pathname.split('/').filter(Boolean)[0]}/` }
+
+class WmApp extends HTMLElement {
+  connectedCallback() {
+    this.attachShadow({ mode: 'open' }).innerHTML = `<wm-login></wm-login><main></main>`
+    this.addEventListener('wm-authenticated', () => this._onAuth())
+    this.addEventListener('wm-open-container', e => this._showContainer(e.detail.url))
+    this.addEventListener('wm-open-card', e => this._showCard(e.detail.url))
+    this.addEventListener('wm-edit', e => this._edit(e.detail))
+    this.addEventListener('wm-saved', e => this._showCard(e.detail.url))
+  }
+  get _main() { return this.shadowRoot.querySelector('main') }
+  _onAuth() {
+    this.shadowRoot.querySelector('wm-login')?.remove()
+    const { webid } = getSession()
+    if (!webid) return
+    this._showContainer(`${storageBase(webid)}concepts/`)
+  }
+  _showContainer(url) { this._main.innerHTML = `<wm-index container="${esc(url)}"></wm-index>` }
+  _showCard(url) {
+    this._main.innerHTML =
+      `<wm-card url="${esc(url)}"></wm-card><wm-graph container="${esc(containerOf(url))}" focus="${esc(subjectOf(url))}"></wm-graph>`
+  }
+  _edit({ url, markdown }) {
+    this._main.innerHTML = `<wm-editor></wm-editor>`
+    this._main.querySelector('wm-editor').open({ url, markdown })
+  }
+}
+customElements.define('wm-app', WmApp)

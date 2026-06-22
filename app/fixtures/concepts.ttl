@@ -1,0 +1,9 @@
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wm:   <https://w3id.org/cogitarelink/wm#> .
+<http://pod.test/concepts/progressive-disclosure#it> a skos:Concept ;
+  skos:prefLabel "Progressive Disclosure" ;
+  skos:broader <http://pod.test/concepts/hierarchical-retrieval#it> ;
+  wm:implementedBy <http://pod.test/implementations/index-view#it> .
+<http://pod.test/concepts/hierarchical-retrieval#it> a skos:Concept ;
+  skos:prefLabel "Hierarchical Retrieval" .
+<http://pod.test/concepts/unlabeled-concept#it> a skos:Concept .

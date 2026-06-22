@@ -2,7 +2,7 @@ ENV  ?= local
 BASE ?= http://localhost:3838
 COMPOSE = docker compose --env-file .env.$(ENV) -f docker-compose.yml -f docker-compose.$(ENV).yml
 
-.PHONY: build up down logs reset test test-projection shell cert up-tls down-tls cid-tls
+.PHONY: build up down logs reset test test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls
 
 build:
 	$(COMPOSE) build
@@ -32,6 +32,14 @@ test:
 # Projection app gate — pure unit tests + e2e against the running pod (Task 6-8).
 test-projection:
 	cd projection && npm test
+
+# Wiki-memory app gate — unit tests (jsdom/node), e2e excluded (Task 10).
+test-app:
+	cd app && npm install --silent && npx vitest run --exclude '**/e2e.test.mjs'
+
+# Wiki-memory app e2e gate — requires pod :3838 + proxy :8080 + seeded (Task 10).
+test-app-e2e:
+	cd app && POD=http://localhost:3838 PROXY=http://localhost:8080 npx vitest run test/e2e.test.mjs
 
 shell:
 	$(COMPOSE) exec jss bash
