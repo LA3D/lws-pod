@@ -2,6 +2,17 @@
 
 Status: design approved 2026-06-22.
 
+> **Deviation (2026-06-22, during implementation):** the v1 graph engine is **N3.js**, not
+> Comunica. `@comunica/query-sparql-link-traversal@0.8.0` (the only release) is broken in modern
+> Node ESM — it pins two incompatible `@traqula/parser-sparql-1-2` versions (0.0.24 vs 1.1.6), so
+> every SPARQL query fails at the first token. v1 only needs **bounded, explicit-source** traversal
+> (the engine is seeded with the seed container's `graph.ttl` and each edge target's derived
+> container `graph.ttl` — never automatic hypermedia link-following), for which N3 over an
+> in-memory store is functionally identical. **Comunica link-traversal is deferred to the Phase-2
+> agent layer** (§13), where its browser / Oxigraph-WASM story lives and where the parser bug can be
+> revisited. References to Comunica below describe the original design intent; read "N3 over
+> explicitly-derived container sources" for v1.
+
 The client half of the wiki-memory system (`docs/ROADMAP.md` §"two halves"): an installable
 Solid/LWS app that lets a human **curate** agent-written memory. Builds on the projection engine
 (P3, `projection/`), the SHACL admission floor (P2, `constrained-container/`), and the credentials
@@ -58,7 +69,8 @@ shared data-access module; Comunica (loaded at runtime) resolves the graph acros
                     cross-container · dashed stubs · hub-avoid · click = navigate
 
 pod.js  login() · podFetch() · getCard() · putCard() · getGraph() · listContainer()
-graph.js  Comunica link-traversal over .graph sources (neighborhood + sanity queries)
+graph.js  N3 over explicitly-derived container graph.ttl sources (neighborhood + sanity queries)
+          [v1; Comunica link-traversal deferred to Phase 2 — see deviation note above]
 ```
 
 The engine layers map to the two axes: `<wm-index>` is the **hierarchy/orientation** axis (one
@@ -111,10 +123,12 @@ immediate verdict, so it is a fallback, not the default.
 
 ## 8. Dependencies (load at runtime, not bundled)
 
-`marked` (markdown → HTML), `js-yaml` (frontmatter), `N3` (Turtle parse), `cytoscape` (graph),
-`@comunica/query-sparql-link-traversal` (cross-container traversal). Comunica's browser build is
-heavy against the 10 MB install limit, so deps load from CDN/ESM at runtime; the installed app is
-HTML + our small modules.
+`marked` (markdown → HTML), `js-yaml` (frontmatter), `N3` (Turtle parse + in-memory store; the v1
+graph engine over explicitly-derived container sources), `cytoscape` (graph). Deps load from
+CDN/ESM at runtime; the installed app is HTML + our small modules. (Originally
+`@comunica/query-sparql-link-traversal` was to do cross-container traversal; deferred to Phase 2 —
+see the deviation note at the top. N3 is light, so the 10 MB install limit is no longer a concern
+for the graph engine.)
 
 ## 9. Projection dependency
 
@@ -149,7 +163,9 @@ Vitest gate `make test-app`, mirroring `projection/`'s harness:
 ## 13. Out of scope (sequenced, not dropped)
 
 - **Phase-2 agent/search layer** — faceted search, the agent query surface (Comunica vs
-  Oxigraph-WASM vs MCP manifest). Its own design conversation. v1 shares only the traversal engine.
+  Oxigraph-WASM vs MCP manifest), **and Comunica link-traversal** (moved here from v1 per the
+  deviation note — v1 uses N3 over explicitly-derived sources). Its own design conversation. v1 and
+  Phase 2 now share the OKF/`graph.ttl` data surface, not a query engine.
 - **Static `<card>.html` / `viz.html` channels** — deferred additive for shareable/agent-readable
   pages; consciously revises the 2026-06-20 "render as static channels" decision now that a client
   app exists.

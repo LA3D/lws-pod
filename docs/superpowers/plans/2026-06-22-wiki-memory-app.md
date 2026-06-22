@@ -2,11 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Deviations recorded during execution (2026-06-22):**
+> 1. **Graph engine: N3.js, not Comunica.** `@comunica/query-sparql-link-traversal@0.8.0` is broken
+>    in Node ESM (two incompatible `@traqula/parser-sparql-1-2` pins, 0.0.24 vs 1.1.6 → every query
+>    fails at the first token). v1 needs only bounded explicit-source traversal, so Task 3 uses N3
+>    over the seed + derived container `graph.ttl` sources; signatures/return shapes unchanged.
+>    Comunica link-traversal deferred to the Phase-2 agent layer. **Task 5's import map drops the
+>    `@comunica/...` entry** (N3 is already in the map).
+> 2. The plan's `@comunica/query-sparql-link-traversal@^4.0.0` pin was wrong (that package's latest
+>    is `0.8.0`); moot now that the engine is N3, but `n3` stays.
+
 **Goal:** An installable static Solid/LWS curation console that lets a human browse agent-written concept cards, traverse their typed graph across containers, and correct them through the SHACL floor.
 
-**Architecture:** Vanilla custom elements over three pure modules — `pod.js` (auth + CRUD), `parse.js` (frontmatter/markdown/index), `graph.js` (Comunica link-traversal). Hierarchy (`index.md`) is the orientation overlay; typed edges traversed across containers are the structure. Reading renders client-side; corrections PUT through the `constrained-container` SHACL proxy so the 422 verdict shows at save time. No build step; heavy deps load from CDN/ESM at runtime.
+**Architecture:** Vanilla custom elements over three pure modules — `pod.js` (auth + CRUD), `parse.js` (frontmatter/markdown/index), `graph.js` (N3 over explicitly-derived container `graph.ttl` sources — see deviation note 1; Comunica deferred to Phase 2). Hierarchy (`index.md`) is the orientation overlay; typed edges traversed across containers are the structure. Reading renders client-side; corrections PUT through the `constrained-container` SHACL proxy so the 422 verdict shows at save time. No build step; heavy deps load from CDN/ESM at runtime.
 
-**Tech Stack:** Browser-native ES modules + custom elements; `marked`, `js-yaml`, `n3`, `cytoscape`, `@comunica/query-sparql-link-traversal` (CDN in browser, devDeps for tests); Vitest (jsdom + node) for the gate; JSS v0.0.209 pod + `constrained-container` proxy.
+**Tech Stack:** Browser-native ES modules + custom elements; `marked`, `js-yaml`, `n3` (the graph engine), `cytoscape` (CDN in browser, devDeps for tests); Vitest (jsdom + node) for the gate; JSS v0.0.209 pod + `constrained-container` proxy. (`@comunica/query-sparql-link-traversal` removed from v1 — deviation note 1.)
 
 ## Global Constraints
 
@@ -624,8 +634,7 @@ Expected: PASS.
   "marked": "https://esm.sh/marked@14",
   "js-yaml": "https://esm.sh/js-yaml@4",
   "n3": "https://esm.sh/n3@1",
-  "cytoscape": "https://esm.sh/cytoscape@3",
-  "@comunica/query-sparql-link-traversal": "https://esm.sh/@comunica/query-sparql-link-traversal@4"
+  "cytoscape": "https://esm.sh/cytoscape@3"
 }}
 </script>
 </head><body>
