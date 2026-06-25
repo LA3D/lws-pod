@@ -8,6 +8,42 @@ app), see **`docs/ROADMAP.md`**.
 
 ---
 
+## ▶▶ DONE — wiki-memory curation app (Phase 1, 2026-06-22..25)
+
+Built and merged the wiki-memory **curation console** — the client half of the wiki-memory system.
+A static Solid/LWS app (vanilla custom elements, no build, no runtime CDN) to browse agent-written
+cards, traverse their typed graph across containers, and correct them through the SHACL floor (the
+422 `sh:message` is the teaching channel). Spec: `docs/superpowers/specs/2026-06-22-wiki-memory-app-design.md`,
+plan: `docs/superpowers/plans/2026-06-22-wiki-memory-app.md`, app README: `app/README.md`. All on `main`.
+
+What shipped:
+- **The app** (`app/`): `pod.js` (auth/CRUD + localStorage session), `parse.js`, `graph.js` (N3),
+  six custom elements, plus the shell — **hash routing + browser Back**, **session persistence**,
+  in-app link navigation, and **Relates + Backlinks** panels.
+- **Generic typed-edge graph**: `graph.js` traverses ANY non-describing predicate, so the graph
+  lights up for any profile (verified against a Google **OKF GA4 bundle** with synthesized lineage).
+- **Implementation typing fix**: implementation cards are `wm:Implementation` (not `skos:Concept`);
+  `index.md` groups a section per type; the projection projects both Concept + Implementation.
+- **CORS on the admission proxy** for the browser write path.
+- **Vendored deps** (`app/vendor/`: marked/js-yaml/n3/cytoscape) — removes the esm.sh runtime
+  single-point-of-failure (a CDN flake had taken the whole app down). No bundler.
+- **Verified live in a real browser** (Chrome): persistence across reload, Back, in-app links, the
+  422→green correction loop, the GA4 lineage graph. Unit 43 + e2e 3.
+
+Key deviations (recorded in the spec/plan deviation notes):
+- **N3 over Comunica** — `@comunica/query-sparql-link-traversal@0.8.0` is broken in Node ESM (two
+  incompatible `@traqula` parser pins). v1 uses N3 over explicitly-derived container sources;
+  Comunica link-traversal deferred to the Phase-2 agent layer.
+- **Content under the user's pod space** (`/alice/concepts/`, `/alice/implementations/`), derived
+  from the login WebID — the pod root ACL forbids server-root writes (same blocker as `jss install`).
+
+Agent attach + understand (demonstrated over MCP, 2026-06-25): an agent attaches via `/mcp`
+(JSON-RPC, `--mcp`), authenticates with a Bearer header — WAC-gated per tool call (proven: anonymous
+write **denied**, bearer write **allowed**) — orients via `index.md`, and answers structural questions
+by traversing `graph.ttl` (conneg Turtle/JSON-LD), e.g. the worklist. See OPEN items 5–6 for the gaps.
+
+---
+
 ## ▶▶ DONE — LWS-CID auth proven locally (P4a, 2026-06-21)
 
 Closes the local half of open-item 1. The self-signed LWS-CID JWT auth round-trip now passes
@@ -156,6 +192,34 @@ JSS serves `.meta`+`ldp:constrainedBy` (admission proxy ports).
    Approach A (token `webid` claim) confirmed; gateway-enforces pattern kept; token-exchange /
    native-JSS-acceptance deferred. See the experiment README's decision note.
 
+5. **Phase-2 agent query + discovery surface** (the deferred agent layer). The pod is attach-able
+   and traversable today (MCP CRUD + read `index.md`/`graph.ttl`), but there is **no "ask the
+   memory" surface**: no SPARQL-over-MCP, no faceted search, and the vocabulary
+   (`projection/profiles/wiki-memory/types.ttl`, `edges.ttl`, the SHACL shapes) is **not published
+   on the pod** — a cold agent must be *told* that `wm:implementedBy` means "implementation." Highest
+   leverage: (a) publish the vocabulary + a `.well-known`/manifest so an agent self-discovers the
+   schema; then (b) a query tool (Comunica vs Oxigraph-WASM vs MCP manifest — `geoff` is the
+   WASM-SPARQL candidate; see project memory `geoff-reference`).
+
+6. **MCP auth hardening for untrusted/networked agents.** Auth is the HTTP `Authorization` header on
+   `POST /mcp` (no MCP-native OAuth flow); JSS resolves a WebID and WAC-checks every tool call.
+   Verified live (anonymous write denied, bearer write allowed). The default **RS256 bearer is
+   replayable** (not DPoP-bound) — fine for a trusted local agent; an untrusted/networked agent
+   wants DPoP or the self-signed CID/`did:nostr` signature-per-request path, which needs the
+   public-IP rung (open item 1). Ties to the long-standing bearer-replay caveat (axis 2).
+
+7. **`graph.js` authenticated reads.** `loadStore` uses an unauthenticated `fetch`, so the graph
+   view/worklist require **public-read** content (the seed grants `/alice/` public-read via
+   `acl:default`). Inject the session bearer (via `pod.js`) so private pods work — also retires the
+   now-unused `pod.js` `getGraph`. App README "Known limitations".
+
+8. **Cross-container backlinks.** Backlinks resolve from a card's own container `graph.ttl`, so a
+   card pointed at from another container shows none unless an inverse edge is materialized next to
+   it (concept→concept within `/alice/concepts/` works). Needs a global index or such
+   materialization. *Related:* in-pod app install is BLOCKED at the root ACL (`jss install` →
+   `/public/apps/` is unwritable; finding `docs/superpowers/findings/2026-06-22-jss-install-spike.md`) —
+   dev-serve is the v1 path.
+
 ---
 
 ## 📍 Navigation (resume order)
@@ -183,8 +247,10 @@ provisioning, `constrained-container/`), **P3 ✅** (OKF projection app, `projec
 (write-funnel = notifications CDC, resolved in P3), **P4a ✅** (LWS-CID auth proven locally). **P4
 (CRC VM) is deferred to LAST and no longer gates "working."**
 
-**Next: build the L2 layer + wiki-memory app to the local definition-of-done** (in `docs/ROADMAP.md`)
-entirely on the local rung — both the RS256 bearer and the now-proven self-signed LWS-CID JWT are
-available, and notifications-driven projection is live. Only once that checklist is green does **P4**
-(public-dev rung on a CRC/SAI VM) come up — and then it's the permanent home plus the one-time
-SSRF-guard-on confirmation, not a build dependency. See `docs/ROADMAP.md` for the full forward plan.
+**The L2 layer + wiki-memory curation app are now built on the local rung** (DONE block above):
+governance floor (P2), projection (P3/P5), and the curation console — verified live in a browser,
+and the pod is agent-attachable + traversable over MCP. **Next: the Phase-2 agent layer** — a query
++ discovery surface so agents *ask* the memory and self-discover its schema (OPEN item 5), plus the
+hardening items (6–8). **P4** (public-dev rung on a CRC/SAI VM) stays deferred to LAST — the
+permanent home plus the one-time SSRF-guard-on confirmation, not a build dependency. See
+`docs/ROADMAP.md` for the full forward plan (which may itself want a refresh now the app has landed).
