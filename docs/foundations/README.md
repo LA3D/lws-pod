@@ -23,6 +23,10 @@ Companion design docs in this repo:
   graph content model and the four derived views.
 - [`../../constrained-container/`](../../constrained-container/) — the standalone SHACL
   admission proxy (the governance floor, shippable on its own).
+- [**Format convergence design notes**](06-format-convergence-design-notes.md) — *exploratory,
+  not a decision.* OKF / DataBook / openclaw / LWS design space, the embed-vs-project-vs-claims
+  forks, the canonical-pod / derived-index synthesis, and the open authz-over-derived-index
+  problem. Captured to chew on; changes nothing until promoted.
 
 ## What was deliberately left behind
 CSS extensions / Components.js config, the 136-shape catalog, CSS-specific decisions and
