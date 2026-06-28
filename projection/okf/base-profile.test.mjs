@@ -20,5 +20,11 @@ title: Orders
     // subject is minted (base#slug), not the file URL
     expect(titled.subject.value.endsWith('orders#it')).toBe(true)
     expect(titled.subject.value.startsWith('http://pod/tables/')).toBe(false)
+    // KNOWN-DEFERRED (Plan 2): asTypeCurie() hardcodes 'skos:' prefix which is absent from
+    // the base context, so the rdf:type object is the unresolved curie 'skos:Reference', not
+    // an absolute IRI. When Plan 2 lands type-scheme resolution, this assertion MUST be updated.
+    const typed = q.find(t => t.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
+    expect(typed).toBeDefined()
+    expect(typed.object.value).toBe('skos:Reference')
   })
 })
