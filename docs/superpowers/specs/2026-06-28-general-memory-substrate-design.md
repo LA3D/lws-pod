@@ -298,19 +298,14 @@ skill* rather than recalling the spec:
 | **Solid** Protocol (LDP/WAC/`ldp:constrainedBy`) | grounded skill | `solid-protocol` |
 | **SHACL** | grounded skill | `shacl-constraints` |
 | **Comunica** | grounded skill | `comunica-sparql` |
-| **DataBook** (W3C Holon CG) | **NO grounded skill yet — GAP** | see links below |
+| **DataBook** (W3C Holon CG) | grounded skill (verbatim, date-pinned 2026-06-24) | `databook` |
 
-**DataBook is the one spec without pinned ground truth.** Until a `databook` grounded skill exists
-(recommended — date-pinned snapshot, like `semantic-markdown`, since it is a Cagle-sole-edited
-"living document"), build the crosswalk against these primary sources:
-- W3C Holon CG DataBook: `https://github.com/w3c-cg/holon` (`architectures/databook/README.md`,
-  `documentation/faq.databook.md`)
-- CLI + property reference: `https://github.com/kurtcagle/databook` (`databook-property-reference.databook.md`)
-- Namespace: `https://w3id.org/databook/ns#` · essay: `https://ontologist.substack.com/p/the-format-convergence`
-
-DataBook is **not needed for Plan 1** (identity) — it is the crosswalk concern in Plans 2–3, so the
-gap does not block the immediate next step, but **fill it (create the `databook` skill) before the
-crosswalk work**.
+All six primary specs now have pinned grounded skills (the `databook` skill vendors `SPEC.md`, the
+property reference, README/CLI, and the FAQ from `w3c-cg/holon` — a date-pinned snapshot, since it
+is an actively-edited CG living draft). For reference, DataBook's primary sources are
+`https://github.com/w3c-cg/holon`, `https://w3id.org/databook/ns#`, and the convergence essay at
+`https://ontologist.substack.com/p/the-format-convergence`. DataBook is **not needed for Plan 1**
+(identity) — it is the crosswalk concern in Plans 2–3.
 
 Other pointers:
 - Exploratory groundwork: `../../design-notes/format-convergence.md` (the four-system design space,
