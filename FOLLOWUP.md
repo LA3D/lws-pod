@@ -19,11 +19,62 @@ sequential reconciliation plans (`docs/superpowers/plans/2026-06-28-substrate-re
 `general-substrate-design` for the full decision set.
 
 **▶ NEXT SESSION — start here:** the design is done (the spec is the design of record — do **not**
-re-brainstorm it). **Plan 1** (`…substrate-reconciliation-1-identity.md`) is written and
-execute-ready — begin the implementation round by running it via `superpowers:executing-plans` or
-`subagent-driven-development`. Plans 2–3 are written when implementation reaches them; the spec §11
-open questions (IRI-minting scheme, vault rules SHACL-vs-curator, DCAT-vs-CSVW) are what to resolve
-before Plan 2.
+re-brainstorm it). **Plan 1 is DONE** (see the DONE block immediately below). **Write and execute
+Plan 2** = the profile mechanism (loadable/discoverable profiles) + profiles #1 (llm-wiki) / #2
+(data-catalog), threading the identity policy through `profiles/wiki-memory/extract.mjs` to turn its
+suite green again. Before writing Plan 2, resolve the spec §11 open questions (IRI-minting scheme —
+incl. whether to add the DataBook `-v{version}` segment; vault rules SHACL-vs-curator; DCAT-vs-CSVW)
+and fold in the Plan-1 carryover list below.
+
+---
+
+## ▶▶ DONE — Substrate Reconciliation Plan 1: stable subject identity + base profile (2026-06-28)
+
+Executed Plan 1 (`docs/superpowers/plans/2026-06-28-substrate-reconciliation-1-identity.md`) via
+subagent-driven-development. Branch `reconcile/plan1-identity`, 6 commits (`49a9048`, `f1c141a`,
+`35347ff`, `3a8fe86`, `4c36763`, `33a9526`). Confined to `projection/okf/`. Per-task spec+quality
+reviews all Approved; final whole-branch review (opus): ready-to-merge-with-fixes, fixes applied.
+
+What changed:
+- **`okf/identity.mjs`** (new): `slugFromUrl` / `makeIdentityPolicy` / `subjectIri`. A card's RDF
+  subject is now a **stable, location-independent IRI** — a declared frontmatter `id:` if present,
+  else minted `{profile-namespace}{slug}#it` — never derived from the storage URL. Proven by a test
+  minting an identical subject from two different storage URLs (pod-A / pod-B).
+- **`okf/card.mjs`**: `cardToQuads(markdown, cardUrl, ns, policy)` (4th arg). Subject AND `@id`-typed
+  edge targets mint through the same `policy.mint(slugFromUrl(...))` path (symmetric by construction).
+  `id` is identity, not a property (`continue`). The inline curly-brace Semantic-Markdown `bodyQuads`
+  extractor is **removed**; a non-vacuous guard test locks in that body annotation is not extracted.
+- **`okf/base-profile.mjs`**: the OKF floor gains an `identityPolicy` (`base: 'urn:okf:base/'`,
+  placeholder until Plan 3 wires per-pod storage IRI authority) + a minimal context
+  (`type`→`@type`, `title`/`description`→`dcterms`).
+
+Spec grounding (read in full this session): OKF + DataBook confirm the declared-`id`-wins / mint-
+from-slug rule (DataBook §3.3/§5.1; `id`→`@id`, location-independent). DataBook findings pinned into
+spec §11 (commit `203b1e0` on main).
+
+**Known-red, by design:** `projection/profiles/wiki-memory/` suite (~5 test files) is RED — its
+`extract.mjs:12` still calls `cardToQuads` with 3 args. This is the Plan-1→Plan-2 ripple
+(breadcrumbed with a `TODO(plan-2)` at the call site). The `okf/` floor itself is fully green.
+
+**▶ Carryover into Plan 2 (final-review findings):**
+1. **Edge-target identity resolution** (Important): subject minting honors a declared `id:`, but
+   edge-target minting only slug-mints — it can't resolve a *referenced* card's declared `id:`, so an
+   edge to a card that opted into a stable IRI dangles. Needs the bundle/import resolution Plan 2/3
+   brings. One coherent piece of work with the two `targetIri` minors below.
+2. `targetIri` passthrough requires `://` — `urn:`/`did:` edge values get mis-minted (and the base
+   profile itself mints `urn:okf:base/` subjects, so a urn world is plausible).
+3. `slugFromUrl` is filename-only → `a/x.md` and `b/x.md` collide to one subject (by design,
+   DataBook-aligned, but "filename unique within a profile namespace" is an unstated hard invariant —
+   document it; this is also spec §11's IRI-minting question).
+4. **`asTypeCurie` engine-vocab debt:** `card.mjs` hardcodes `'skos:' + bareType`, violating the
+   "no vocab in engine code" constraint. The base profile newly depends on it and emits an
+   *unresolved* `skos:Reference` for a bare `type:` (no `skos` in the base context). The base-profile
+   comment + test now document this honestly (a test pins `skos:Reference` and MUST be updated when
+   Plan 2 lands type-scheme resolution). Real fix = move type→class resolution into the profile.
+5. Minors: T2 declared-`id` guard has no negative assertion; T1 thin coverage; `extract.mjs:1`
+   stale "Semantic-Markdown → RDF" header (fold into the Plan-2 edit that touches the file).
+
+---
 
 Read the DONE blocks below as **what exists**: the built machinery (projection,
 constrained-container, the app, JSS) is **kept and re-founded** onto the general model, not
