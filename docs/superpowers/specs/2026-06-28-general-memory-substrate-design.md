@@ -283,6 +283,31 @@ floor**:
 4. Plane-mapping config format (profile-governed bundle↔container layout).
 5. Provenance granularity — per-card vs per-quad; how it pre-positions Ed25519 signing.
 
+### DataBook grounding (read in full 2026-06-28, sharpens the above for Plans 2–3)
+
+- **On #1 (IRI minting):** DataBook is the upstream precedent for the Plan 1 rule — `id` is a
+  location-independent IRI; "the file system path and the IRI are separate concerns" (§3.3); when no
+  external IRI exists it mints `…/{slug}-v{version}` (property-ref §1.1). Plan 1 mints `{ns}{slug}`
+  with no version segment. DataBook says version-in-IRI is how variants pin, so "include `version`
+  in the minted IRI" is the spec-grounded default when #1 is resolved.
+- **On #5 (provenance):** DataBook *requires* a PROV-O `process:` stamp for any transformer-produced
+  content, LLM-written cards included (doc=`prov:Entity`, process=`prov:Activity`,
+  inputs=`prov:used`). It is the ready-made template for the substrate's provenance layer; wiki-memory
+  cards carry only a single `wasAttributedTo` today.
+- **Carrier-model fork (sharpens §10 "frontmatter edges vs DataBook fenced blocks"):** the two formats
+  put RDF in opposite places. wiki-memory *projects* frontmatter keys → RDF via a context (`card.mjs`);
+  DataBook *embeds* RDF verbatim as fenced `turtle`/`json-ld` blocks (one named graph per block,
+  `{doc-id}#{block-id}`) and uses frontmatter only to *describe* that graph (`id`, `triple_count`,
+  `named_graph`, `process`). Frontmatter-edges stays canonical (§10), but Profile #2 admitting a
+  DataBook embedded block (the `# Schema` exception) is a real Plan 2 design choice, not yet made.
+- **Ingest divergence (for Plan 3 storage description):** DataBook's native ingest is `databook push`
+  over the SPARQL Graph Store Protocol into a triplestore — block→named graph, frontmatter→`#meta`
+  graph. The pod is an LDP/Solid container tree with file-based `graph.ttl` + conneg, no GSP endpoint.
+  The crosswalk maps block↔named-graph onto resource↔container; the round-trip the spec wants is
+  GSP-shaped but the substrate is LDP-shaped.
+- **Status caveat:** living CG draft, single editor, in-repo version drift (format v1.1,
+  property-ref v1.2) — a moving target the crosswalk tracks, not a standard to conform to.
+
 ---
 
 ## 12. Build from ground truth (primary specs)
