@@ -9,6 +9,7 @@ const ns = loadNamespaces(context)
 export const PREFIXES = ns.prefixes
 
 export function extractCard(markdown, cardUrl) {
+  // TODO(plan-2): cardToQuads now requires a 4th `policy` arg — thread the profile's identityPolicy through here (this 3-arg call is why the wiki-memory suite is red).
   return cardToQuads(markdown, cardUrl, ns)
 }
 
