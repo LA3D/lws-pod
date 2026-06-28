@@ -18,6 +18,13 @@ sequential reconciliation plans (`docs/superpowers/plans/2026-06-28-substrate-re
 **executed in a later round** — not yet implemented. See the project memory
 `general-substrate-design` for the full decision set.
 
+**▶ NEXT SESSION — start here:** the design is done (the spec is the design of record — do **not**
+re-brainstorm it). **Plan 1** (`…substrate-reconciliation-1-identity.md`) is written and
+execute-ready — begin the implementation round by running it via `superpowers:executing-plans` or
+`subagent-driven-development`. Plans 2–3 are written when implementation reaches them; the spec §11
+open questions (IRI-minting scheme, vault rules SHACL-vs-curator, DCAT-vs-CSVW) are what to resolve
+before Plan 2.
+
 Read the DONE blocks below as **what exists**: the built machinery (projection,
 constrained-container, the app, JSS) is **kept and re-founded** onto the general model, not
 discarded. The old "Next: Phase-2 agent layer" framing (and open items 5–8) is **superseded** —
