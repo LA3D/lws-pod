@@ -17,7 +17,7 @@
 - **Frontmatter is the canonical semantic surface** — inline body annotation (curly-brace Semantic-Markdown) is DROPPED, not read.
 - **No vocabulary names in engine code** — the engine (`okf/`) must not hardcode `skos`/`wm`/etc.; those come from a profile's context.
 - **fastai style** — brevity; no comments except WHY; match the surrounding terse style of `card.mjs`.
-- Run tests with `npx vitest run projection/` from the repo root (config: `projection/` uses the root `vitest.config.mjs`).
+- Tests: `make test-projection` runs the full projection gate (`cd projection && npm test`). For single-file TDD runs use `cd projection && npx vitest run okf/<file>.test.mjs` — `projection/` has its own vitest setup, separate from the repo-root `tests/` config.
 
 ---
 
@@ -61,7 +61,7 @@ describe('identity', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run projection/okf/identity.test.mjs`
+Run: `cd projection && npx vitest run okf/identity.test.mjs`
 Expected: FAIL — cannot resolve `./identity.mjs`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -85,7 +85,7 @@ export function subjectIri(frontmatter, cardUrl, policy) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run projection/okf/identity.test.mjs`
+Run: `cd projection && npx vitest run okf/identity.test.mjs`
 Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
@@ -156,7 +156,7 @@ title: X
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run projection/okf/card.test.mjs`
+Run: `cd projection && npx vitest run okf/card.test.mjs`
 Expected: FAIL — subjects are still `http://pod/c/...#it` (old `subjectIri`), and `cardToQuads` ignores `policy`.
 
 - [ ] **Step 3: Write the implementation** (edit `projection/okf/card.mjs`)
@@ -210,7 +210,7 @@ export function cardToQuads(markdown, cardUrl, ns, policy) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run projection/okf/card.test.mjs`
+Run: `cd projection && npx vitest run okf/card.test.mjs`
 Expected: PASS for the two `frontmatter projection` tests. (The old inline-SM test still present below will now FAIL — Task 3 removes it.)
 
 - [ ] **Step 5: Commit**
@@ -253,7 +253,7 @@ title: X
 
 - [ ] **Step 2: Run test to verify it passes**
 
-Run: `npx vitest run projection/okf/card.test.mjs`
+Run: `cd projection && npx vitest run okf/card.test.mjs`
 Expected: PASS — all remaining tests green; no inline extraction occurs.
 
 - [ ] **Step 3: Commit**
@@ -308,7 +308,7 @@ title: Orders
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run projection/okf/base-profile.test.mjs`
+Run: `cd projection && npx vitest run okf/base-profile.test.mjs`
 Expected: FAIL — `baseProfile.identityPolicy` is undefined and `baseProfile.context` does not exist.
 
 - [ ] **Step 3: Write the implementation**
@@ -341,12 +341,12 @@ export const baseProfile = {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run projection/okf/base-profile.test.mjs`
+Run: `cd projection && npx vitest run okf/base-profile.test.mjs`
 Expected: PASS.
 
 - [ ] **Step 5: Run the full projection suite to check for regressions**
 
-Run: `npx vitest run projection/`
+Run: `make test-projection`
 Expected: PASS, except known breakage in tests that still call `cardToQuads(md, url, ns)` without a `policy` (e.g. `profiles/wiki-memory/extract.*`). Note any such failures — they are wired in Plan 2 when the wiki-memory profile gains its identity policy. If a failing test is purely a missing 4th arg, add a local `makeIdentityPolicy({base:'https://pod.example/kb/'})` to that test and pass it; do not change extractor behavior here.
 
 - [ ] **Step 6: Commit**

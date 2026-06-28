@@ -3,8 +3,27 @@
 Between-session state for lws-pod. Open items only; closed work lives in commit history and
 `docs/foundations/05-jss-spec-conformance.md`. **Read this first when resuming.**
 
-For the forward plan and order of operations (the build sequence: sidecar + wiki-memory Solid
-app), see **`docs/ROADMAP.md`**.
+For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
+
+---
+
+## ▶▶ DIRECTION CHANGE — general substrate (2026-06-28)
+
+The project re-founded from "the wiki-memory L2 layer (Chuck's vault ported to a pod)" to a
+**general, standards-based memory substrate**: a pod any agent connects to, where *structure* is
+imposed by a **profile**, not baked in, and the pod is the canonical home (Obsidian/git become
+clients). The current **design of record** is
+`docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md`; the path to it is three
+sequential reconciliation plans (`docs/superpowers/plans/2026-06-28-substrate-reconciliation-*`),
+**executed in a later round** — not yet implemented. See the project memory
+`general-substrate-design` for the full decision set.
+
+Read the DONE blocks below as **what exists**: the built machinery (projection,
+constrained-container, the app, JSS) is **kept and re-founded** onto the general model, not
+discarded. The old "Next: Phase-2 agent layer" framing (and open items 5–8) is **superseded** —
+those concerns (agent query/discovery surface, MCP hardening, authenticated/cross-container reads)
+are subsumed into the substrate reconciliation and its deferred LWS Type Search / trust layer (spec
+§9 remove/restructure/rebuild/keep).
 
 ---
 
@@ -247,10 +266,10 @@ provisioning, `constrained-container/`), **P3 ✅** (OKF projection app, `projec
 (write-funnel = notifications CDC, resolved in P3), **P4a ✅** (LWS-CID auth proven locally). **P4
 (CRC VM) is deferred to LAST and no longer gates "working."**
 
-**The L2 layer + wiki-memory curation app are now built on the local rung** (DONE block above):
+**The L2 layer + wiki-memory curation app are built on the local rung** (DONE block above):
 governance floor (P2), projection (P3/P5), and the curation console — verified live in a browser,
-and the pod is agent-attachable + traversable over MCP. **Next: the Phase-2 agent layer** — a query
-+ discovery surface so agents *ask* the memory and self-discover its schema (OPEN item 5), plus the
-hardening items (6–8). **P4** (public-dev rung on a CRC/SAI VM) stays deferred to LAST — the
-permanent home plus the one-time SSRF-guard-on confirmation, not a build dependency. See
-`docs/ROADMAP.md` for the full forward plan (which may itself want a refresh now the app has landed).
+and the pod is agent-attachable + traversable over MCP. **Next (per the 2026-06-28 direction change
+above): the substrate reconciliation** — re-found this built machinery onto the general
+profile-based model, per the design spec and the three `substrate-reconciliation-*` plans (a later
+implementation round). The old open items 5–8 are folded into that work; **P4** (public-dev rung on
+a CRC/SAI VM) stays deferred to LAST. The phase status below is the pre-pivot build record.

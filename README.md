@@ -6,6 +6,11 @@ The substrate for the **memory pods**, built on a containerized, pinned
 **Status:** JSS chosen over CSS; the L2 memory layer — OKF **projection engine** (`projection/`),
 **SHACL admission floor** (`constrained-container/`), **curation console** (`app/`) — is built on
 the local rung (`make up` / `make test`). Public dev/prod rungs (CRC/SAI VM) are deferred.
+
+**Direction change (2026-06-28):** re-founded as a *general, standards-based memory substrate* —
+structure is profile-imposed, the pod is the canonical home. Design of record:
+[`docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md`](docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md);
+the machinery above is kept and re-founded onto it (later implementation round).
 **[`FOLLOWUP.md`](FOLLOWUP.md) is the single source of current state — read it first when resuming.**
 
 JSS gives us what CSS does *not*: a self-issued agent-identity stack (LWS-CID / did:nostr),

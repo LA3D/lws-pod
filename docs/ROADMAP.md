@@ -1,10 +1,19 @@
 # Roadmap — memory pods on JSS
 
+> **DIRECTION CHANGE (2026-06-28).** The project re-founded as a **general, standards-based memory
+> substrate** — structure is imposed by a profile, not baked in; the pod is the canonical home. The
+> current **design of record** is
+> `docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md`, and the forward path is the
+> three `docs/superpowers/plans/2026-06-28-substrate-reconciliation-*` plans (a later implementation
+> round). **The sequencing below is the *pre-pivot* JSS-memory-pod build** — keep it as the record of
+> what exists and the still-deferred LWS-enrichment / trust work the new design also defers. Read it
+> as history + deferred-work context, not the current forward plan.
+
 Forward plan and **order of operations**. For current between-session state see `FOLLOWUP.md`;
 for the substrate evidence see `docs/foundations/`. This doc is the *sequencing* — what to build,
 in what order, and what each phase depends on.
 
-Last updated: 2026-06-21.
+Last updated: 2026-06-21 (pre-pivot); direction-change banner added 2026-06-28.
 
 ---
 
