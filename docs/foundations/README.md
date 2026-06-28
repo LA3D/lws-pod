@@ -15,18 +15,19 @@ than copying it here.
 4. [**Comunica patterns**](04-comunica-patterns.md) — client-side SPARQL over the `.graph`
    aggregate, the traqula override, verified live on JSS.
 
-Companion design docs in this repo:
+Companion docs (in this repo, by register):
 - [**Spec-vs-JSS conformance map**](05-jss-spec-conformance.md) — the seven eval axes scored
   CONFORMS / EXTENDS / DIVERGES / GAP against the Solid/LWS spec, with the live tests still
-  needed.
-- [`../wiki-memory-dual-projection.md`](../wiki-memory-dual-projection.md) — the container-vs-
-  graph content model and the four derived views.
+  needed. Canon.
 - [`../../constrained-container/`](../../constrained-container/) — the standalone SHACL
   admission proxy (the governance floor, shippable on its own).
-- [**Format convergence design notes**](06-format-convergence-design-notes.md) — *exploratory,
-  not a decision.* OKF / DataBook / openclaw / LWS design space, the embed-vs-project-vs-claims
-  forks, the canonical-pod / derived-index synthesis, and the open authz-over-derived-index
-  problem. Captured to chew on; changes nothing until promoted.
+
+For **active design deliberation** (exploratory, not canon — do not build from it as settled), see
+[`../design-notes/`](../design-notes/): the OKF / DataBook / openclaw / LWS format-convergence
+design space, the LWS substrate alignment, the canonical-pod / derived-index synthesis, and the
+open authz-over-derived-index problem. The pre-build content-model sketch is archived at
+[`../archive/wiki-memory-dual-projection.md`](../archive/wiki-memory-dual-projection.md) (superseded
+by `projection/` + [02-content-model](02-content-model.md)).
 
 ## What was deliberately left behind
 CSS extensions / Components.js config, the 136-shape catalog, CSS-specific decisions and

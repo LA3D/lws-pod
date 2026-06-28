@@ -193,7 +193,7 @@ therefore built **beside** JSS:
 - **SHACL admission** = the `constrained-container` proxy, already verified end-to-end
   against live JSS (good writes 201, bad writes 422 + `constrainedBy` Link)
   (`constrained-container/README.md`) — a spec-conformant realization of §5.6.
-- **Projection-on-write** = the dual-projection design (`docs/wiki-memory-dual-projection.md`):
+- **Projection-on-write** = the dual-projection design (`docs/archive/wiki-memory-dual-projection.md`):
   cards → `index.md` + `.graph`. No JSS write hook exists to run it server-side.
 - **Git-commit-on-write** = approximated by `--git` auto-checkout (axis 5); JSS has no
   documented "commit on every PUT" (QuitStore-style) behaviour.

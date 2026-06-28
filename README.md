@@ -3,12 +3,10 @@
 The substrate for the **memory pods**, built on a containerized, pinned
 [JavaScriptSolidServer](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer) (JSS).
 
-**Status:** the JSS-vs-CSS evaluation concluded — *JSS is a good replacement, build on it*
-(verdict + evidence below). The **L2 memory layer is now built on the local rung**: the OKF
-**projection engine** (`projection/`), the **SHACL admission floor** (`constrained-container/`),
-and a **curation console** (`app/` — see its README). The deployment workflow has a **local rung**
-today (`make up` / `make test`); public dev/prod rungs on a CRC/SAI VM are designed-for and
-deferred (see `FOLLOWUP.md` and `docs/superpowers/specs/`).
+**Status:** JSS chosen over CSS; the L2 memory layer — OKF **projection engine** (`projection/`),
+**SHACL admission floor** (`constrained-container/`), **curation console** (`app/`) — is built on
+the local rung (`make up` / `make test`). Public dev/prod rungs (CRC/SAI VM) are deferred.
+**[`FOLLOWUP.md`](FOLLOWUP.md) is the single source of current state — read it first when resuming.**
 
 JSS gives us what CSS does *not*: a self-issued agent-identity stack (LWS-CID / did:nostr),
 headless agent auth, an MCP agent surface, and git-backed versioning. Our L2 memory layer
@@ -42,7 +40,11 @@ Port `3838` (host) → `3000` (container), leaving `3000` free for a side-by-sid
 
 - `.claude/skills/` — seven grounded, source-pinned reference skills (LWS, Solid, SHACL,
   Comunica, OKF, Semantic Markdown specs + JSS implementation docs). See `.claude/skills/README.md`.
-- `docs/foundations/` — distilled canon + the **spec-vs-JSS conformance map** (`05-…`).
+- `docs/` — the doc map, by register: [`FOLLOWUP.md`](FOLLOWUP.md) = current state + open items
+  (read first); [`docs/ROADMAP.md`](docs/ROADMAP.md) = forward plan; `docs/foundations/` = distilled
+  canon + the **spec-vs-JSS conformance map** (`05-…`); `docs/design-notes/` = active design
+  deliberation (**exploratory, not canon**); `docs/superpowers/` = build history (archive);
+  `docs/archive/` = superseded docs.
 - `constrained-container/` — the standalone SHACL admission proxy (the L2 governance floor): writes
   through it are validated against an always-on base shape plus a per-container `ldp:constrainedBy`
   shape; a violation returns `422` + the teaching `sh:message`.
@@ -56,7 +58,6 @@ Port `3838` (host) → `3000` (container), leaving `3000` free for a side-by-sid
 - `experiments/headless-cid/` — headless LWS-CID provisioning + auth round-trip probe.
 - `tests/` — Vitest integration suite (the local verification gate; `make test`).
 - `experiments/smoke.sh` — archived eval probe (superseded; evidence in the conformance map).
-- **`FOLLOWUP.md`** — between-session state + open items. **Read this first when resuming.**
 
 ## What's enabled (and why)
 

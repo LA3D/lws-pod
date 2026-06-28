@@ -41,7 +41,7 @@ Two representations of the same knowledge, unified:
 The agent authors the token layer; the substrate **projects** the data layer from it
 (authoring stays markdown-native). In this repo the data layer is materialized as a **per-
 container `.graph` aggregate** (one queryable source), not per-resource sidecars — see
-[`../wiki-memory-dual-projection.md`](../wiki-memory-dual-projection.md).
+[`../archive/wiki-memory-dual-projection.md`](../archive/wiki-memory-dual-projection.md).
 
 ## Why structure (the wager)
 

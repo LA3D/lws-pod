@@ -63,44 +63,26 @@ typed-edge Link headers), and (c) the per-container **`.graph`** aggregate Comun
 
 ## What's already done
 
-- **Substrate decision** — JSS chosen over CSS (`FOLLOWUP.md`, conformance map). Pinned v0.0.209.
-- **Local deployment rung** — base+override compose, `make up`/`make test`, Vitest gate (merged).
-- **Grounded spec/impl skills** — LWS, Solid, SHACL, Comunica, OKF, Semantic-Markdown, JSS.
-- **Content model designed** — wiki-memory dual projection (`docs/wiki-memory-dual-projection.md`):
-  Semantic-Markdown cards → derived `index.md` (navigation) + `.graph` (query).
-- **Query path verified** — Comunica over the `.graph` aggregate, live against JSS.
-- **Admission mechanism confirmed** — `constrained-container/` SHACL proxy works; JSS serves
-  `.meta` + `ldp:constrainedBy`.
-- **P1 auth-plane proven** — Keycloak-in-front-of-JSS spike (`experiments/keycloak-jss/`):
-  Keycloak token's `webid` claim gates JSS access via an auth-gateway. The gateway (jose JWKS
-  verify) is the start of the Phase-1 sidecar auth front.
-- **P2 admission floor authed** — `constrained-container/` proxy reads `.meta`/shape under the
-  requester's auth (governs protected containers) + `set-acl.mjs` HTTP ACL provisioning for
-  public-read shapes. The Type Index's per-request authz-filter principle is now established.
-- **P3 projection app shipped (2026-06-21)** — channel-driven projection engine built as an
-  HTTP-native LWS app: generic OKF libs (frontmatter, `index.md` channel) + wiki-memory profile
-  (Semantic-Markdown→RDF extractor, `graph.ttl` channel, SHACL floor shared into the P2 proxy) +
-  CLI and `solid-0.1` notifications triggers. `projection/` package; design+plan in
-  `docs/superpowers/`. Replaces the prototype dual-projection sketch.
-- **LWS-CID auth proven locally (2026-06-21)** — the self-signed LWS-CID JWT round-trip now passes
-  end-to-end on a local pod (`experiments/headless-cid` against the patched TLS pod): PUT 201 as
-  the WebID, negative controls reject. Unblocked by the opt-in `PATCH_CID_PRIVATE_IPS` build arg
-  (relaxes JSS's SSRF private-IP guard for local dev only). The only unexercised piece is the SSRF
-  guard *with the guard on* — a one-time confirmation on a real public host, not an auth-logic gap.
+**`FOLLOWUP.md` is the single source of current state.** It carries the DONE blocks (substrate
+decision, local rung, grounded skills, P1–P3/P5, P4a LWS-CID-local) and the live phase status. This
+roadmap does not restate them — it sequences what remains. In one line: the substrate is chosen
+(JSS v0.0.209) and the L2 layer + curation app are built on the local rung; **P4 (CRC VM) is the
+remaining Phase-0 rung and is deferred to last.**
 
 ---
 
 ## Prerequisites / open decisions (close these before/early in the build)
 
-These are load-bearing and several gate later phases. Tracked also in `FOLLOWUP.md` open items.
+These are load-bearing and several gate later phases. **Status lives in `FOLLOWUP.md`** (open items
++ DONE blocks); the table below is the *why-it-gates* reference, with status compressed to a marker.
 
 | # | Item | Why it gates | Status |
 |---|------|--------------|--------|
-| P1 | **lws-keycloak authz integration** | Solves the LWS authorization-server / token-exchange gap JSS lacks; supplies the per-client identity the Type Index's authz-filter requires, and the app's login. | ✅ **spike done (2026-06-21)** — Keycloak token (`webid` claim) → auth-gateway → JSS proven (`experiments/keycloak-jss/`, `make kc-spike`). Approach A confirmed; gateway is the PEP. Sidecar TODOs: jwtVerify audience/expiry binding, owner-bearer refresh, per-WebID WAC (candidate a). |
-| P2 | **Proxy auth on constraint/index reads** (open item 2) | The Type Index MUST authz-filter on *current* access per request; the admission proxy reads `.meta`/shapes unauthenticated today and `.acl` PUT returned 415. | ✅ **done (2026-06-21)** — (b) proxy reads `.meta`/shape under the requester's `Authorization` (auth-keyed caches) → governs protected containers; (a) `constrained-container/set-acl.mjs` provisions public-read shapes via HTTP `application/ld+json` `.acl` PUT (no MCP; 415 was `text/turtle` — dotfiles are JSON-LD-on-disk; `acl:mode` must be an array). Follow-ups: `acl:default`-on-file, `base` param, `validatorFor` `r.ok` guard. |
-| P3 | **Projection-on-write / git-commit-on-write** (open item 3) | Materializes the `.graph` aggregate (Comunica's cheap path) and the derived index. No native JSS write hook → runs in the sidecar. | ✅ **done (2026-06-21)** — `projection/` package: channel-driven engine (`graph.ttl` + `index.md` channels) + the wiki-memory profile + CLI/notifications triggers; SHACL floor shares the extractor with the P2 proxy. git-commit-on-write rides JSS `--git`. |
-| P4 | **Public-dev rung** (`pod-dev.crc.nd.edu` on a CRC/SAI VM) | Realistic multi-user/app-install + the one-time SSRF-guard-*on* confirmation of LWS-CID auth. **No longer gates "working"** — LWS-CID auth is already proven locally via the opt-in patch; this is the permanent home, sequenced LAST and gated on the local definition-of-done below. Adds `docker-compose.dev.yml` + `.env.dev`. | not started (deferred to last) |
-| P5 | **Write-funnel decision** | If agents write directly to JSS bypassing the proxy, the index/`.graph` miss it. | ✅ **resolved in P3** — notifications-driven projection (CDC) catches all writes incl. bypass; the synchronous SHACL floor still gates proxied writes. |
+| P1 | **lws-keycloak authz integration** | Solves the LWS authorization-server / token-exchange gap JSS lacks; supplies the per-client identity the Type Index's authz-filter requires, and the app's login. | ✅ spike done — see FOLLOWUP |
+| P2 | **Proxy auth on constraint/index reads** (open item 2) | The Type Index MUST authz-filter on *current* access per request; the admission proxy reads `.meta`/shapes unauthenticated today and `.acl` PUT returned 415. | ✅ done — see FOLLOWUP |
+| P3 | **Projection-on-write / git-commit-on-write** (open item 3) | Materializes the `.graph` aggregate (Comunica's cheap path) and the derived index. No native JSS write hook → runs in the sidecar. | ✅ done — see FOLLOWUP |
+| P4 | **Public-dev rung** (`pod-dev.crc.nd.edu` on a CRC/SAI VM) | Realistic multi-user/app-install + the one-time SSRF-guard-*on* confirmation of LWS-CID auth. **No longer gates "working"** — LWS-CID auth is already proven locally; this is the permanent home, sequenced LAST. Adds `docker-compose.dev.yml` + `.env.dev`. | not started (deferred to last) |
+| P5 | **Write-funnel decision** | If agents write directly to JSS bypassing the proxy, the index/`.graph` miss it. | ✅ resolved in P3 — see FOLLOWUP |
 
 ---
 

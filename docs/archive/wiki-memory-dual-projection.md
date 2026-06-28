@@ -1,5 +1,11 @@
 # Wiki-memory dual projection: container + graph, from one source
 
+> **ARCHIVED 2026-06-28.** This is the pre-build design sketch. It has been realized in code
+> (`projection/` — the channel-driven engine + wiki-memory profile) and distilled into canon
+> (`docs/foundations/02-content-model.md`). The curly-brace Semantic-Markdown surface it shows was
+> later dropped in favour of frontmatter typed edges (see `docs/design-notes/format-convergence.md`,
+> Decisions-taken). Kept for history; **not current** — do not build from it.
+
 Design sketch (2026-06-20). One authoring source — Semantic-Markdown concept cards —
 projected on write into **two derived views** for two audiences:
 

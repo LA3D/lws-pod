@@ -23,4 +23,4 @@ Verbatim OKF source, pinned in `UPSTREAM.md`. Ground truth, not project guidance
 `semantic-markdown` (in-document RDF annotation), `solid-protocol` (storage substrate).
 
 ---
-*lws-pod's application: see project memory `[[open-knowledge-format]]` and `docs/wiki-memory-dual-projection.md`. Not in this skill.*
+*lws-pod's application: see project memory `[[open-knowledge-format]]` and `docs/archive/wiki-memory-dual-projection.md`. Not in this skill.*

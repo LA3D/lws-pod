@@ -229,7 +229,7 @@ JSS serves `.meta`+`ldp:constrainedBy` (admission proxy ports).
 3. `docs/foundations/05-jss-spec-conformance.md` → per-axis spec-vs-JSS, "Live test results".
 4. `.claude/skills/` (auto-loaded) → ground truth on specs + JSS; `jss-server` = what the server
    does, `solid-protocol`/`lws-protocol` = what the standard says.
-5. The L2 IP to port: `constrained-container/` (admission), `docs/wiki-memory-dual-projection.md`
+5. The L2 IP to port: `constrained-container/` (admission), `docs/archive/wiki-memory-dual-projection.md`
    (content model), `docs/foundations/04-comunica-patterns.md` (query path).
 
 ## Local pod (deployment workflow)
