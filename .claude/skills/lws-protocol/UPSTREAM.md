@@ -4,7 +4,7 @@ All eight LWS 1.0 modules + use cases, verbatim, unmodified (SNAPSHOTS/ and *.cs
 
 | Reference | Module | Snapshot |
 |---|---|---|
-| references/lws10-core/ | Core protocol | w3c/lws-protocol sha 91e6d6e2f3a2840883df9792d7ddfa9a78808200 |
+| references/lws10-core/ | Core protocol | w3c/lws-protocol sha d6af1a1dfe22e76ef5637f238d32e20e41b2b23e (lws10-core/index.html refreshed 2026-06-28: PR #167 principal→primary resource, auxiliary-as-role; other modules byte-identical at this sha) |
 | references/lws10-vocab/ | Vocabulary (vendored as `vocabulary.yml` — HTML/Turtle/JSON-LD serializations are yml2vocab build outputs not present in repo at pinned sha) | same sha |
 | references/lws10-authn-openid/ | OpenID Connect Authentication Suite | same sha |
 | references/lws10-authn-saml/ | SAML 2.0 Authentication Suite | same sha |
