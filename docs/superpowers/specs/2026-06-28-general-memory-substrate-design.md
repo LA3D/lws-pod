@@ -285,13 +285,38 @@ floor**:
 
 ---
 
-## 12. Pointers
+## 12. Build from ground truth (primary specs)
 
+**The implementing agent MUST build against the primary specs, not from memory.** For most, the
+repo already pins them as verbatim grounded skills (auto-loaded at session start) — *invoke the
+skill* rather than recalling the spec:
+
+| spec | ground truth | invoke |
+|---|---|---|
+| **LWS** 1.0 (all 8 modules) | grounded skill (pinned, verbatim) | `lws-protocol` |
+| **OKF** v0.1 | grounded skill | `okf` |
+| **Solid** Protocol (LDP/WAC/`ldp:constrainedBy`) | grounded skill | `solid-protocol` |
+| **SHACL** | grounded skill | `shacl-constraints` |
+| **Comunica** | grounded skill | `comunica-sparql` |
+| **DataBook** (W3C Holon CG) | **NO grounded skill yet — GAP** | see links below |
+
+**DataBook is the one spec without pinned ground truth.** Until a `databook` grounded skill exists
+(recommended — date-pinned snapshot, like `semantic-markdown`, since it is a Cagle-sole-edited
+"living document"), build the crosswalk against these primary sources:
+- W3C Holon CG DataBook: `https://github.com/w3c-cg/holon` (`architectures/databook/README.md`,
+  `documentation/faq.databook.md`)
+- CLI + property reference: `https://github.com/kurtcagle/databook` (`databook-property-reference.databook.md`)
+- Namespace: `https://w3id.org/databook/ns#` · essay: `https://ontologist.substack.com/p/the-format-convergence`
+
+DataBook is **not needed for Plan 1** (identity) — it is the crosswalk concern in Plans 2–3, so the
+gap does not block the immediate next step, but **fill it (create the `databook` skill) before the
+crosswalk work**.
+
+Other pointers:
 - Exploratory groundwork: `../../design-notes/format-convergence.md` (the four-system design space,
-  the LWS substrate alignment, the candidate architecture).
-- Grounded specs (skills): `lws-protocol`, `solid-protocol`, `okf`, `shacl-constraints`,
-  `comunica-sparql`, `semantic-markdown`, `jss-server`.
+  the LWS substrate alignment — incl. the verified DataBook findings — and the candidate architecture).
 - llm-wiki: `crcresearch/llm-wiki-memory-template`; published artifacts at
-  `https://la3d.github.io/llm-wiki-colab/{ontology.ttl, context.jsonld, shapes.ttl}`.
+  `https://la3d.github.io/llm-wiki-colab/{ontology.ttl, context.jsonld, shapes.ttl}` (profile #1's
+  vocabulary/context/shapes).
 - Kept machinery: `../../projection/`, `../../constrained-container/`, `../../app/`.
 - Roadmap/state: `../../ROADMAP.md`, `../../../FOLLOWUP.md`.
