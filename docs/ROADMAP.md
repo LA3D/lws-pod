@@ -177,11 +177,26 @@ Build order follows the §5–11 coupling (see `05-jss-spec-conformance.md` sani
   (~1000 LOC, AGPL). A clean reference read of the LWS resource core stripped of conneg/auth/
   notifications; implements none of the LWS storage layer (lws+json, storage desc, linkset, type
   index). Reference only — JSS is its superset, not a substrate candidate.
+- **`linkedwebstorage/lwsd`** ([repo](https://github.com/linkedwebstorage/lwsd)) — "LWS Daemon," a
+  *full-featured* LWS server (Fastify, JS) wrapping `lws-server` with batteries-included auth
+  (passkeys, API tokens, sessions, user management). Nascent (0★, ~3 commits, no release). Builds on
+  `lws-server`'s core, so it inherits the same missing storage layer. Watch, not adopt.
+- **`chapeaux/tudor`** ([repo](https://github.com/chapeaux/tudor), MIT) — the Porter author's
+  **native LWS 1.0 server in Rust** (axum/tokio). Auto-provisions per-user pods on OIDC (Keycloak /
+  IBM Verify), and *claims* the core LWS storage layer JSS lacks: containers/resources + **linksets
+  (RFC 9264)**, a **storage description** (`urn:lws:system` named graph), **OIDC auth + token-exchange
+  (RFC 8693)**, CID v1.0. Query is a `sparql/` backend (QLever/Neptune) — the *flat-graph* model, with
+  **no Type Index/Search** — and notifications are SSE. v0.1.0 / 2 commits, so claims likely outrun
+  implementation; Rust is also an ecosystem mismatch with our JS/JSS stack + Porter. Best *design
+  reference* yet for a native LWS server, and a candidate **second substrate** to prove the L2 sidecar
+  is server-agnostic — not a switch-to-now.
 
-> **Ecosystem note:** four LWS-ish servers checked — JSS, lws-keycloak's storage-server,
-> `jeswr/solid-server-rs`, and `lws-server` — and **none implement the LWS storage layer** (lws+json,
-> storage description, linkset, Type Index/Search). That layer, and the Type Index especially, is
-> unbuilt across the ecosystem — our sidecar is novel work regardless of substrate.
+> **Ecosystem note:** six LWS-ish servers checked — JSS, lws-keycloak's storage-server,
+> `jeswr/solid-server-rs`, `lws-server`, `lwsd`, and `tudor`. Only **`tudor` claims the core LWS
+> storage layer** (linkset, storage description, token-exchange) — unverified (v0.1.0), and in Rust.
+> Critically, **the Type Index/Search service is unbuilt across all six**: tudor substitutes a SPARQL
+> backend (flat-graph query), the rest implement none of it. So the typed, authz-filtered
+> progressive-disclosure layer is novel work regardless of substrate — the core value our sidecar adds.
 
 ---
 
