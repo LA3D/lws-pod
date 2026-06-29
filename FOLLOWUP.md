@@ -28,11 +28,30 @@ release's npm `gitHead`. Our work rides `la3d/*` branches (clear of his `feature
 description → L3 constrained-container (SHACL admission, existing toolkit) → L4 OKF projection
 **rewritten to LWS shapes** (not the anchor — it gets re-derived to match the spec).
 
-**▶ IN PROGRESS:** L1 plan `docs/superpowers/plans/2026-06-29-lws-L1-container-conneg.md`, executed
-via subagent-driven-development on branch **`la3d/lws-container`** in the fork. L1 = serve
-spec-conformant `application/lws+json` `items[]` containers + `rel="up"` via conneg, gated by `--lws`,
-**purely additive** (no PUT/POST semantic changes — the reverted `feature/lws-mode` controversy).
-Progress ledger: `~/dev/git/LA3D/JavaScriptSolidServer/.superpowers/sdd/progress.md`. Resume there.
+**▶ L1 DONE (PR open) — L2 IS NEXT.** L1 (`docs/superpowers/plans/2026-06-29-lws-L1-container-conneg.md`)
+is **complete and merge-ready**: branch **`la3d/lws-container`** in the fork (8 commits over the
+`la3d/main` pin / `0f4287f` / 0.0.210), **PR https://github.com/LA3D/JavaScriptSolidServer/pull/1**,
+full suite **993/993 green**. Delivers a spec-conformant `application/lws+json` `items[]` container
+served via conneg, gated by `--lws`, with `rel="up"` + standard headers (ETag/Allow/Accept-Post) —
+purely additive (default LDP path provably unchanged; no PUT/POST changes). Built via
+subagent-driven dev (per-task + opus whole-branch review; one Important `Vary: Accept` cache bug
+found + fixed). SDD ledger: `~/dev/git/LA3D/JavaScriptSolidServer/.superpowers/sdd/progress.md`.
+
+**Merge model (decide before L2):** `la3d/main` is the pristine upstream pin (for rebasing onto JSS
+releases) — do **not** merge L1 into it. The L1–L4 stack likely wants its own integration branch
+(e.g. `la3d/lws`).
+
+**▶ L2 = linkset + Storage Description** (the discovery/metadata slice): per-resource
+`application/linkset+json` (`rel="up"`/`describedBy`); the Storage Description resource + `service` set
++ `rel="…lws#storageDescription"` header; `/.well-known/lws-configuration`. Track open spec PRs **#183**
+(storage-desc-as-CID-1.0 — feeds `resolveStorageAuthority`) and **#180** (link set profile). Write the
+L2 plan against the same fork, the way L1 was done.
+
+**L1 deferred carryover** (in the PR + ledger): `--no-lws` flag; HEAD `lws+json` negotiation parity
+(`TODO(lws-head-parity)` marker in `handleHead`); `ContainerPage` pagination; per-variant 304/ETag;
+`generateLwsContainer` unit-test gaps (trailing-slash, octet-stream, empty). Then **L3**
+(constrained-container SHACL admission) and **L4** (OKF projection rewritten to LWS shapes — the old
+RED wiki-memory suite).
 
 **Spec grounding refreshed:** the `lws-protocol` skill is bumped to upstream HEAD and vendors the
 **first-publication LWS Vocabulary** (`references/lws10-vocab/SNAPSHOTS/DNOTE/Overview.html`). Facts
