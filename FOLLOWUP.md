@@ -29,8 +29,13 @@ identity = CID-1.0, `did:webvh` preferred). **Plan 2 MUST add a `resolveStorageA
 seam** so `makeIdentityPolicy` takes a *resolved* URI, not a config literal (the `urn:okf:base/`
 placeholder); slug strategy + profile-path + vocab context become profile parameters. Trust seam
 (`did:webvh`/VC/ODRL/verifiable-history) is recorded in `docs/design-notes/trust-seam-agent-identity.md`
-and stays deferred. Still open before Plan 2: §11 #3 (data-catalog vocab — DCAT/CSVW/schema.org/**CDIF**),
-§11 #2 (vault SHACL-vs-curator); plus the Plan-1 carryover list below.
+and stays deferred. The substrate's **"why"** — context cards over data objects, closing the loop to
+storage via JSON-LD `@context` (inline or advertised) — is `docs/design-notes/contextual-linked-memory.md`
+(Profile #2 is the describe-the-object layer; §11 #3 leans CDIF-aligned). Still open before Plan 2:
+§11 #3 (data-catalog vocab — DCAT/CSVW/schema.org/**CDIF**, leaning CDIF-aligned reuse-first layering),
+§11 #2 (vault SHACL-vs-curator); plus the Plan-1 carryover list below. (Design-of-record continuity
+lives in this repo — FOLLOWUP + spec §12 design-note pointers; the `~/.claude` auto-memory is a
+per-machine convenience and is NOT needed to resume on another machine.)
 
 ---
 
