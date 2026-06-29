@@ -5,7 +5,7 @@ dialogue + this session's research (three server deep-dives, the LWS landscape/s
 and grounded against the committed identity/contextual-memory notes. Resolves *how we obtain the LWS
 storage layer* the committed work assumes, and *how the storage backend is abstracted*. Supersedes
 the ROADMAP's "Phase 2 — LWS storage enrichment (deferred)" sequencing **for the storage layer
-only** (see §11).
+only** (see §12).
 
 ### Claim status
 - **[verified]** — checked against a primary source this session.
@@ -89,9 +89,11 @@ Code *is* the meta-experiment.
   **S3-cloud**. Borrow tudor's `BlobStore` ↔ metadata-store split as the pattern. See §7 for the tension.
 - **LWS storage toolkit** — the discovery + metadata + search slice, as small modules fed by the
   projection write-path, built in two tranches by spec maturity:
-  - **Tranche 1 (FPWD-stable):** Storage Description resource (+ `service` set + `rel=storageDescription`
-    header) and linkset metadata (`rel="up"`, `describedBy`). Unblocks the committed identity/self-
-    description work.
+  - **Tranche 1 (core is FPWD, but these two resources are in active PR churn):** Storage Description
+    resource (+ `service` set + `rel=storageDescription` header) and linkset metadata (`rel="up"`,
+    `describedBy`). Unblocks the committed identity/self-description work. **Track open PRs #183
+    (storage description as a CID-1.0 specialization — feeds `resolveStorageAuthority`) and #180 (link
+    set profile)** — the regenerate-from-spec discipline (§6) applies here too, not only to Tranche 2.
   - **Tranche 2 (ED-volatile, isolated):** Type Index / Type Search — the CNF `?type=` core only;
     optional extensions (negation/ordering/text) behind a capability flag; endpoint shapes behind an
     adapter so a spec rev regenerates **one** module. Port from the Bremer design doc.
@@ -106,28 +108,78 @@ Code *is* the meta-experiment.
 truth. The implementation is **regenerable**: on a spec rev, bump the skill's SHA and regenerate the
 affected module. The Tranche-2 adapter boundary is engineering hygiene that *scopes* regeneration —
 not a hedge against churn. Spec churn is the **test condition**, not a risk to design around. Build
-to the current `searchindex` ED; the FPWD modules (core, the four auth suites) are stable to build
-against now. [verified — landscape scan: core+auth FPWD Mar/Apr 2026; notifications + searchindex ED-only]
+to the current `searchindex` ED; core + the four auth suites are FPWD (Mar/Apr 2026). Caveat: core
+is FPWD as a *module*, but specific resources within it — the storage description and linkset — have
+open PRs (#183, #180), so even Tranche 1 builds against moving text and regenerates on rev.
+[verified — landscape + issue/PR scan: core+auth FPWD; notifications + searchindex ED-only; storage-desc/linkset PRs open]
 
-## 7. Storage backend — the JSS-vs-S3 tension
+## 7. Storage backend — the git-vs-S3 seam
 
-- **git-on-container profile:** JSS as-is (git-backed). Provided by the base, no new work.
-- **S3-cloud profile:** JSS cannot host resource bytes in S3 — its storage is a filesystem tree +
-  git, not pluggable, no S3 config (would require forking). [verified — conformance map; jss-server docs]
-  Two sub-options, **[deferred decision, recorded]**:
+**What the spec says [verified — lws-protocol HEAD + lws-ucs].** The backend is *below* the protocol;
+the spec is backend-agnostic by design (zero S3 / object-store mentions). LWS Resource-Identification
+makes this sound: *"the URI of a resource is independent of its position in the containment
+hierarchy… clients SHOULD NOT assume that URI structure reflects containment"* — so bytes may live in
+fs, a git tree, or S3 keys. And the use-cases doc **requires exactly our two-profile model**: **"Use
+of Service Providers"** (delegate storage to a trusted provider *without impeding self-hosting*) and
+**"Storage Portability"** (move a storage's entire contents between providers); "Storage Provider" is
+a first-class term. **But the normative section that would specify the mechanism —
+`Portability-Considerations.md` — is a blank stub at HEAD, there is no S3 binding, and no
+external-storage delegation hook** (the storage description's `service` set advertises *services*, not
+a byte backend). So the spec *requires* multi-provider + portability yet has not written how — **we
+prototype into that gap**, which is maximally on-thesis.
+
+**The two profiles:**
+- **git-on-container (self-host):** JSS as-is (git-backed). Provided by the base, no new work.
+- **S3-cloud (provider):** JSS cannot host bytes in S3 — its storage is a filesystem tree + git, not
+  pluggable (would require forking). [verified — jss-server docs] Two sub-options:
   - **(i) blob-broker beside JSS** — cards/RDF + a metadata/pointer resource live on JSS; large
-    `DataResource` bytes live in S3; the toolkit brokers read/write. Keeps JSS intact.
+    `DataResource` bytes live in S3; the toolkit brokers read/write. Keeps JSS intact. **Favored** —
+    LWS auth sits *above* the backend (§8), so the LWS server stays the auth/policy point and S3 sits
+    behind it, and it keeps the JSS MCP surface coherent (§8).
   - **(ii) own the resource store** — the toolkit owns the resource read/write path behind the
-    backend interface (git/fs vs S3), using JSS for protocol/auth/MCP only. Larger intervention,
-    closer to a from-scratch server for the cloud profile.
+    backend interface, using JSS for protocol/auth only. Larger intervention; **breaks the JSS MCP
+    CRUD path** (§8); closer to a from-scratch server for the cloud profile.
 - **Principle [decided]:** keep the backend behind an interface so git-container and S3-cloud are
-  *deployment profiles, not an architectural fork*, and keep the RDF/metadata index backend-
-  independent. Which sub-option (i vs ii) the S3 profile takes is deferred until an S3 use case is concrete.
+  *deployment profiles, not an architectural fork*, and keep the RDF/metadata index backend-independent.
+  Sub-option (i vs ii) is deferred until an S3 use case is concrete, but the auth + MCP findings (§8)
+  lean it toward (i).
 
-This also keeps the "server-agnostic L2" claim honest **by construction** (design to the LWS
-contract) rather than by assertion — the mistake the earlier framing made.
+This keeps the "server-agnostic L2" claim honest **by construction** (design to the LWS contract)
+rather than by assertion — the mistake the earlier framing made.
 
-## 8. How it sits on the existing IP
+## 8. Auth model & agent surface (LWS OAuth2; MCP)
+
+**LWS auth [verified — `Authorization.html` / `Authentication.html`].** A storage server is an OAuth
+2.0 *resource server*. Flow: a signed **authentication credential** (`subject`/`issuer`/`client`;
+format not mandated — concretized by an auth *suite*: OpenID, SAML, self-signed CID, did:key) →
+**Token Exchange (RFC 8693)** at an authorization server (discovered via `401` + `WWW-Authenticate`
+`as_uri`/`realm`; AS metadata at `/.well-known/lws-configuration`) → a short-lived **bearer access
+token** (RFC 9068) → presented to the storage server, which validates it (sig via `jwks_uri`, `iss`,
+`aud`, temporal) and then applies an **access-control policy LWS core does NOT define** (server-side;
+WAC in Solid/JSS). Two consequences:
+- **AS and storage are decoupled** ("out of scope… may be the same or separate") — an external AS
+  (Keycloak) is spec-sanctioned. **JSS does not implement the token-exchange/AS flow** —
+  `/idp/credentials` returns a *direct* RS256 bearer — so LWS-conformant auth means an AS-in-front
+  (the existing Keycloak P1 spike), not JSS's bearer alone. [verified — conformance map axis 2]
+- **Auth sits above the backend** — the agent authenticates against the LWS server, never against S3;
+  the backend lives behind the auth boundary. This is why the S3 **blob-broker (i)** is clean (§7).
+
+**MCP is a JSS extension, not LWS** [verified — conformance map axis 3]. The pure-LWS agent surface is
+authenticated HTTP (LDP CRUD, conneg, TypeSearch, notifications); JSS's `/mcp` re-exposes those as
+JSON-RPC tools, each **WAC-checked against the agent's WebID** (agent identity = WAC subject). Three
+implications:
+1. **MCP writes bypass the synchronous SHACL floor** — they hit JSS directly, not the
+   `constrained-container` proxy. They *are* caught by the async projection (notifications CDC
+   re-projects on every change), so the index/linkset/`.graph` stay eventually-consistent — but MCP
+   writes get **async governance, not the synchronous gate** (no JSS plugin API to inject SHACL; the
+   alternative is fronting a governed MCP endpoint).
+2. **The new discovery surfaces are not auto-MCP-tools** — storage description + linkset are
+   *resources* (reached via the `read` tool); Type Search is a *service endpoint* reached by
+   read-then-HTTP, with a dedicated `type_search` MCP tool as optional sugar.
+3. **The S3 own-the-store sub-option (ii) breaks MCP CRUD** — JSS's MCP read/write operate on JSS's
+   own storage, which would diverge from an owned S3 store. Another reason §7 leans to the blob-broker.
+
+## 9. How it sits on the existing IP
 
 - **`projection/` `.graph`** — the RDF-ingest a Type Index needs. Extend it to also feed the type
   index and capture metadata links at write.
@@ -138,7 +190,7 @@ contract) rather than by assertion — the mistake the earlier framing made.
 - **Write-funnel stays mandatory** — the "one write-path, three consumers" coupling: a write that
   bypasses the proxy is missed by the index / linkset / `.graph`.
 
-## 9. Components (each: purpose · interface · deps)
+## 10. Components (each: purpose · interface · deps)
 
 - **storage-description** — emit the Storage Description resource + `service` set + `Link` header.
   In: pod/profile config + advertised services. Out: `lws+json` storage description. Deps: JSS conneg.
@@ -150,12 +202,14 @@ contract) rather than by assertion — the mistake the earlier framing made.
 - **storage-backend interface** — read/write resource bytes. Impls: git/fs (JSS), S3. Deps: deploy config.
 - **identity policy** (Plan 2) — `resolveStorageAuthority` + `makeIdentityPolicy`. Deps: storage description.
 
-## 10. Open questions / deferred
+## 11. Open questions / deferred
 
-- **[open — verify in Tranche 1]** Confirm from the `lws-protocol` skill: (a) the storage backend is
-  out-of-scope / location-independent (strong prior; citation unconfirmed — the spec-mining agent was
-  stopped); (b) whether the storage description offers a blessed external-storage / delegation hook
-  that would make S3-delegation spec-grounded rather than improvised.
+- **[verified — was open, now resolved]** (a) The backend **is** out-of-scope / location-independent
+  (LWS Resource-Identification: URI ⊥ containment) — confirmed at spec HEAD. (b) There is **no**
+  blessed external-storage / delegation hook: the storage description advertises *services*, not a
+  byte backend, and `Portability-Considerations.md` is a blank stub — so S3 delegation is our
+  implementation, spec-*permitted* (Use-of-Service-Providers / Storage-Portability requirements) but
+  spec-*unspecified*.
 - **[deferred]** S3 profile sub-option (i blob-broker vs ii own-the-store) — until the S3 use case is concrete.
 - **[deferred]** `lws+json` `items[]` container representation — not needed by the identity/discovery
   work; the contextual-memory query path rides Solid containers + `.graph`. Separate conformance piece.
@@ -163,7 +217,7 @@ contract) rather than by assertion — the mistake the earlier framing made.
 - **[deferred]** Notifications mechanism (LWS Webhook vs JSS WebSocket) — CDC rides JSS WebSocket today; LWS-conformant webhook is a later port.
 - **[action]** Reach out to Erich Bremer about releasing / collaborating on the `searchindex` impl.
 
-## 11. Sequencing (re-sequences the ROADMAP)
+## 12. Sequencing (re-sequences the ROADMAP)
 
 The storage layer moves to first, stable-modules-first:
 
@@ -174,13 +228,21 @@ The storage layer moves to first, stable-modules-first:
 
 ROADMAP "Phase 2 — LWS storage enrichment (deferred)" is superseded by this ordering for the storage layer.
 
-## 12. Sources [this session, 2026-06-29]
+## 13. Sources [this session, 2026-06-29]
 
 - Server deep-dives: tudor @ `d8a02f9` (Rust, MIT; unauthenticated, opaque-blob RDF); lwsd @ `c7ddc38`
   + lws-server @ `6131553` (JS, **AGPL-3.0**; minimal shipped core, orphaned discovery tree).
 - Landscape: W3C **LWS Working Group** (chartered to Sept 2026); FPWD core + 4 auth suites (Mar/Apr
   2026); notifications + searchindex **ED-only**; **no reusable Type Index** (`ebremer/lws-server-docs/
   search-type-index.md` is the porting spec; Bremer's code unpublished).
+- Spec HEAD + issue/PR scan (`w3c/lws-protocol`; our pin is 1 commit behind = effectively current):
+  `Portability-Considerations.md` + `Resource-Identification.md` are blank stubs at HEAD; open PRs
+  **#183** (storage description as a CID-1.0 specialization), **#180** (link set profile); **#124**
+  (Data Resource ≠ "file" — model kept backend-neutral on purpose).
+- `lws-ucs` requirements: **Storage Provider** (first-class term), **Use of Service Providers**
+  (delegate to a provider without impeding self-host), **Storage Portability** (move contents between
+  providers) — the grounding for the backend seam. Auth flow from core `Authorization.html` /
+  `Authentication.html` (OAuth2 resource server, RFC 8693 token-exchange, RFC 9068 access token).
 - Grounded skills: `lws-protocol` (pinned), `jss-server`, `shacl-constraints`, `comunica-sparql`, `okf`.
 - Committed notes: `iri-minting.md`, `contextual-linked-memory.md`, `trust-seam-agent-identity.md`;
   `docs/foundations/05-jss-spec-conformance.md`; `docs/ROADMAP.md`.
