@@ -21,7 +21,8 @@ top of any Solid server.
 ## Run
 
 ```bash
-cp .env.example .env.local   # first time only — the make targets read --env-file .env.local
+make setup     # first time only — creates .env.local + `npm ci` in every subproject
+make doctor    # preflight: confirms Docker can actually start containers (see note below)
 make up        # build + start  (http://localhost:3838)
 make logs      # tail
 make test      # Vitest e2e: pod create -> headless token -> write/read -> MCP -> git
@@ -31,6 +32,13 @@ make down      # stop, keep ./data (persistence check: down && up preserves the 
 # TLS variant (for the LWS-CID auth experiment; mkcert, pod.vardeman.me:8443)
 make cert && make up-tls && make cid-tls
 ```
+
+**Clean checkout / new machine:** `node_modules/` and `.env.local` are gitignored, so a fresh clone
+has neither — `make setup` is the one-shot bootstrap that creates both (the compose and test targets
+also self-heal the env file and root/projection deps, so `make up` / `make test` work without it).
+If a build dies at the first `RUN` with `runc … can't get final child's PID from pipe: EOF`, a
+freshly installed/updated Docker Desktop can't start containers yet — run `docker desktop restart`,
+wait, and retry. `make doctor` checks for exactly this.
 
 L2 component gates: `make test-projection` and `make test-app` (unit, no pod needed);
 `make test-app-e2e` runs the curation-console e2e against a running, seeded pod + proxy.
