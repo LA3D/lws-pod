@@ -9,14 +9,20 @@ the local rung (`make up` / `make test`). Public dev/prod rungs (CRC/SAI VM) are
 
 **Direction change (2026-06-28):** re-founded as a *general, standards-based memory substrate* —
 structure is profile-imposed, the pod is the canonical home. Design of record:
-[`docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md`](docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md);
-the machinery above is kept and re-founded onto it (later implementation round).
+[`docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md`](docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md).
+
+**Substrate resolved (2026-06-29):** the LWS *storage* layer is built by **forking production JSS
+0.0.210** ([`LA3D/JavaScriptSolidServer`](https://github.com/LA3D/JavaScriptSolidServer) @ `la3d/main`)
+and adding LWS **in-process** — not a server-agnostic sidecar (the earlier framing), and not
+`lwsd`/`tudor` (evaluated, rejected). Layering: **L1 container → L2 linkset + storage description →
+L3 SHACL admission → L4 OKF projection (rewritten)**; **L1 is shipped** (the fork's PR #1). Design of
+record: [`docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`](docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md).
 **[`FOLLOWUP.md`](FOLLOWUP.md) is the single source of current state — read it first when resuming.**
 
 JSS gives us what CSS does *not*: a self-issued agent-identity stack (LWS-CID / did:nostr),
-headless agent auth, an MCP agent surface, and git-backed versioning. Our L2 memory layer
-(governed projection, write contract, SHACL admission, curation) is portable IP that rides on
-top of any Solid server.
+headless agent auth, an MCP agent surface, and git-backed versioning. The L2/L3/L4 machinery in this
+repo (governed projection, write contract, SHACL admission, curation) is the memory-layer IP that
+rides on top of the LWS-mode JSS fork.
 
 ## Run
 

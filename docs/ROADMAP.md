@@ -1,5 +1,14 @@
 # Roadmap — memory pods on JSS
 
+> **SUBSTRATE RESOLVED (2026-06-29) — supersedes the "sidecar" sequencing below.** The
+> "server-agnostic sidecar on JSS / don't fork JSS" framing in this doc is **superseded**: we **fork
+> production JSS 0.0.210** ([`LA3D/JavaScriptSolidServer`](https://github.com/LA3D/JavaScriptSolidServer)
+> @ `la3d/main`) and add the LWS storage layer **in-process**. The layering is now **L1 container
+> (`items[]` + conneg) → L2 linkset + storage description → L3 SHACL admission → L4 OKF projection
+> (rewritten to LWS shapes)**, and **L1 is shipped** (PR #1, 993/993). Design of record:
+> `docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md` (the "Substrate — RESOLVED" block);
+> current state: `FOLLOWUP.md`. Read the Phase-1/2 "sidecar" sequencing below as superseded history.
+
 > **DIRECTION CHANGE (2026-06-28).** The project re-founded as a **general, standards-based memory
 > substrate** — structure is imposed by a profile, not baked in; the pod is the canonical home. The
 > current **design of record** is

@@ -7,15 +7,17 @@ clients). On top of it we build the **L2 memory layer** — an OKF projection en
 admission floor, and a curation console. Thesis under test: typed, progressively-disclosed memory
 helps agents more than flat retrieval.
 
-**JSS is an analog, not the destination.** The target substrate is **LWS** — the W3C standardization
-successor to Solid (`.claude/skills/lws-protocol` grounds the spec). The eventual real home is a
-full LWS daemon such as [`linkedwebstorage/lwsd`](https://github.com/linkedwebstorage/lwsd) (a
-"full-featured Linked Web Storage server"), but that ecosystem is nascent — so we develop against
-JSS, a mature Solid server that already ships the LWS **authentication** suite (LWS-CID identity)
-plus an MCP agent surface, headless auth, and git versioning. JSS does **not** implement LWS
-*storage* (`lws+json` containers, storage description, linksets, Type Index/Search); the L2 layer
-adds that as a **server-agnostic sidecar**, so the IP rides onto any LWS server. JSS replaced the
-Community Solid Server (CSS), which lacked the agent-identity stack entirely.
+**Substrate (RESOLVED 2026-06-29).** The target is **LWS** — the W3C standardization successor to
+Solid (`.claude/skills/lws-protocol` grounds the spec). No server implements the LWS *storage* layer
+yet (`lwsd`/`tudor` were evaluated and rejected — immature, AGPL, and themselves LDP-`contains` not
+`items[]`). So we **fork production JSS** — [`LA3D/JavaScriptSolidServer`](https://github.com/LA3D/JavaScriptSolidServer),
+branch `la3d/main` = pristine pin of upstream **0.0.210** — and add the LWS storage layer
+**in-process** (small, additive edits to clean Fastify modules), **not** a server-agnostic sidecar
+(the earlier framing). JSS already ships the **LWS-CID authentication** suite (identity is done),
+plus MCP, headless auth, git versioning, and is JSON-LD-native; it replaced the Community Solid
+Server (CSS), which lacked the agent-identity stack entirely. **L1 (the `lws+json` container) is
+shipped;** the L2/L3/L4 toolkits in *this* repo (projection, SHACL admission, console — see below)
+ride on top of that fork. Current state + the L1–L4 layering + the active branch: **`FOLLOWUP.md` (read first).**
 
 ## Read first (orientation)
 
