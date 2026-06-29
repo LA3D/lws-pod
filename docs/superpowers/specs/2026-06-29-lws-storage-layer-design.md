@@ -14,6 +14,36 @@ only** (see §12).
 
 ---
 
+## Substrate — RESOLVED (2026-06-29, after reading the production source)
+
+**[decided]** Fork production **JSS 0.0.210** and add the LWS storage layer **in-process** — not a
+fronting proxy, not lwsd/tudor. Fork: **`LA3D/JavaScriptSolidServer`**, branch **`la3d/main`** pinned
+to upstream gitHead **`0f4287f`** (0.0.210); our work rides `la3d/*` branches off it (clear of
+upstream's `feature/*`/`issue-*` scheme). Upstream is trunkless (default `gh-pages`, 86 branches, tags
+stop at v0.0.46, releases are unbranched commits), so we track by rebasing `la3d/main` onto each
+release's npm `gitHead`. This reverses the fronting-toolkit framing in §4/§5/§7 below, which predates
+reading the code:
+
+- **LWS-CID auth is already in 0.0.210** — `src/webid/profile.js` (CID-shaped profile, `lws:`/`cid/v1`,
+  `verificationMethod`, `lws:OpenIdProvider`) + `src/auth/token.js` (LWS10-CID JWT). The hardest crown
+  jewel is landed; we do not rebuild it. [verified]
+- **The LWS storage edits are small, localized, additive** to clean pure functions: `items[]` container
+  ≈ a ~30-line variant of `src/ldp/container.js:generateContainerJsonLd`; `application/lws+json` conneg
+  ≈ a constant + a branch in `src/rdf/conneg.js`; storage description + linkset = new Fastify routes. [verified]
+- **JSON-LD-native + Fastify** — `lws+json` *is* JSON-LD (which JSS emits natively), and Fastify gives
+  native route/hook extension. A fronting proxy would re-serialize every response across two processes
+  for the *same* result — strictly more work and more fragile.
+- **S3 backend is in-process and tractable** — `src/storage/filesystem.js` is a ~9-function interface
+  (`exists/stat/read/write/createReadStream/listContainer/…`); the S3 profile reimplements it. This
+  resolves §7's blob-broker-vs-own-the-store toward **own-the-store** (one swappable module).
+
+The layering still holds (container → linkset/storage-desc → constrained-container → OKF), but the LWS
+**core** layer (container/conneg/storage-desc/backend) is now **in-process in the fork**; the **L2**
+layers (SHACL admission, projection, Type Index) stay separable toolkits over it. Sections §4–§9 below
+record the pre-source-read reasoning and evidence; **this block is the current decision.**
+
+---
+
 ## 1. What this resolves
 
 The IRI-minting and contextual-linked-memory notes committed 2026-06-29 assume an LWS storage layer
