@@ -7,6 +7,47 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
+## ▶▶ 2026-06-29 — substrate RESOLVED (fork JSS) + LWS storage layer underway
+
+**▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
+
+**Decision (design of record):** `docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`,
+the **"Substrate — RESOLVED"** block. We **fork production JSS 0.0.210 and add the LWS storage layer
+in-process** (not a fronting proxy, not lwsd/tudor). Why: LWS-CID auth already ships in 0.0.210; the
+LWS edits are small/localized/additive to clean pure functions (`src/ldp/container.js`,
+`src/rdf/conneg.js`); JSS is Fastify + JSON-LD-native; S3 = swap the `src/storage/filesystem.js`
+interface. §4–§9 of that spec are the reasoning/evidence trail; the RESOLVED block is the call.
+
+**The fork:** `LA3D/JavaScriptSolidServer`, branch **`la3d/main`** = pristine pin of upstream gitHead
+`0f4287f` (0.0.210); default branch set to `la3d/main`; `upstream` remote wired; local checkout
+`~/dev/git/LA3D/JavaScriptSolidServer`. Upstream is **trunkless** (default `gh-pages`, 86 branches,
+tags stop at v0.0.46, releases are unbranched commits) — track by rebasing `la3d/main` onto each
+release's npm `gitHead`. Our work rides `la3d/*` branches (clear of his `feature/*`/`issue-*`).
+
+**Layering (separable, spec-first):** L1 container `items[]` + conneg → L2 linkset + storage
+description → L3 constrained-container (SHACL admission, existing toolkit) → L4 OKF projection
+**rewritten to LWS shapes** (not the anchor — it gets re-derived to match the spec).
+
+**▶ IN PROGRESS:** L1 plan `docs/superpowers/plans/2026-06-29-lws-L1-container-conneg.md`, executed
+via subagent-driven-development on branch **`la3d/lws-container`** in the fork. L1 = serve
+spec-conformant `application/lws+json` `items[]` containers + `rel="up"` via conneg, gated by `--lws`,
+**purely additive** (no PUT/POST semantic changes — the reverted `feature/lws-mode` controversy).
+Progress ledger: `~/dev/git/LA3D/JavaScriptSolidServer/.superpowers/sdd/progress.md`. Resume there.
+
+**Spec grounding refreshed:** the `lws-protocol` skill is bumped to upstream HEAD and vendors the
+**first-publication LWS Vocabulary** (`references/lws10-vocab/SNAPSHOTS/DNOTE/Overview.html`). Facts
+established: LWS auth = OAuth2 + RFC8693 token-exchange (JSS uses a direct bearer → Keycloak is the AS
+gap); the storage backend is unspecified (`Portability-Considerations.md` is a blank stub) but the UCS
+*requires* multi-provider + portability; the Type Index (`searchindex`) is an unmerged spec PR
+(w3c/lws-protocol#115) — most volatile, build the CNF core behind an adapter. JSS tracks LWS via
+#87/#88 (`--lws-mode`, draft/parked), #386 (LWS-CID, **landed in 0.0.210**), #535 (Type Index, align-when-stable).
+
+**Plan-1 projection ripple reframed:** the wiki-memory projection suite (RED since Plan 1) is now
+**L4** — it gets rewritten to LWS shapes, not patched to the old `cardToQuads` contract. The earlier
+"execute Plan 2 / profile mechanism" framing folds into L4.
+
+---
+
 ## ▶▶ DIRECTION CHANGE — general substrate (2026-06-28)
 
 The project re-founded from "the wiki-memory L2 layer (Chuck's vault ported to a pod)" to a
