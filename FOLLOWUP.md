@@ -22,9 +22,15 @@ sequential reconciliation plans (`docs/superpowers/plans/2026-06-28-substrate-re
 re-brainstorm it). **Plan 1 is DONE** (see the DONE block immediately below). **Write and execute
 Plan 2** = the profile mechanism (loadable/discoverable profiles) + profiles #1 (llm-wiki) / #2
 (data-catalog), threading the identity policy through `profiles/wiki-memory/extract.mjs` to turn its
-suite green again. Before writing Plan 2, resolve the spec §11 open questions (IRI-minting scheme —
-incl. whether to add the DataBook `-v{version}` segment; vault rules SHACL-vs-curator; DCAT-vs-CSVW)
-and fold in the Plan-1 carryover list below.
+suite green again. **§11 #1 (IRI + vocabulary minting) is now RESOLVED** —
+`docs/design-notes/iri-minting.md` (content authority *resolved from the pod's storage description*,
+never hardcoded, URI-typed/DID-ready; vocab reuse-first under a w3id-shaped base we control; agent
+identity = CID-1.0, `did:webvh` preferred). **Plan 2 MUST add a `resolveStorageAuthority(webid|resource)`
+seam** so `makeIdentityPolicy` takes a *resolved* URI, not a config literal (the `urn:okf:base/`
+placeholder); slug strategy + profile-path + vocab context become profile parameters. Trust seam
+(`did:webvh`/VC/ODRL/verifiable-history) is recorded in `docs/design-notes/trust-seam-agent-identity.md`
+and stays deferred. Still open before Plan 2: §11 #3 (data-catalog vocab — DCAT/CSVW/schema.org/**CDIF**),
+§11 #2 (vault SHACL-vs-curator); plus the Plan-1 carryover list below.
 
 ---
 

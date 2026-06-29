@@ -275,11 +275,20 @@ floor**:
 
 ## 11. Open questions (for the plan / later phases)
 
-1. Subject-IRI minting scheme concretely — `w3id`/PID vs content-addressed vs per-pod-namespaced;
-   how it composes with a per-pod LWS identity authority.
+1. ~~Subject-IRI minting scheme concretely.~~ **RESOLVED (2026-06-29) — see
+   [`../../design-notes/iri-minting.md`](../../design-notes/iri-minting.md).** Three planes:
+   **content** = `{authority}{profile-path}/{slug}{-version?}#it` where `{authority}` is *resolved at
+   deploy from the pod's storage description* (WebID `storage` now; LWS storage-description `id`
+   later), URI-typed (https default, DID/CID-ready), and the slug is content-derived (never the
+   storage path) and profile-governed; **vocabulary** = hash namespace at an owner PID, reuse-first
+   (W3C-hosted + DataBook `db:` + OKF conventions before minting; our own terms under a w3id-*shaped*
+   base we control, no registration yet); **agent identity** = a Controlled Identifier (CID-1.0;
+   `did:webvh` preferred, `did:key` for hosting-free). Plan 2 must add a `resolveStorageAuthority`
+   seam so the base is never hardcoded.
 2. The vault extension profile — exactly which maturity/Fano/curator rules become SHACL vs curator
    logic.
-3. Data-catalog profile vocabulary — DCAT vs CSVW vs schema.org coverage for the GA4 shapes.
+3. Data-catalog profile vocabulary — DCAT vs CSVW vs schema.org vs **CDIF** (CODATA/EOSC variable
+   semantics — the CDIF4EOSC lane) coverage for the GA4 shapes.
 4. Plane-mapping config format (profile-governed bundle↔container layout).
 5. Provenance granularity — per-card vs per-quad; how it pre-positions Ed25519 signing.
 

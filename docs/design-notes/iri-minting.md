@@ -1,0 +1,170 @@
+# IRI and vocabulary minting — resolution
+
+**Status: decided.** Resolves spec §11 #1 (subject-IRI minting scheme). Captured 2026-06-29 from the
+design discussion + grounding against LWS core, the Solid/JSS storage model, the W3C vocab-pub
+recipes, and the LWS self-signed identity suites. This is a decision record; it supersedes the
+"bare pod origin vs PURL" framing the discussion started with. The spec §11 #1 points here.
+
+### Claim status
+
+- **[verified]** — checked against a primary source this session (date/loc noted).
+- **[decided]** — a choice we have made; flippable, but this is the current call.
+- **[deferred]** — explicitly out of scope for this resolution; named where it lives.
+
+---
+
+## What this resolves, and the one principle
+
+The task was "pick the base/slug/version for a minted subject IRI." Grounding turned it from *pick
+literals* into *define a mechanism + a few profile parameters*. The unifying principle [decided]:
+
+> **The authority is discovered, never hardcoded; it is URI-typed (https now, DID/CID later); identity
+> is independent of storage location; reuse resolvable vocabularies before minting.**
+
+Three planes, three different authorities — keep them distinct.
+
+---
+
+## Plane 1 — content subject IRIs (the cards)
+
+```
+{authority}{profile-path}/{slug}{-version?}#it
+```
+
+**`{authority}` — resolved, not hardcoded.** [decided] The base is the pod's **storage authority,
+discovered at deploy from the pod's own self-description**, never a config literal and never parsed
+from a storage path. Two discovery layers:
+
+- **Today (Solid/JSS):** the WebID profile carries a `storage` property (`pim:storage`; JSS emits
+  `"storage": "./"` — [verified, jss pod-structure.md]). The login flow already returns the WebID.
+  Dereference WebID → read `storage` → resolve → storage root. The W2 app already does this
+  (`storageBase(webid)`); the projection's identity policy must adopt the same.
+- **Standards-track (LWS):** the **Storage Description Resource** has a REQUIRED `id` — "a URI that
+  identifies the storage" — discoverable via `Link: …; rel="https://www.w3.org/ns/lws#storageDescription"`
+  on any storage GET/HEAD. [verified, LWS Discovery.html] JSS does not emit this link header yet (its
+  LWS work is on the CID auth suite), so the WebID `storage` hook is today's path; the storage
+  description `id` is the upgrade.
+
+**Why discovery, not a literal:** LWS core §Resource-Identification is normative —
+*"the URI of a resource is independent of its position in the containment hierarchy… clients SHOULD
+NOT assume that URI structure reflects containment."* [verified, lws logicalresourceorganization.md]
+Hardcoding or path-parsing a base is spec-noncompliant. The institution mints the DNS host + TLS
+cert, so the discovered authority **is** the institutional authority by construction.
+
+**URI-typed → DID-ready.** [verified, LWS Discovery.html] The storage `id` is "a URI," and a DID is a
+URI; the spec lets the storage `id`, storage-description URI, and storage root be distinct. So an
+institution may declare its authority as a bare https host, a stable PID, or a DID — and the minting
+policy reads whichever. https is the default (fast, LDP-native dereference); `did:webvh`/CID is an
+opt-in upgrade requiring no change to the mechanism. This is the payoff of resolving rather than
+hardcoding.
+
+**`{slug}` — content-derived, profile-governed.** [decided] The slug is derived from the card's
+content/declared identity, **never** the storage path (per Resource-Identification above). The
+*strategy* is a profile parameter: **filename-stem** for flat concept spaces (llm-wiki), **bundle
+path** for hierarchical ones (data-catalog/facility). Profile-governed is the on-thesis choice
+("profile = schema") and confines collisions to where a profile actually nests. (Adopted as the
+recommended default; flippable to a single global path rule if the per-profile mechanism proves not
+worth it.)
+
+**`{profile-path}`** — a profile-declared namespace segment grouping content subjects (e.g. `/kb/`),
+so the subject-IRI plane does not collide with arbitrary storage resources.
+
+**`-version?`** — optional version segment, **off by default**, declarable per-profile/card (DataBook
+`-v{version}` precedent). [decided]
+
+**declared `id:`** — a card declaring a frontmatter `id:` overrides minting entirely (global PID
+escape hatch — DOI/ORCID/w3id). Already shipped in Plan 1. [verified, projection/okf/identity.mjs]
+
+**Namespace style:** **slash**, per the W3C vocab-pub recipe — instance data is large and growing.
+[verified, W3C swbp-vocab-pub] `#it` fragment keeps the concept distinct from its document
+(httpRange-14).
+
+**Honesty flag — minting ≠ dereference.** This decides how the *identity* is formed. Mapping that
+subject IRI back to a dereferenceable stored card is a **separate** concern (the plane mapping, spec
+§11 #4), handled by the discovery layer (`rel="up"`, `describedBy`, the type index) — **not** by
+assuming URI = storage path. Kept distinct so identity does not silently re-couple to location.
+[deferred → §11 #4]
+
+---
+
+## Plane 2 — vocabulary minting (reuse-first)
+
+**Style:** **hash** namespace (`…/ns#Term`) — vocabularies are small and stable.
+[verified, W3C swbp-vocab-pub] The authority is the *vocabulary owner's* PID — a different authority
+from the content/storage one.
+
+**Reuse before minting [decided] — prefer resolvable vocabularies, in this order:**
+
+1. **W3C-hosted core** — `dcterms`, SKOS, DCAT, PROV, **CID-1.0**, `acl`. Reuse as terms; never
+   re-mint. (We reuse `w3.org/ns/…` — we control it no more than anyone, but it is the right
+   authority for these.)
+2. **DataBook `db:`** (`https://w3id.org/databook/ns#`) — already a resolvable w3id; reuse for
+   provenance / process-stamp / graph-metadata terms where they fit. [verified, databook skill]
+3. **OKF field conventions** — `type`/`title`/`description`/`resource`/`tags`/`timestamp`. OKF is a
+   *content-shape* layer, not an RDF namespace, so "reuse OKF" means adopt its frontmatter
+   vocabulary and map it to standard RDF (dcterms, etc.) — which the wiki-memory context already does.
+   [verified, okf skill]
+4. **llm-wiki published ontology** (`la3d.github.io/llm-wiki-colab/…`) — Profile #1's Edge-Types /
+   SKOS/RDFS / SHACL. Reuse as-is.
+5. **Mint our own terms only for the gap** — under a **w3id-*shaped* base we control** (an
+   la3d/own-domain or `la3d.github.io` base), **no real w3id.org registration yet**. [decided] We do
+   not register w3id until federation is real and it is clear what would be registered; the shaped
+   base upgrades to a real w3id with one redirect change when that day comes.
+
+---
+
+## Plane 3 — agent / owner identity (separate plane)
+
+Not a content IRI. A **Controlled Identifier (CID-1.0)** — the abstraction LWS standardized on; its
+two self-signed suites are `did:key` (self-contained, hosting-free) and CID-generic (dereference the
+identifier → a controlled-identifier document → verification method). [verified, lws
+authn-ssi-{did-key,cid}] An https-WebID, `did:web`, or `did:webvh` are interchangeable controlled
+identifiers. **Bind to CID, not to one DID method**; `did:webvh` is our *preferred concrete*
+identifier for institutional agents (web-hosted, rotation, verifiable history — we have the
+hosting), `did:key` for hosting-free bots. Content → identity via `prov:wasAttributedTo`. Full detail
+in [`trust-seam-agent-identity.md`](trust-seam-agent-identity.md).
+
+---
+
+## Decided sub-forks (the two that were open)
+
+| Fork | Decision |
+|---|---|
+| Slug strategy | **profile-governed** (filename flat / path hierarchical) — adopted recommendation; flippable |
+| Vocab PID concreteness | **w3id-shaped base we control, no registration yet**; reuse W3C-hosted + DataBook + OKF first |
+
+---
+
+## Plan-2 interface requirements (so a hardcoded base cannot sneak in)
+
+The profile mechanism Plan 2 builds must carry the minting scheme as profile-declared, with the
+authority resolved at runtime:
+
+- **`resolveStorageAuthority(webid | resource) → URI`** — a new step; `makeIdentityPolicy` takes the
+  *resolved authority*, not a config literal. The `urn:okf:base/` placeholder in `base-profile.mjs`
+  becomes "resolve from the pod at deploy."
+- The policy stays **URI-typed** (https now, `did:`/CID later) — no scheme assumptions in engine code.
+- **Slug strategy** and **`{profile-path}`** are **profile parameters**; the **vocabulary context**
+  is profile config (already is). So a profile *declares* its minting: authority resolver + slug
+  strategy + namespace + context.
+- Full per-deploy wiring of the resolved authority is the Plan-3 "storage IRI authority" step; the
+  *seam* must exist in Plan 2.
+
+---
+
+## Deferred (named)
+
+- Subject-IRI → storage-location dereference (plane mapping) — **§11 #4**.
+- Provenance granularity (per-card vs per-quad), pre-positioning signing — **§11 #5**.
+- Real w3id registration — when federation is real.
+
+---
+
+## Sources [verified 2026-06-29]
+
+- LWS core — `Discovery.html` (storage description `id`, `rel=…lws#storageDescription`),
+  `logicalresourceorganization.md` (Resource-Identification: URI ⊥ containment)
+- LWS self-signed identity — `lws10-authn-ssi-did-key`, `lws10-authn-ssi-cid` (CID-1.0 abstraction)
+- JSS — `reference/pod-structure.md` (WebID `storage`), `features/lws.md` (CID-shaped profiles)
+- W3C *Best Practice Recipes for Publishing RDF Vocabularies* (hash vs slash) — TR/swbp-vocab-pub
+- DataBook `db:` namespace, OKF field conventions — the `databook` / `okf` grounded skills

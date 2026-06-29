@@ -47,7 +47,24 @@ idea* at different layers.
 | **Storage address** | LWS/Solid URI (a locator) | the pod URL | the *where the bytes sit* plane; never the subject IRI |
 | **Content subject IRI** | slash-namespace HTTP IRI `{pod}/kb/{slug}#it` | the pod's own origin | Plan 1; per the W3C vocab-pub recipes, **slash** for large/growing instance data |
 | **Shared vocabulary** | **hash**-namespace `…/ns#Term` at a w3id/PURL | a PID you control (reuse W3C-hosted where possible — `solid/terms#`, `acl#`, SKOS, DCAT) | **hash** for small/stable vocabularies; one registration *because* it's shared |
-| **Agent identity** | **`did:webvh`** at the controller's domain | same web-origin model, self-certifying + verifiable history | the trust seam proper; content↔agent linked by `prov:wasAttributedTo` |
+| **Agent identity** | a **Controlled Identifier (CID-1.0)** — https-WebID or DID; **`did:webvh`** preferred | same web-origin model, self-certifying + verifiable history | the trust seam proper; content↔agent linked by `prov:wasAttributedTo` |
+
+> **Bind to CID, not to one DID method.** [verified, LWS authn-ssi-{cid,did-key}, 2026-06-29] LWS
+> standardized its self-signed identity on **W3C Controlled Identifiers 1.0**, with the *credential*
+> fixed (self-signed JWT, `sub`=`iss`=`client_id`, `kid`→verification method) and the *identifier
+> scheme pluggable*. Its two suites are `did:key` (self-contained, **hosting-free** — for ephemeral
+> bots) and CID-generic (dereference the identifier → a controlled-identifier document — accommodates
+> an https-WebID or any DID whose document is CID-shaped, incl. `did:web`/`did:webvh`). So `did:webvh`
+> fits via the generic-CID path, **not** as a separate suite. We pick it as the *preferred concrete*
+> identifier for institutional agents (web-hosted, key rotation, verifiable history — we have the
+> hosting); `did:key` is the hosting-free alternative. JSS already implements the CID path (CID-shaped
+> WebID profiles, `verificationMethod`, `alsoKnownAs` DIDs). The same SCID/verifiable-history
+> machinery below rides on top regardless of which controlled identifier is chosen.
+>
+> The **content authority** is the same story one layer down: it is URI-typed and resolved from the
+> pod's storage description (https default, DID/CID-ready), never hardcoded — see
+> [`iri-minting.md`](iri-minting.md). Agent identity and content authority share the web-origin model;
+> they differ only in plane.
 
 Why this split holds [verified, W3C swbp-vocab-pub + Solid vocab guidance, 2026-06-29]: the W3C
 hash-vs-slash recipe maps exactly onto shared-vocab-vs-local-content — hash = "small vocabularies,
@@ -56,7 +73,7 @@ additions are anticipated frequently" (the ABox of cards). We were not imposing 
 standards prescribe it. And we **reuse** the W3C-hosted vocabularies as terms — we do not mint under
 `w3.org/ns/`, which we control no more than anyone else.
 
-### Why `did:webvh` for the agent plane [verified, didwebvh v0.5, 2026-06-29]
+### Why `did:webvh` as the preferred controlled identifier [verified, didwebvh v0.5, 2026-06-29]
 
 - **Web-anchored, ledgerless, scalable** — mint from a domain you already run; resolvers verify the
   chain locally; no consensus, no fees, no bottleneck. Same authority model as the pod.
