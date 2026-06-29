@@ -1,14 +1,21 @@
 # CLAUDE.md — lws-pod
 
-Containerized, version-pinned **JavaScriptSolidServer (JSS)** serving as the substrate for
-**memory pods**: a general, standards-based (Solid / Linked Web Storage) memory store where
-*structure is imposed by a profile, not baked in*, and the pod is the canonical home (Obsidian and
-git are clients). On top of JSS we build the **L2 memory layer** — an OKF projection engine, a SHACL
+Containerized, version-pinned **JavaScriptSolidServer (JSS)** as the development substrate for a
+**Linked Web Storage (LWS)** memory pod: a general, standards-based memory store where *structure is
+imposed by a profile, not baked in*, and the pod is the canonical home (Obsidian and git are
+clients). On top of it we build the **L2 memory layer** — an OKF projection engine, a SHACL
 admission floor, and a curation console. Thesis under test: typed, progressively-disclosed memory
 helps agents more than flat retrieval.
 
-JSS replaces the Community Solid Server (CSS). It adds what CSS lacked — self-issued agent identity
-(LWS-CID / `did:key`), headless agent auth, an MCP agent surface, and git-backed versioning.
+**JSS is an analog, not the destination.** The target substrate is **LWS** — the W3C standardization
+successor to Solid (`.claude/skills/lws-protocol` grounds the spec). The eventual real home is a
+full LWS daemon such as [`linkedwebstorage/lwsd`](https://github.com/linkedwebstorage/lwsd) (a
+"full-featured Linked Web Storage server"), but that ecosystem is nascent — so we develop against
+JSS, a mature Solid server that already ships the LWS **authentication** suite (LWS-CID identity)
+plus an MCP agent surface, headless auth, and git versioning. JSS does **not** implement LWS
+*storage* (`lws+json` containers, storage description, linksets, Type Index/Search); the L2 layer
+adds that as a **server-agnostic sidecar**, so the IP rides onto any LWS server. JSS replaced the
+Community Solid Server (CSS), which lacked the agent-identity stack entirely.
 
 ## Read first (orientation)
 
