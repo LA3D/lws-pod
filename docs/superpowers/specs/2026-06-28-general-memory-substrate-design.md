@@ -344,6 +344,14 @@ is an actively-edited CG living draft). For reference, DataBook's primary source
 Other pointers:
 - Exploratory groundwork: `../../design-notes/format-convergence.md` (the four-system design space,
   the LWS substrate alignment — incl. the verified DataBook findings — and the candidate architecture).
+- Design notes (decisions + architecture, 2026-06-29):
+  `../../design-notes/iri-minting.md` (resolves §11 #1 — content authority resolved from the pod's
+  storage description, never hardcoded, URI-typed/DID-ready; vocab reuse-first);
+  `../../design-notes/trust-seam-agent-identity.md` (deferred agent identity = CID-1.0 / `did:webvh`,
+  ODRL policy plane, CDIF for §11 #3, CODATA/CDIF4EOSC alignment);
+  `../../design-notes/contextual-linked-memory.md` (the *why*: context cards over data objects,
+  closing the loop to storage via JSON-LD `@context` — inline or advertised; the contextual linked
+  memory layer for agents).
 - llm-wiki: `crcresearch/llm-wiki-memory-template`; published artifacts at
   `https://la3d.github.io/llm-wiki-colab/{ontology.ttl, context.jsonld, shapes.ttl}` (profile #1's
   vocabulary/context/shapes).
