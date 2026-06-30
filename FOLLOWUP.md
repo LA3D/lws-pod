@@ -40,11 +40,9 @@ standard headers — purely additive (default LDP path provably unchanged). SDD 
 (untouched, for rebasing onto future JSS releases). The L1–L4 stack rides `la3d/lws`; each layer is a
 PR into it.
 
-**▶ L2 DONE (PR #2 open) — L3 IS NEXT.** L2
-(`docs/superpowers/plans/2026-06-30-lws-L2-storage-discovery.md`) is **complete and merge-ready**:
-branch **`la3d/lws-discovery`** (9 commits over `la3d/lws` / `d8166f2`), **PR
-https://github.com/LA3D/JavaScriptSolidServer/pull/2** (base `la3d/lws`), full suite **1031/1031
-green**. Delivers the two storage-side LWS *MUSTs*, all `--lws`-gated + additive (default LDP path
+**▶ L2 DONE + MERGED — L3 IS NEXT.** L2
+(`docs/superpowers/plans/2026-06-30-lws-L2-storage-discovery.md`) is **merged into `la3d/lws`** (merge
+commit **`281de43`**, was branch `la3d/lws-discovery`), full suite **1031/1031 green**. Delivers the two storage-side LWS *MUSTs*, all `--lws`-gated + additive (default LDP path
 provably unchanged via negative controls): the **Storage Description** (`type:"Storage"`, `service[]`)
 at `/.well-known/lws-storage` + `Link: rel="…lws#storageDescription"` on all GET/HEAD; **read-only**
 per-resource RFC 9264 linkset (`application/linkset+json`, `anchor`/`up`/`type`/`describedby`) via
@@ -101,8 +99,10 @@ PRs **#183** (storage-desc-as-CID-1.0 — feeds `resolveStorageAuthority`) and *
 existing `constrained-container/` toolkit, fronting the fork); **L4** = OKF projection **rewritten to
 LWS shapes** (the RED wiki-memory suite gets re-derived, not patched). **Plan 2** (profile mechanism +
 `resolveStorageAuthority` threaded onto the *real* storage-description resource L2 now serves, replacing
-the `urn:okf:base/` placeholder) slots between them. Merge model unchanged: each layer is a PR into
-`la3d/lws`; `la3d/main` stays the pristine `0f4287f` pin.
+the `urn:okf:base/` placeholder) slots between them. **Merge model (solo dev — no PR ceremony):** each
+layer is built on its own `la3d/*` feature branch and **`git merge --no-ff` directly into `la3d/lws`**
+(the subagent per-task + opus whole-branch reviews are the gate, not a GitHub PR); `la3d/main` stays the
+pristine `0f4287f` pin for rebasing onto upstream releases.
 
 **L1 deferred carryover** (in the PR + ledger): `--no-lws` flag; HEAD `lws+json` negotiation parity
 (`TODO(lws-head-parity)` marker in `handleHead`); `ContainerPage` pagination; per-variant 304/ETag;
