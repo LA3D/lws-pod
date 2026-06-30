@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app constrained-container experiments/headless-cid
 
-.PHONY: setup doctor build up down logs reset test test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls
+.PHONY: setup doctor build up down logs reset test test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -94,6 +94,19 @@ down-tls:
 cid-tls:
 	cd experiments/headless-cid && npm install --silent
 	NODE_EXTRA_CA_CERTS="$$(mkcert -CAROOT)/rootCA.pem" BASE=https://$(TLS_HOST):8443 node experiments/headless-cid/run.mjs
+
+# --- FORK pod (L1+L2, --lws) behind a TLS-terminating Caddy proxy ---
+# Reproduces the PUBLIC Caddy topology the in-JSS-TLS pod can't: http JSS + trustProxy +
+# X-Forwarded-Proto, so the storage description's id/serviceEndpoint must come back https
+# (the request.protocol scheme fix). Built from a pinned git ref (Dockerfile.fork); own compose
+# project (name: lws-pod-forktls) so it never disturbs lws-pod-local. Override JSS_GIT_REF to test
+# another branch/SHA. Needs `make cert` (pod.vardeman.me in /etc/hosts -> 127.0.0.1) + host :443 free.
+up-fork-tls: cert
+	docker compose -f docker-compose.fork-tls.yml up -d --build
+	@echo "fork pod (--lws) behind Caddy TLS at https://pod.vardeman.me/  (curl --cacert certs/rootCA.pem)"
+
+down-fork-tls:
+	docker compose -f docker-compose.fork-tls.yml down -v
 
 # --- P1 spike: Keycloak in front of JSS (experiments/keycloak-jss) ---
 KC = docker compose -f experiments/keycloak-jss/docker-compose.yml

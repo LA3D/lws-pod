@@ -68,11 +68,27 @@ containers/files negotiate correctly. **Caveat on the scheme fix:** the local mk
 (`docker-compose.tls.yml`) terminates TLS **inside JSS** (`--ssl-key/--ssl-cert`), so `options.ssl` and
 `request.protocol` agree (both `https`) and it does **not** reproduce the proxy-scheme bug — that needs a
 TLS-terminating **proxy** in front of an http JSS (`X-Forwarded-Proto` + `trustProxy`), i.e. the public
-Caddy rung. The fix is unit-proven on that exact `trustProxy` code path; a Caddy-sidecar rig is the
-remaining true end-to-end proof. **Open before L3/L4 in-container work:** (1) how to make the fork-build
-durable — `Dockerfile.fork` (committed) packs a local tarball; a `make pack-fork` + compose override (and
-tarball-vs-git-ref-vs-eventual-npm) still needs wiring; (2) whether to stand up the Caddy TLS-proxy rig
-to end-to-end-prove the scheme fix.
+Caddy rung. The fix is unit-proven on that exact `trustProxy` code path.
+
+**▶ Scheme fix PROVEN end-to-end (2026-06-30).** Stood up the Caddy TLS-proxy rig that the in-JSS-TLS
+pod cannot: **`docker-compose.fork-tls.yml`** (`make up-fork-tls`) = the http fork pod (`--lws`,
+`trustProxy`) + **Caddy** terminating TLS with the mkcert cert (`caddy/Caddyfile`), publishing
+`https://pod.vardeman.me/`. Caddy sets `X-Forwarded-Proto: https`; the pod itself runs **plain http**.
+Result: `GET https://pod.vardeman.me/.well-known/lws-storage` returns `id` + every `serviceEndpoint` as
+**`https://pod.vardeman.me/...`**, and a resource's `rel=storageDescription`/`rel=linkset` Link headers
+are likewise `https` — exactly the case where the *old* `options.ssl?'https':'http'` code would have
+emitted `http://`. The fix is now proven in the real proxy topology, i.e. a rehearsal of the public
+CRC-VM/Caddy rung. (Compose has its own project name `lws-pod-forktls` so it never touches
+`lws-pod-local`; `down -v` cleans up. `certs/` stays gitignored.)
+
+**Fork-build wiring DECIDED: git ref.** `Dockerfile.fork` installs the fork from a **pinned git ref**
+(`npm install -g git+https://…#<SHA>`, default = L2 HEAD `8927ada`; the repo is public, so the build
+needs no auth) — reproducible from git alone, override `JSS_GIT_REF` for another branch/SHA. This is the
+mechanism L3/L4 in-container testing rides. The committed `Dockerfile`/`docker-compose*.yml` still target
+the published npm package (0.0.209) — unchanged on purpose; the fork path is the separate `*.fork*`
+files. **Carryover for the public rung:** when the pod first sits behind real Caddy at `*.crc.nd.edu`,
+this rig is the local rehearsal; the only remaining checkbox is the LWS-CID SSRF-guard-on confirmation
+(open item 1), independent of this scheme proof.
 
 **L2 scope decisions (in the plan):** `/.well-known/lws-configuration` is **deferred to the
 auth/Keycloak track** — it is RFC 8414 *authorization-server* metadata and JSS is a resource server with

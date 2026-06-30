@@ -1,0 +1,9 @@
+# Caddy as a TLS-terminating reverse proxy in front of the http fork pod — reproduces the
+# PUBLIC (CRC-VM/Caddy) topology that the local mkcert pod cannot: JSS runs plain http with
+# trustProxy, Caddy terminates TLS and sets X-Forwarded-Proto:https + X-Forwarded-Host, so the
+# storage description's id/serviceEndpoint must come back https (the request.protocol fix).
+pod.vardeman.me {
+	tls /certs/pod.crt /certs/pod.key
+	# reverse_proxy adds X-Forwarded-For/Proto/Host by default — that's the whole point here.
+	reverse_proxy jss:3000
+}

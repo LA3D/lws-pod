@@ -1,0 +1,49 @@
+# Fork pod (L1+L2, --lws) behind a TLS-terminating Caddy proxy — the end-to-end rig for the
+# request.protocol / X-Forwarded-Proto scheme fix, and a rehearsal of the public Caddy rung.
+#
+#   make cert                                                  # mkcert ./certs for pod.vardeman.me
+#   docker compose -f docker-compose.fork-tls.yml up -d --build
+#   curl --cacert certs/rootCA.pem https://pod.vardeman.me/.well-known/lws-storage
+#       -> id/serviceEndpoint MUST be https://pod.vardeman.me/...  (proves the fix)
+#   docker compose -f docker-compose.fork-tls.yml down -v
+#
+# Own project name so it NEVER reconciles against the `lws-pod` project's `jss` service
+# (the committed lws-pod-local pod) — they share this directory and both name a `jss` service.
+name: lws-pod-forktls
+services:
+  jss:
+    build:
+      context: .
+      dockerfile: Dockerfile.fork
+      args:
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (L2 HEAD); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-8927adac5fc7c8301d3e072db346ae1e2c79f3e5}"
+    image: lws-pod:fork-l2
+    container_name: lws-pod-fork
+    # http only — NOT published to the host; reachable solely via Caddy on the compose network.
+    expose:
+      - "3000"
+    volumes:
+      - pod-data-fork:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  caddy:
+    image: caddy:2
+    container_name: lws-pod-caddy
+    depends_on:
+      - jss
+    ports:
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+    restart: unless-stopped
+
+volumes:
+  pod-data-fork:
