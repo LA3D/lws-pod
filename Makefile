@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app constrained-container experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -75,6 +75,15 @@ reset: $(ENVFILE)
 test: $(ENVFILE)
 	@[ -d node_modules ] || npm ci
 	BASE=$(BASE) npm test
+
+# L2 live-pod gate — the LWS storage-discovery surfaces (storage description, linkset, Link rels,
+# conneg) against the running FORK pod (--lws). Targets the up fork-tls rig at https://pod.vardeman.me
+# (needs `make up-fork-tls` running + `make cert`'s CA so Node trusts the mkcert cert). The
+# lws-discovery suite self-skips on a non-`--lws` pod, so plain `make test` (base pod) stays green.
+test-lws:
+	@[ -d node_modules ] || npm ci
+	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/lws-discovery.test.mjs
 
 # Projection app gate — pure unit tests + e2e against the running pod (Task 6-8).
 test-projection:

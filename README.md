@@ -83,6 +83,12 @@ wait, and retry. `make doctor` checks for exactly this.
 L2 component gates: `make test-projection` and `make test-app` (unit, no pod needed);
 `make test-app-e2e` runs the curation-console e2e against a running, seeded pod + proxy.
 
+**LWS storage-discovery gate** (`make test-lws`): the live-pod harness for the L2 surfaces — storage
+description, `rel=storageDescription`/`rel=linkset` headers, per-resource linkset + `lws+json` conneg —
+run against the **fork** `--lws` pod at `https://pod.vardeman.me` (needs `make up-fork-tls` + `make
+cert`). `tests/lws-discovery.test.mjs` self-skips on a non-`--lws` pod, so plain `make test` against the
+base pod stays green (it reports the L2 suite as skipped).
+
 No official JSS image exists; the `Dockerfile` pins `javascript-solid-server@0.0.209`
 from npm and adds `git` (required by the `--git` backend). Pinned deliberately — JSS is a
 single-maintainer v0.0.x; we bump when we choose to.
