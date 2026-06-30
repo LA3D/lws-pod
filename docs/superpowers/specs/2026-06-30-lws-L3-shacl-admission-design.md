@@ -119,8 +119,8 @@ handlePut / handlePost / handlePatch  (src/handlers/resource.js, --lws)
         ├─ shapeUrl = describedbyShape(resourceUrl)   // read from the resource's linkset (L2)
         │     └─ null  → pass through (opt-in: no constraint declared)
         ├─ report = validate(incomingGraph, shapeFor(shapeUrl))   // src/lws/shacl.js seam
-        ├─ violations(report)?  → 422 + Link rel="describedby" + structured report  (do NOT write)
-        └─ else                 → storage.write(...) ; attach warnings/infos to the response
+        ├─ violations(report)?  → 400 problem+json (RFC 9457) + Link rel="describedby"  (do NOT write)
+        └─ else                 → storage.write(...) ; advisories (warn/info) ride the success body
 ```
 
 - **`src/lws/admission.js`** — the engine. Resolves the shape from the resource's linkset, extracts the
@@ -151,9 +151,9 @@ agentic harness can act on:
 
 | `sh:severity` | Admission | In the response | Intended agent action |
 |---|---|---|---|
-| `sh:Violation` | **reject** (`422`) | the failing results (`sh:message`, `sh:resultPath`, `sh:focusNode`, `sh:value`) | fix the cited fields and retry — these MUST be present |
-| `sh:Warning` | **admit** | reported alongside success | something concerning but non-blocking; agent may choose to correct |
-| `sh:Info` | **admit** | reported as advisory | optional-but-useful enrichment the agent **may** add via a follow-up PUT/PATCH |
+| `sh:Violation` | **reject** (`400`) | RFC 9457 problem details + `violations[]` (`sh:message`, `sh:resultPath`, `sh:focusNode`, `sh:value`) | fix the cited fields and retry — these MUST be present |
+| `sh:Warning` | **admit** | advisory results in the success body | something concerning but non-blocking; agent may choose to correct |
+| `sh:Info` | **admit** | advisory results in the success body | optional-but-useful enrichment the agent **may** add via a follow-up PUT/PATCH |
 
 The point the design turns on: **the full SHACL validation report is structured feedback to the
 agentic harness, not just pass/fail.** A write that succeeds but is missing useful-optional metadata
@@ -161,11 +161,26 @@ comes back with `Info` results telling the agent exactly what an enriching follo
 the same teaching channel the constrained-container `sh:message` already pioneered, now graded and
 returned on *success* as well as rejection.
 
-**Response shape (sketch, finalize in the plan).** On `422`, body carries the violation results +
-`Link: <shape>; rel="describedby"`. On admission with warnings/infos, the results ride a response
-header/body the harness can parse (candidate: an RFC 9457 `application/problem+json`-shaped advisory,
-or a `Warning` header per the current proxy — **[deferred]** exact serialization to the plan; it MUST
-be machine-parseable and carry severity + `sh:message` + path + focus node).
+**The response pathway is LWS-native — grounded in the LWS status table, not invented.** [verified]
+`lws10-core/Operations/rest-table.md` maps **"Bad Request (invalid input or constraints) → `400`"** and
+mandates (SHOULD) the **RFC 9457 `application/problem+json`** structured-error format
+(`type`/`title`/`status`/`detail`/`instance`); `update-resource.md` confirms "if the request payload is
+not valid, `400`." So:
+
+| Outcome | Status | Body / headers |
+|---|---|---|
+| **Violation** (reject) | **`400`** | `application/problem+json` (RFC 9457), extended with a `violations[]` member carrying each result's severity + `sh:message` + `sh:resultPath` + `sh:focusNode` + `sh:value`; **+ `Link: <shape>; rel="describedby"`** |
+| **Admit + Warning/Info** | **`201`** (create) / **`200`** (update) | the advisory SHACL results in the success body as a JSON(-LD) report; **+ `Link: rel="describedby"`** |
+| **Admit, clean** | normal LWS success (`201` / `204`) | **`Link: rel="describedby"`** |
+
+The agent gets one consistent, parseable contract: a `describedby` Link **always** names the shape; a
+`400` problem+json says exactly what to fix; a `200`/`201` advisory body says what it **may** enrich.
+**[decided]** Rejection is `400` (the LWS-enumerated code for "constraints"), **not** `422` — `422` is
+the Solid/Shape-Trees-impl choice and is absent from the LWS status table; flippable, but `400` keeps
+us LWS-native. **[decided]** The advisory channel rides the **success body**, **not** the `Warning`
+header — RFC 9111 obsoleted `Warning` (a latent bug in the current proxy, which emits `Warning: 199`).
+RFC 9457's extension-member mechanism is what lets the SHACL report ride the problem document; the
+exact JSON(-LD) shape of the `violations[]`/advisory members is the one detail finalized in the plan.
 
 ---
 
@@ -243,7 +258,8 @@ container's declared profile + storage authority) is **Plan 2**, not L3.
   (If-Match/412/428 on the linkset is L2's; L3 reads the declared shape, does not add new mutation
   surface).
 - **[deferred]** `ldp:constrainedBy` co-emission for Solid interop (MAY; not required for L3).
-- **[deferred]** Exact machine-readable serialization of the warning/info advisory channel → the plan.
+- **[deferred]** The exact JSON(-LD) member shape of the RFC 9457 `violations[]` / advisory report →
+  the plan (the *transport* — `400`+problem+json on reject, success body on admit — is decided in §4).
 - **[deferred]** SHACL-SPARQL / advanced constraints beyond Core node/property shapes — the engine
   supports them; we neither require nor forbid them in round 1.
 - **[deferred]** Validating a write against a constraint declared on a *different* resource's behalf
@@ -262,7 +278,10 @@ container's declared profile + storage authority) is **Plan 2**, not L3.
   container-descriptor graph; `conformsTo`/PROF profile selection; batch validation, no write-time gate.
 - **LWS core** (pinned `lws-protocol` skill, `lws10-core`) — auxiliary/primary resources; the
   **linkset** as the metadata resource; `Prefer: set-linkset` atomic content+metadata write;
-  system/core/user metadata tiers; `describedby→schema` in the linkset example.
+  system/core/user metadata tiers; `describedby→schema` in the linkset example. `Operations/rest-table.md`
+  — **"invalid input or constraints → `400`"** with **RFC 9457** `application/problem+json` as the
+  structured-error body; `update-resource.md` — "invalid payload → `400`". (RFC 9111 obsoletes the
+  `Warning` header → advisories use the success body.)
 - **LWS Type-Search** (`lws10-searchindex`) — `describedby` as an indexed, queryable descriptive
   relation; server-managed, Link-header-derived, body-agnostic.
 - **`lws-ucs#93`**, **`solid/specification#86`** — the upstream hooks this work front-runs.
@@ -278,6 +297,8 @@ container's declared profile + storage authority) is **Plan 2**, not L3.
 | 3 | Non-RDF bytes never validated; govern a non-RDF resource via its metadata resource if at all | [decided] |
 | 4 | Severity = SHACL `sh:severity`, set by the shape-defining agent; Violation→reject, Warning/Info→admit+report | [decided] |
 | 5 | Full validation report returned as structured agentic feedback on **both** rejection and admission | [decided] |
+| 5a | Rejection = LWS-native **`400` + RFC 9457 `application/problem+json`** (extended with `violations[]`), not `422` | [decided] |
+| 5b | Advisories ride the **success body** (not the RFC-9111-obsoleted `Warning` header); `Link: rel="describedby"` on every response | [decided] |
 | 6 | Engine = `shacl-engine` pinned to git SHA `ce39d07` (1.2 refactor), isolated behind `src/lws/shacl.js` | [decided] |
 | 7 | Discovery relation = LWS-native `describedby`; `ldp:constrainedBy` optional Solid-interop co-emission | [decided] |
 | 8 | Constraints declared by the application-building agent at provision time; attach via PATCH/`Prefer: set-linkset` | [decided] |
@@ -290,8 +311,9 @@ container's declared profile + storage authority) is **Plan 2**, not L3.
 ## 11. Testing posture (to be detailed in the plan)
 
 Following L1/L2: `--lws`-gated, additive, with **negative controls** proving the default LDP path is
-unchanged. Cover: opt-in (no `describedby` → pass-through); Violation → 422 + `describedby` Link +
-parseable report; Warning/Info → admit + report; the `Prefer: set-linkset` atomic declare+write path;
+unchanged. Cover: opt-in (no `describedby` → pass-through); Violation → `400` problem+json (RFC 9457) +
+`describedby` Link + parseable `violations[]`; Warning/Info → admit (`200`/`201`) + advisory body;
+the `Prefer: set-linkset` atomic declare+write path;
 container member-rule vs request-carried bootstrapping; profile-neutrality (two unrelated shapes, one
 engine); and a live-pod gate analogous to `make test-lws`. The engine seam gets unit tests against the
 pinned `ce39d07` API so a future bump is caught in one place.
