@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app constrained-container experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -84,6 +84,16 @@ test-lws:
 	@[ -d node_modules ] || npm ci
 	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/lws-discovery.test.mjs
+
+# L3 live-pod gate — SHACL admission surfaces (describedby constraint, 400 problem+json,
+# violations[], describedby Link) against the running FORK pod (--lws). Mirrors test-lws
+# env wiring: points BASE at the fork TLS pod and trusts the mkcert CA so Node can verify
+# the cert. The lws-admission suite self-skips on a non-`--lws` pod, so plain `make test`
+# stays green. Needs `make up-fork-tls` running + `make cert`'s CA.
+test-l3:
+	@[ -d node_modules ] || npm ci
+	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/lws-admission.test.mjs
 
 # Projection app gate — pure unit tests + e2e against the running pod (Task 6-8).
 test-projection:
