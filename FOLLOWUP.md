@@ -28,24 +28,31 @@ release's npm `gitHead`. Our work rides `la3d/*` branches (clear of his `feature
 description → L3 constrained-container (SHACL admission, existing toolkit) → L4 OKF projection
 **rewritten to LWS shapes** (not the anchor — it gets re-derived to match the spec).
 
-**▶ L1 DONE (PR open) — L2 IS NEXT.** L1 (`docs/superpowers/plans/2026-06-29-lws-L1-container-conneg.md`)
-is **complete and merge-ready**: branch **`la3d/lws-container`** in the fork (8 commits over the
-`la3d/main` pin / `0f4287f` / 0.0.210), **PR https://github.com/LA3D/JavaScriptSolidServer/pull/1**,
-full suite **993/993 green**. Delivers a spec-conformant `application/lws+json` `items[]` container
-served via conneg, gated by `--lws`, with `rel="up"` + standard headers (ETag/Allow/Accept-Post) —
-purely additive (default LDP path provably unchanged; no PUT/POST changes). Built via
-subagent-driven dev (per-task + opus whole-branch review; one Important `Vary: Accept` cache bug
-found + fixed). SDD ledger: `~/dev/git/LA3D/JavaScriptSolidServer/.superpowers/sdd/progress.md`.
+**▶ L1 DONE + MERGED — L2 UNDERWAY (2026-06-30).** L1 (`docs/superpowers/plans/2026-06-29-lws-L1-container-conneg.md`):
+branch `la3d/lws-container`, 8 commits, full suite **993/993 green**, opus-reviewed. Delivers a
+spec-conformant `application/lws+json` `items[]` container via conneg, gated by `--lws`, `rel="up"` +
+standard headers — purely additive (default LDP path provably unchanged). SDD ledger:
+`~/dev/git/LA3D/JavaScriptSolidServer/.superpowers/sdd/progress.md`.
 
-**Merge model (decide before L2):** `la3d/main` is the pristine upstream pin (for rebasing onto JSS
-releases) — do **not** merge L1 into it. The L1–L4 stack likely wants its own integration branch
-(e.g. `la3d/lws`).
+**Merge model RESOLVED (2026-06-30).** Created integration branch **`la3d/lws`** off the pristine
+`la3d/main` pin; re-pointed PR #1 to base `la3d/lws` and **merged it** (merge commit `d8166f2`). So
+`la3d/lws` = `la3d/main` (`0f4287f` / 0.0.210) + L1, and `la3d/main` stays a **pristine upstream pin**
+(untouched, for rebasing onto future JSS releases). The L1–L4 stack rides `la3d/lws`; each layer is a
+PR into it.
 
-**▶ L2 = linkset + Storage Description** (the discovery/metadata slice): per-resource
-`application/linkset+json` (`rel="up"`/`describedBy`); the Storage Description resource + `service` set
-+ `rel="…lws#storageDescription"` header; `/.well-known/lws-configuration`. Track open spec PRs **#183**
-(storage-desc-as-CID-1.0 — feeds `resolveStorageAuthority`) and **#180** (link set profile). Write the
-L2 plan against the same fork, the way L1 was done.
+**▶ L2 = Storage Description + per-resource Linkset (discovery slice).** Plan written:
+**`docs/superpowers/plans/2026-06-30-lws-L2-storage-discovery.md`** — being executed on branch
+**`la3d/lws-discovery`** off `la3d/lws`, the way L1 was done (subagent-driven, TDD, additive,
+`--lws`-gated). Delivers the two storage-side LWS *MUSTs*: the **Storage Description** (`type:"Storage"`,
+`service[]`) at `/.well-known/lws-storage` + `Link: rel="…lws#storageDescription"` on all GET/HEAD;
+**read-only** per-resource RFC 9264 linkset (`application/linkset+json`, `anchor`/`up`/`type`/`describedby`)
+via conneg + `Link: rel="linkset"`. **Scope decisions (in the plan):** `/.well-known/lws-configuration`
+is **deferred to the auth/Keycloak track** — it is RFC 8414 *authorization-server* metadata and JSS is a
+resource server with a direct bearer (no RFC 8693 token-exchange), so emitting it would advertise a
+capability JSS lacks. Linkset **mutation** (If-Match/412/428, the standalone `.meta` resource),
+multi-pod storage descriptions, and `capability`/TypeIndex advertising are deferred carryover. Still
+track open spec PRs **#183** (storage-desc-as-CID-1.0 — feeds `resolveStorageAuthority`) and **#180**
+(linkset profile).
 
 **L1 deferred carryover** (in the PR + ledger): `--no-lws` flag; HEAD `lws+json` negotiation parity
 (`TODO(lws-head-parity)` marker in `handleHead`); `ContainerPage` pagination; per-variant 304/ETag;
