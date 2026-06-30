@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29 — substrate RESOLVED (fork JSS) + LWS storage layer underway
+## ▶▶ 2026-06-29/30 — substrate RESOLVED (fork JSS); L1 + L2 shipped, L3 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -28,7 +28,7 @@ release's npm `gitHead`. Our work rides `la3d/*` branches (clear of his `feature
 description → L3 constrained-container (SHACL admission, existing toolkit) → L4 OKF projection
 **rewritten to LWS shapes** (not the anchor — it gets re-derived to match the spec).
 
-**▶ L1 DONE + MERGED — L2 UNDERWAY (2026-06-30).** L1 (`docs/superpowers/plans/2026-06-29-lws-L1-container-conneg.md`):
+**▶ L1 DONE + MERGED (2026-06-30).** L1 (`docs/superpowers/plans/2026-06-29-lws-L1-container-conneg.md`):
 branch `la3d/lws-container`, 8 commits, full suite **993/993 green**, opus-reviewed. Delivers a
 spec-conformant `application/lws+json` `items[]` container via conneg, gated by `--lws`, `rel="up"` +
 standard headers — purely additive (default LDP path provably unchanged). SDD ledger:
@@ -37,8 +37,8 @@ standard headers — purely additive (default LDP path provably unchanged). SDD 
 **Merge model RESOLVED (2026-06-30).** Created integration branch **`la3d/lws`** off the pristine
 `la3d/main` pin; re-pointed PR #1 to base `la3d/lws` and **merged it** (merge commit `d8166f2`). So
 `la3d/lws` = `la3d/main` (`0f4287f` / 0.0.210) + L1, and `la3d/main` stays a **pristine upstream pin**
-(untouched, for rebasing onto future JSS releases). The L1–L4 stack rides `la3d/lws`; each layer is a
-PR into it.
+(untouched, for rebasing onto future JSS releases). The L1–L4 stack rides `la3d/lws`; each layer
+**`git merge --no-ff` directly into it** — no GitHub PRs (solo dev; see the merge-model note below).
 
 **▶ L2 DONE + MERGED — L3 IS NEXT.** L2
 (`docs/superpowers/plans/2026-06-30-lws-L2-storage-discovery.md`) is **merged into `la3d/lws`** (merge
@@ -53,9 +53,9 @@ reviews + opus whole-branch review; one Important TLS-proxy scheme split — `op
 
 **▶ Container-validated (2026-06-30).** L2 was additionally run in a **real Docker pod** (not just the
 fork's Node suite). The committed `Dockerfile`/compose install the **published npm package** (0.0.209,
-no `--lws`), so the fork was packed (`npm pack` on `la3d/lws-discovery` → `jss-fork.tgz`, gitignored)
-and built via **`Dockerfile.fork`** (installs the tarball, adds `--lws`) → throwaway http pod on :3939.
-**Live-verified** (curl, via the `tests/helpers.mjs` headless-bearer flow): storage description at
+no `--lws`), so the fork is built via **`Dockerfile.fork`** (from a pinned git ref — see "Fork-build
+wiring" below — adds `--lws`) → an http pod. **Live-verified** (curl, via the `tests/helpers.mjs`
+headless-bearer flow), and now captured as a repeatable gate (**`make test-lws`**, see below): storage description at
 `/.well-known/lws-storage` (`type:Storage` + `StorageDescription`/`NotificationService` services);
 `rel=…#storageDescription` + `rel=linkset` Link headers on GET **and** HEAD; per-resource linkset via
 conneg on a file (`DataResource`) and a container (`Container`); L1 `lws+json` `items[]`; all `id`/
@@ -104,7 +104,17 @@ layer is built on its own `la3d/*` feature branch and **`git merge --no-ff` dire
 (the subagent per-task + opus whole-branch reviews are the gate, not a GitHub PR); `la3d/main` stays the
 pristine `0f4287f` pin for rebasing onto upstream releases.
 
-**L1 deferred carryover** (in the PR + ledger): `--no-lws` flag; HEAD `lws+json` negotiation parity
+**▶ L2 live-pod harness (2026-06-30).** The `tests/` Vitest harness covered the base substrate but not
+L2; the storage-discovery behavior was only ever checked by ad-hoc curl. Now a repeatable gate:
+**`tests/lws-discovery.test.mjs`** + **`make test-lws`** (runs against the fork `--lws` pod at
+`https://pod.vardeman.me` with the mkcert CA). Asserts storage-description shape + scheme parity,
+`rel=storageDescription`/`rel=linkset` on GET+HEAD, per-resource linkset (file + container), `lws+json`
+`items[]`, and the LDP-unchanged negative control. **Self-skips on a non-`--lws` pod** (top-level probe),
+so plain `make test` (base pod) stays green and reports the L2 suite as skipped. Verified: `make
+test-lws` 6/6 (live TLS rig); `make test` 9 passed | 6 skipped. (Host-prereq preflight for the TLS rigs:
+**`make doctor-tls`**; full rig docs in `README.md` "TLS rigs".)
+
+**L1 deferred carryover** (in the SDD ledger): `--no-lws` flag; HEAD `lws+json` negotiation parity
 (`TODO(lws-head-parity)` marker in `handleHead`); `ContainerPage` pagination; per-variant 304/ETag;
 `generateLwsContainer` unit-test gaps (trailing-slash, octet-stream, empty). Then **L3**
 (constrained-container SHACL admission) and **L4** (OKF projection rewritten to LWS shapes — the old

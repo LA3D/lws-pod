@@ -3,11 +3,16 @@
 > **SUBSTRATE RESOLVED (2026-06-29) — supersedes the "sidecar" sequencing below.** The
 > "server-agnostic sidecar on JSS / don't fork JSS" framing in this doc is **superseded**: we **fork
 > production JSS 0.0.210** ([`LA3D/JavaScriptSolidServer`](https://github.com/LA3D/JavaScriptSolidServer)
-> @ `la3d/main`) and add the LWS storage layer **in-process**. The layering is now **L1 container
+> @ `la3d/main`) and add the LWS storage layer **in-process**. The layering is **L1 container
 > (`items[]` + conneg) → L2 linkset + storage description → L3 SHACL admission → L4 OKF projection
-> (rewritten to LWS shapes)**, and **L1 is shipped** (PR #1, 993/993). Design of record:
-> `docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md` (the "Substrate — RESOLVED" block);
-> current state: `FOLLOWUP.md`. Read the Phase-1/2 "sidecar" sequencing below as superseded history.
+> (rewritten to LWS shapes)**.
+>
+> **STATUS (2026-06-30): L1 + L2 shipped and merged** into `la3d/lws` (container-validated; the
+> proxy-scheme behavior end-to-end-proven via `make up-fork-tls`; live-pod gate `make test-lws`).
+> **L3 (SHACL admission) is next**, with **Plan 2** (profile mechanism + `resolveStorageAuthority`
+> threaded onto the real storage description) slotting before L4. **The live forward sequencing is the
+> design doc's §12** (`docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`) + current state in
+> **`FOLLOWUP.md`** — read those, not the Phase-1/2/3 "sidecar" sequencing below, which is superseded history.
 
 > **DIRECTION CHANGE (2026-06-28).** The project re-founded as a **general, standards-based memory
 > substrate** — structure is imposed by a profile, not baked in; the pod is the canonical home. The
@@ -22,7 +27,9 @@ Forward plan and **order of operations**. For current between-session state see 
 for the substrate evidence see `docs/foundations/`. This doc is the *sequencing* — what to build,
 in what order, and what each phase depends on.
 
-Last updated: 2026-06-21 (pre-pivot); direction-change banner added 2026-06-28.
+Last updated: 2026-06-21 (pre-pivot); direction-change banner 2026-06-28; status banner refreshed
+2026-06-30 (L1+L2 shipped, L3 next). The body below is superseded "sidecar"-era history — the live
+forward plan is the design doc §12 + `FOLLOWUP.md`.
 
 ---
 
