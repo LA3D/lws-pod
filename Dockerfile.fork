@@ -1,0 +1,31 @@
+# Build the pod from our LA3D/JavaScriptSolidServer FORK (L1+L2) instead of the published npm
+# package, so the LWS layer (`--lws`) can be exercised in a real container. The fork is supplied
+# as a local tarball (`make pack-fork` → jss-fork.tgz) to avoid depending on an npm publish.
+# Mirrors the committed Dockerfile otherwise; adds `--lws`. gitignored tarball; see FOLLOWUP.
+FROM node:22-bookworm-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates tini \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install the fork from the packed tarball (carries bin/jss.js + src/lws/*).
+COPY jss-fork.tgz /tmp/jss-fork.tgz
+RUN npm install -g /tmp/jss-fork.tgz && rm /tmp/jss-fork.tgz
+
+# Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
+ARG PATCH_CID_PRIVATE_IPS=false
+RUN if [ "$PATCH_CID_PRIVATE_IPS" = "true" ]; then \
+      F=/usr/local/lib/node_modules/javascript-solid-server/src/auth/cid-doc-fetch.js ; \
+      sed -i 's/blockPrivateIPs: true/blockPrivateIPs: false/' "$F" ; \
+      echo "[lws-pod] LOCAL-DEV patch applied to cid-doc-fetch.js:" ; grep -n 'blockPrivateIPs' "$F" ; \
+    fi
+
+ENV DATA_ROOT=/data
+RUN mkdir -p /data
+VOLUME ["/data"]
+EXPOSE 3000
+
+# Same surfaces as the committed image PLUS --lws (the layer under test).
+ENTRYPOINT ["tini", "--"]
+CMD ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data", \
+     "--idp", "--mcp", "--conneg", "--mashlib-cdn", "--git", "--notifications", "--provision-keys", "--lws"]

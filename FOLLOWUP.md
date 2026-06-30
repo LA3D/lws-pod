@@ -53,6 +53,27 @@ reviews + opus whole-branch review; one Important TLS-proxy scheme split — `op
 `request.protocol` — found + fixed `8927ada` with an `X-Forwarded-Proto` regression test). SDD ledger:
 `~/dev/git/LA3D/JavaScriptSolidServer/.superpowers/sdd/progress.md`.
 
+**▶ Container-validated (2026-06-30).** L2 was additionally run in a **real Docker pod** (not just the
+fork's Node suite). The committed `Dockerfile`/compose install the **published npm package** (0.0.209,
+no `--lws`), so the fork was packed (`npm pack` on `la3d/lws-discovery` → `jss-fork.tgz`, gitignored)
+and built via **`Dockerfile.fork`** (installs the tarball, adds `--lws`) → throwaway http pod on :3939.
+**Live-verified** (curl, via the `tests/helpers.mjs` headless-bearer flow): storage description at
+`/.well-known/lws-storage` (`type:Storage` + `StorageDescription`/`NotificationService` services);
+`rel=…#storageDescription` + `rel=linkset` Link headers on GET **and** HEAD; per-resource linkset via
+conneg on a file (`DataResource`) and a container (`Container`); L1 `lws+json` `items[]`; all `id`/
+`describedby`/`serviceEndpoint` consistent at the request scheme. **Finding (not our bug):** a container
+that has an `index.html` (e.g. the pod root) serves `text/html` for **every** `Accept` (turtle, ld+json,
+lws+json, linkset alike) — baseline JSS index-shadowing, identical for all conneg types; plain
+containers/files negotiate correctly. **Caveat on the scheme fix:** the local mkcert TLS pod
+(`docker-compose.tls.yml`) terminates TLS **inside JSS** (`--ssl-key/--ssl-cert`), so `options.ssl` and
+`request.protocol` agree (both `https`) and it does **not** reproduce the proxy-scheme bug — that needs a
+TLS-terminating **proxy** in front of an http JSS (`X-Forwarded-Proto` + `trustProxy`), i.e. the public
+Caddy rung. The fix is unit-proven on that exact `trustProxy` code path; a Caddy-sidecar rig is the
+remaining true end-to-end proof. **Open before L3/L4 in-container work:** (1) how to make the fork-build
+durable — `Dockerfile.fork` (committed) packs a local tarball; a `make pack-fork` + compose override (and
+tarball-vs-git-ref-vs-eventual-npm) still needs wiring; (2) whether to stand up the Caddy TLS-proxy rig
+to end-to-end-prove the scheme fix.
+
 **L2 scope decisions (in the plan):** `/.well-known/lws-configuration` is **deferred to the
 auth/Keycloak track** — it is RFC 8414 *authorization-server* metadata and JSS is a resource server with
 a direct bearer (no RFC 8693 token-exchange), so emitting it would advertise a capability JSS lacks.

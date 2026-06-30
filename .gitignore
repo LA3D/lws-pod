@@ -5,3 +5,6 @@ render/out/
 .DS_Store
 certs/
 .env.local
+
+# fork-build tarball (npm pack of LA3D/JavaScriptSolidServer; produced for in-container L-layer testing)
+jss-fork.tgz
