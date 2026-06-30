@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app constrained-container experiments/headless-cid
 
-.PHONY: setup doctor build up down logs reset test test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -22,6 +22,28 @@ doctor:
 	@docker run --rm hello-world >/dev/null 2>&1 \
 	  && echo "✓ docker can start containers" \
 	  || echo "✗ docker can't start containers — run 'docker desktop restart', wait, then retry."
+
+# Preflight for the TLS rigs (cert / up-tls / cid-tls / up-fork-tls) — the host-level setup a
+# fresh clone does NOT carry. Self-diagnosing: each line prints the exact fix. Run before `make
+# cert`. (The non-TLS path needs only `make doctor`; these prereqs are TLS-only.)
+doctor-tls:
+	@echo "== TLS-rig preflight (host-level setup not in the repo) =="
+	@docker run --rm hello-world >/dev/null 2>&1 \
+	  && echo "✓ docker can start containers" \
+	  || echo "✗ docker can't start containers — 'docker desktop restart', wait, retry (see make doctor)"
+	@command -v mkcert >/dev/null 2>&1 \
+	  && echo "✓ mkcert installed ($$(mkcert -CAROOT 2>/dev/null))" \
+	  || echo "✗ mkcert missing — install: brew install mkcert nss   (then optional: mkcert -install)"
+	@grep -q "pod.vardeman.me" /etc/hosts \
+	  && echo "✓ pod.vardeman.me resolves (in /etc/hosts)" \
+	  || echo "✗ pod.vardeman.me NOT in /etc/hosts — add it: echo '127.0.0.1 pod.vardeman.me' | sudo tee -a /etc/hosts"
+	@lsof -nP -iTCP:443 -sTCP:LISTEN >/dev/null 2>&1 \
+	  && echo "✗ host :443 is busy (up-fork-tls publishes it) — stop the listener or change the published port" \
+	  || echo "✓ host :443 free (up-fork-tls)"
+	@lsof -nP -iTCP:8443 -sTCP:LISTEN >/dev/null 2>&1 \
+	  && echo "✗ host :8443 is busy (up-tls publishes it)" \
+	  || echo "✓ host :8443 free (up-tls)"
+	@echo "All ✓ → make cert && make up-fork-tls   (scheme-fix rig)   |   make cert && make up-tls && make cid-tls   (LWS-CID rig)"
 
 # Auto-create the local env file from the template so a clean checkout's first `make up` works.
 $(ENVFILE):

@@ -59,7 +59,19 @@ make test-app-e2e       # console e2e — needs pod :3838 + proxy :8080, seeded
 ```
 
 `make up` and `make test*` self-heal a missing `.env.local` and `node_modules`, so they work even if
-you skip `make setup`. TLS variant (LWS-CID auth experiment): `make cert && make up-tls && make cid-tls`.
+you skip `make setup`.
+
+**TLS rigs (host-level setup the repo can't carry — run `make doctor-tls` first; it checks each and
+prints the fix):** need `mkcert` (`brew install mkcert nss`), `pod.vardeman.me` in `/etc/hosts`
+(`echo '127.0.0.1 pod.vardeman.me' | sudo tee -a /etc/hosts`), and a free host port. Then:
+- **`make cert && make up-fork-tls`** — the **fork** (L1+L2, `--lws`) behind a TLS-terminating **Caddy**
+  proxy at `https://pod.vardeman.me/` (verify: `curl --cacert certs/rootCA.pem https://pod.vardeman.me/.well-known/lws-storage`).
+  Builds the fork from a pinned **git ref** (`Dockerfile.fork`, override `JSS_GIT_REF`); reproduces the public
+  Caddy/`X-Forwarded-Proto` rung. Own compose project (`lws-pod-forktls`), so it never touches `lws-pod-local`.
+- **`make cert && make up-tls && make cid-tls`** — in-JSS-TLS pod on `:8443` for the LWS-CID auth experiment.
+
+The committed `Dockerfile`/`docker-compose*.yml` install the **published npm JSS** (no `--lws`); the
+fork lives only in the `*.fork*` files + `caddy/`. Full rig notes: `README.md` "TLS rigs" + `FOLLOWUP.md`.
 
 ## Architecture (where things live)
 

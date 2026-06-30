@@ -15,7 +15,9 @@ structure is profile-imposed, the pod is the canonical home. Design of record:
 0.0.210** ([`LA3D/JavaScriptSolidServer`](https://github.com/LA3D/JavaScriptSolidServer) @ `la3d/main`)
 and adding LWS **in-process** — not a server-agnostic sidecar (the earlier framing), and not
 `lwsd`/`tudor` (evaluated, rejected). Layering: **L1 container → L2 linkset + storage description →
-L3 SHACL admission → L4 OKF projection (rewritten)**; **L1 is shipped** (the fork's PR #1). Design of
+L3 SHACL admission → L4 OKF projection (rewritten)**; **L1 + L2 are shipped** (the fork's PR #1 merged
+into `la3d/lws`, PR #2 open) — L2 is container-validated, incl. the public-Caddy-rung scheme proof
+(`make up-fork-tls`). Design of
 record: [`docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`](docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md).
 **[`FOLLOWUP.md`](FOLLOWUP.md) is the single source of current state — read it first when resuming.**
 
@@ -34,10 +36,42 @@ make logs      # tail
 make test      # Vitest e2e: pod create -> headless token -> write/read -> MCP -> git
 make reset     # wipe ./data, rebuild, restart  (deletes the local pod by design)
 make down      # stop, keep ./data (persistence check: down && up preserves the bind-mount)
-
-# TLS variant (for the LWS-CID auth experiment; mkcert, pod.vardeman.me:8443)
-make cert && make up-tls && make cid-tls
 ```
+
+### Host prerequisites (a fresh clone does NOT carry these)
+
+The base `make up` / `make test` path needs only **Docker Desktop running** (`make doctor` checks
+it). The **TLS rigs** below additionally need host-level setup that lives outside the repo — run
+**`make doctor-tls`** first; it checks each and prints the exact fix. The three it can't auto-install:
+
+1. **mkcert** (locally-trusted certs): `brew install mkcert nss` (then optionally `mkcert -install`
+   to trust the CA system-wide; the rigs pass `--cacert certs/rootCA.pem` so it isn't required).
+2. **`pod.vardeman.me` in `/etc/hosts`** → `echo '127.0.0.1 pod.vardeman.me' | sudo tee -a /etc/hosts`
+   (host-specific, never committed; both TLS rigs use this hostname).
+3. **Docker** + a free host port (`:443` for the fork rig, `:8443` for the LWS-CID pod).
+
+### TLS rigs
+
+```bash
+make doctor-tls                                  # preflight the host setup above
+make cert                                        # mkcert ./certs for pod.vardeman.me (gitignored)
+
+# (a) Scheme-fix / public-Caddy-rung rehearsal — the FORK (L1+L2, --lws) behind a TLS-terminating
+#     Caddy proxy. Proves request.protocol / X-Forwarded-Proto: a plain-http JSS behind TLS
+#     emits https in the storage description id + Link rels (an in-JSS-TLS pod can't show this).
+make up-fork-tls
+curl --cacert certs/rootCA.pem https://pod.vardeman.me/.well-known/lws-storage   # id MUST be https://
+make down-fork-tls                               # -v cleans the throwaway pod volume
+
+# (b) LWS-CID auth experiment — in-JSS-TLS pod (TLS terminated inside JSS) on :8443.
+make up-tls && make cid-tls
+```
+
+The fork rigs build the **fork** (`LA3D/JavaScriptSolidServer`, L1+L2) from a pinned **git ref** via
+`Dockerfile.fork` (`npm install -g git+…#<SHA>`, default = L2 HEAD; override `JSS_GIT_REF`), with
+`--lws` enabled — separate from the committed image, which still installs the published npm package
+(below). The fork-TLS rig runs under its own compose project (`lws-pod-forktls`) so it never disturbs
+`lws-pod-local`.
 
 **Clean checkout / new machine:** `node_modules/` and `.env.local` are gitignored, so a fresh clone
 has neither — `make setup` is the one-shot bootstrap that creates both (the compose and test targets
