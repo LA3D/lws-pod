@@ -7,11 +7,15 @@
 > (`items[]` + conneg) → L2 linkset + storage description → L3 SHACL admission → L4 OKF projection
 > (rewritten to LWS shapes)**.
 >
-> **STATUS (2026-06-30): L1 + L2 shipped and merged** into `la3d/lws` (container-validated; the
-> proxy-scheme behavior end-to-end-proven via `make up-fork-tls`; live-pod gate `make test-lws`).
-> **L3 (SHACL admission) is next**, with **Plan 2** (profile mechanism + `resolveStorageAuthority`
-> threaded onto the real storage description) slotting before L4. **The live forward sequencing is the
-> design doc's §12** (`docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`) + current state in
+> **STATUS (2026-06-30): L1 + L2 + L3 shipped and merged** into `la3d/lws`. L3 (merge `1772ed8`) is an
+> **LWS-native, in-process, opt-in SHACL admission** layer — a resource's `.meta` `describedby→<shape>`
+> validated on write, `sh:severity`→`400`+RFC9457 / advisory-body, `shacl-engine` 1.2 pinned. It is
+> **not** the old `constrained-container/` proxy: a spec deep-dive (Solid §5.6 non-normative; LWS silent;
+> Shape Trees/RO-Crate are batch) re-grounded it; design `docs/superpowers/specs/2026-06-30-lws-L3-shacl-admission-design.md`,
+> plan `docs/superpowers/plans/2026-06-30-lws-L3-shacl-admission.md`. Full fork suite 1053/1053.
+> **Plan 2** (profile mechanism + `resolveStorageAuthority` + RO-Crate `conformsTo` seam) is **next**, then
+> **L4**. Deferred: the L3 live-pod gate (`make test-l3`) needs the branch pushed to GitHub. **The live
+> forward sequencing is the design doc's §12** (`…2026-06-29-lws-storage-layer-design.md`) + current state in
 > **`FOLLOWUP.md`** — read those, not the Phase-1/2/3 "sidecar" sequencing below, which is superseded history.
 
 > **DIRECTION CHANGE (2026-06-28).** The project re-founded as a **general, standards-based memory

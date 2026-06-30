@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/30 — substrate RESOLVED (fork JSS); L1 + L2 shipped, L3 next
+## ▶▶ 2026-06-29/30 — substrate RESOLVED (fork JSS); L1 + L2 + L3 shipped, Plan 2 / L4 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -25,8 +25,9 @@ tags stop at v0.0.46, releases are unbranched commits) — track by rebasing `la
 release's npm `gitHead`. Our work rides `la3d/*` branches (clear of his `feature/*`/`issue-*`).
 
 **Layering (separable, spec-first):** L1 container `items[]` + conneg → L2 linkset + storage
-description → L3 constrained-container (SHACL admission, existing toolkit) → L4 OKF projection
-**rewritten to LWS shapes** (not the anchor — it gets re-derived to match the spec).
+description → L3 **LWS-native per-resource SHACL admission** (a `.meta` `describedby→<shape>`,
+validated in-process on write — **not** the old `constrained-container/` proxy; see the L3 block below)
+→ L4 OKF projection **rewritten to LWS shapes** (not the anchor — it gets re-derived to match the spec).
 
 **▶ L1 DONE + MERGED (2026-06-30).** L1 (`docs/superpowers/plans/2026-06-29-lws-L1-container-conneg.md`):
 branch `la3d/lws-container`, 8 commits, full suite **993/993 green**, opus-reviewed. Delivers a
@@ -95,14 +96,54 @@ Deferred carryover: linkset **mutation** (If-Match/412/428, standalone `.meta` r
 storage descriptions (L2 is single-storage), `capability`/TypeIndex advertising. Still track open spec
 PRs **#183** (storage-desc-as-CID-1.0 — feeds `resolveStorageAuthority`) and **#180** (linkset profile).
 
-**▶ L3/L4 next** (per the design §12 sequencing): **L3** = constrained-container SHACL admission (the
-existing `constrained-container/` toolkit, fronting the fork); **L4** = OKF projection **rewritten to
-LWS shapes** (the RED wiki-memory suite gets re-derived, not patched). **Plan 2** (profile mechanism +
-`resolveStorageAuthority` threaded onto the *real* storage-description resource L2 now serves, replacing
-the `urn:okf:base/` placeholder) slots between them. **Merge model (solo dev — no PR ceremony):** each
-layer is built on its own `la3d/*` feature branch and **`git merge --no-ff` directly into `la3d/lws`**
-(the subagent per-task + opus whole-branch reviews are the gate, not a GitHub PR); `la3d/main` stays the
-pristine `0f4287f` pin for rebasing onto upstream releases.
+**▶ L3 DONE + MERGED (2026-06-30) — Plan 2 / L4 NEXT.** L3
+(`docs/superpowers/plans/2026-06-30-lws-L3-shacl-admission.md`; design
+`docs/superpowers/specs/2026-06-30-lws-L3-shacl-admission-design.md`) is **merged into `la3d/lws`**
+(merge commit **`1772ed8`**, was branch `la3d/lws-admission`), **10 commits, full fork suite 1053/1053
+serial** (`node --test --test-concurrency=1`), opus whole-branch review cleared (one Important — a 500
+on an unresolvable declared shape — fixed `4cb42ed`). Built subagent-driven (per-task spec+quality
+reviews + the opus final review). **Reframed by a spec deep-dive** (Solid §5.6 is *non-normative*; LWS
+defines *no* constraint mechanism; Shape Trees + RO-Crate are batch/client-side, not server admission):
+L3 is **not** the old `constrained-container/` proxy — it is an **LWS-native, in-process, opt-in**
+admission layer that **front-runs `lws-ucs#93` / `solid/specification#86`**.
+
+Delivers (all `--lws`-gated + additive; default LDP path provably unchanged via negative controls): a
+resource's **`.meta` declares `describedby → <shape>`** (POWDER IRI `…/powder-s#describedby`); on
+PUT/POST the incoming RDF graph is SHACL-validated against the shape; **`sh:severity` drives the
+outcome** — `sh:Violation` → **`400` + RFC 9457 `application/problem+json`** (with a `violations[]`
+member) + `Link: rel="describedby"`; `sh:Warning`/`sh:Info` → **admit (`200`/`201`) + advisory body**
+(no RFC-9111-obsolete `Warning` header); clean → unchanged. Profile-neutral (OKF/RO-Crate are *shapes*,
+not engine code). `shacl-engine` pinned to the **1.2 SHA `ce39d07`** behind the sole-importer seam
+`src/lws/shacl.js`. Modules: `src/lws/{shacl,admission-rdf,constraint,admission}.js`; wired into
+`handlePut` (`src/handlers/resource.js`) + `handlePost` (`src/handlers/container.js`). SDD ledger:
+`~/dev/git/LA3D/JavaScriptSolidServer/.superpowers/sdd/progress.md`.
+
+**Round-1 store deviation (deliberate):** the spec frames the constraint as a `describedby` link in the
+**linkset**, but the fork's linkset is generated read-only (mutation is a deferred L2 carryover), so L3
+**stores/reads the constraint from the target's `.meta`** (JSON-LD on disk, client-writable, already
+served). Same `describedby` token, so it surfaces in the linkset unchanged once linkset mutation lands.
+
+**L3 deferred carryover** (review findings + scope): **Task 7 live-pod gate (`make test-l3`) is
+NOT YET DONE — it needs `la3d/lws-admission`/`la3d/lws` pushed to GitHub** (`Dockerfile.fork`
+`npm install`s from a git ref); the feature is otherwise proven by the 1053/1053 fork suite incl.
+reject/advisory/clean/negative-control HTTP integration tests. **M1:** `urlToStoragePath`
+(`src/lws/admission.js`) isn't pod-mapped → shape resolution breaks under `--subdomains` (path-mode
+deploy `pod.vardeman.me` is fine; the I1 null-guard degrades a missing shape to pass-through, not a
+500). **M2:** `POST` with `Link: rel=Container` (container creation) bypasses admission (no body). Plus:
+surface the `.meta` `describedby` in the *generated* linkset (Type-Search synergy); `Prefer: set-linkset`
+atomic declare+write + PATCH-linkset (depend on deferred L2 linkset mutation); PATCH-body (N3-Patch)
+post-state validation; `ldp:constrainedBy` co-emission for Solid interop; shape-result caching; a second
+worked profile (RO-Crate base) as a generality proof. Minors (deferred): `shacl.js` `value` accessor /
+dead `msg` arm; problem `type` URI non-resolving (RFC-9457-legal); the `400` reject bypasses
+`getAllHeaders`/CORS (pre-existing codebase convention on error responses — fix repo-wide).
+
+**▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
+*real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder), plus
+adopting the RO-Crate `conformsTo` profile-selection seam over the `.meta` `describedby`. **L4** = OKF
+projection **rewritten to LWS shapes** (the RED wiki-memory suite gets re-derived, not patched).
+**Merge model (solo dev — no PR ceremony):** each layer is built on its own `la3d/*` feature branch and
+**`git merge --no-ff` directly into `la3d/lws`** (the subagent per-task + opus whole-branch reviews are
+the gate, not a GitHub PR); `la3d/main` stays the pristine `0f4287f` pin for rebasing onto upstream releases.
 
 **▶ L2 live-pod harness (2026-06-30).** The `tests/` Vitest harness covered the base substrate but not
 L2; the storage-discovery behavior was only ever checked by ad-hoc curl. Now a repeatable gate:
@@ -116,9 +157,9 @@ test-lws` 6/6 (live TLS rig); `make test` 9 passed | 6 skipped. (Host-prereq pre
 
 **L1 deferred carryover** (in the SDD ledger): `--no-lws` flag; HEAD `lws+json` negotiation parity
 (`TODO(lws-head-parity)` marker in `handleHead`); `ContainerPage` pagination; per-variant 304/ETag;
-`generateLwsContainer` unit-test gaps (trailing-slash, octet-stream, empty). Then **L3**
-(constrained-container SHACL admission) and **L4** (OKF projection rewritten to LWS shapes — the old
-RED wiki-memory suite).
+`generateLwsContainer` unit-test gaps (trailing-slash, octet-stream, empty). **L3 is now DONE** (see the
+L3 block above); next is **Plan 2** then **L4** (OKF projection rewritten to LWS shapes — the old RED
+wiki-memory suite).
 
 **Spec grounding refreshed:** the `lws-protocol` skill is bumped to upstream HEAD and vendors the
 **first-publication LWS Vocabulary** (`references/lws10-vocab/SNAPSHOTS/DNOTE/Overview.html`). Facts
