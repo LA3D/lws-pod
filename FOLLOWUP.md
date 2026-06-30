@@ -123,10 +123,16 @@ not engine code). `shacl-engine` pinned to the **1.2 SHA `ce39d07`** behind the 
 **stores/reads the constraint from the target's `.meta`** (JSON-LD on disk, client-writable, already
 served). Same `describedby` token, so it surfaces in the linkset unchanged once linkset mutation lands.
 
-**L3 deferred carryover** (review findings + scope): **Task 7 live-pod gate (`make test-l3`) is
-NOT YET DONE — it needs `la3d/lws-admission`/`la3d/lws` pushed to GitHub** (`Dockerfile.fork`
-`npm install`s from a git ref); the feature is otherwise proven by the 1053/1053 fork suite incl.
-reject/advisory/clean/negative-control HTTP integration tests. **M1:** `urlToStoragePath`
+**L3 live-pod gate DONE (2026-06-30).** `la3d/lws` (incl. L3, merge `1772ed8`) + `la3d/lws-admission`
+are **pushed to GitHub**; `Dockerfile.fork` + `docker-compose.fork-tls.yml` pin the L3 merge SHA. New
+gate **`tests/lws-admission.test.mjs`** + **`make test-l3`** (against the fork `--lws` TLS pod at
+`https://pod.vardeman.me`): provisions a shape + container `.meta` `describedby` member-rule, asserts a
+non-conforming PUT → `400` + `application/problem+json` + `violations[]` + `rel="describedby"`, and a
+conforming PUT → `201`. **Verified live: `make test-l3` 2/2, `make test-lws` 6/6 (no L2 regression on
+the L3 pod).** (Gotcha re-confirmed: a JSON-LD shape needs an explicit `@id` on its `sh:property` blank
+node or JSS's JSON-LD→quads orphans the restriction and everything admits.)
+
+**L3 deferred carryover** (review findings + scope): **M1:** `urlToStoragePath`
 (`src/lws/admission.js`) isn't pod-mapped → shape resolution breaks under `--subdomains` (path-mode
 deploy `pod.vardeman.me` is fine; the I1 null-guard degrades a missing shape to pass-through, not a
 500). **M2:** `POST` with `Link: rel=Container` (container creation) bypasses admission (no body). Plus:
