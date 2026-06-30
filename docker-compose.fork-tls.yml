@@ -1,4 +1,4 @@
-# Fork pod (L1+L2, --lws) behind a TLS-terminating Caddy proxy — the end-to-end rig for the
+# Fork pod (L1+L2+L3, --lws) behind a TLS-terminating Caddy proxy — the end-to-end rig for the
 # request.protocol / X-Forwarded-Proto scheme fix, and a rehearsal of the public Caddy rung.
 #
 #   make cert                                                  # mkcert ./certs for pod.vardeman.me
@@ -16,9 +16,9 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (L2 HEAD); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-8927adac5fc7c8301d3e072db346ae1e2c79f3e5}"
-    image: lws-pod:fork-l2
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (L3 HEAD); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-1772ed86a267d80f13197ef3bce4a5cc3a87be7c}"
+    image: lws-pod:fork-l3
     container_name: lws-pod-fork
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.
     expose:
