@@ -59,7 +59,7 @@ Expected: full suite passes (this includes L1's lws-container tests — our regr
 - Test: `test/lws-storage-description.test.js` (new)
 
 **Interfaces:**
-- Produces: `generateStorageDescription(storageRootUrl: string, services: Array<{type:string, serviceEndpoint:string, [k:string]:any}>) -> object` — a JSON object ready to `JSON.stringify`. Always prepends/ensures the `StorageDescription` self-service entry (the resource describing itself) if not already in `services`.
+- Produces: `generateStorageDescription(storageRootUrl: string, services: Array<{type:string, serviceEndpoint:string, [k:string]:any}>) -> object` — a JSON object ready to `JSON.stringify`. **Thin builder** (per the global YAGNI constraint): it passes `services` through verbatim and adds no entries. **The caller is responsible for including the `StorageDescription` self-service entry** (Task 2's route does exactly this); Task 6's e2e asserts that entry is present, catching any caller that forgets.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -192,12 +192,17 @@ git commit -m "$(printf 'feat(lws): serve Storage Description at /.well-known/lw
 
 ### Task 3: `rel="…#storageDescription"` Link header on all storage GET/HEAD
 
+**Design (read first — this supersedes a fragile param-threading approach):** `getAllHeaders` is called from ~19 sites in `src/handlers/resource.js`, and it **already receives `resourceUrl` and `lwsEnabled`** (it even derives `Vary` from `lwsEnabled`). So **derive the storage-description URL *inside* `getAllHeaders`** from `resourceUrl`'s origin — do **not** add a new param threaded through every call site. This automatically scopes the header to the call sites that pass `lwsEnabled: true` (the GET/HEAD storage paths) and leaves POST/PUT/error responses (which default `lwsEnabled:false`) untouched. Single-storage assumption (L2): the storage description lives at `{origin}/.well-known/lws-storage`.
+
 **Files:**
-- Modify: `src/ldp/headers.js` (`getAllHeaders` — thread a `storageDescriptionUrl` and append the rel to the `Link` header when `lwsEnabled`)
-- Test: `test/lws-storage-link.test.js` (new) — unit-test `getAllHeaders` output
+- Add: a `storageDescriptionUrl(resourceUrl)` helper in `src/lws/storage-description.js` → `\`${new URL(resourceUrl).origin}/.well-known/lws-storage\``.
+- Modify: `src/ldp/headers.js` (`getAllHeaders` — when `lwsEnabled && resourceUrl`, append the rel to the `Link` header, deriving the URL via the helper).
+- Modify: `src/handlers/resource.js` ONLY where needed — ensure the container-GET, file-GET, and `handleHead` call sites pass `lwsEnabled: request.lwsEnabled` (the L1 container-LWS branch already does; add it to the file-GET and HEAD sites if they don't). Do NOT touch the non-GET/HEAD call sites.
+- Test: `test/lws-storage-link.test.js` (new) — unit-test `getAllHeaders` output.
 
 **Interfaces:**
-- `getAllHeaders` already accepts `{ …, lwsEnabled }` (added in L1). Add an optional `storageDescriptionUrl` field; when `lwsEnabled && storageDescriptionUrl`, append `<{url}>; rel="https://www.w3.org/ns/lws#storageDescription"` to the combined `Link` header (comma-join with whatever `getLinkHeader` already produced).
+- `storageDescriptionUrl(resourceUrl: string) -> string`. Reused by Task 5 (linkset `describedby`).
+- `getAllHeaders`: when `lwsEnabled && resourceUrl`, append `<{storageDescriptionUrl(resourceUrl)}>; rel="https://www.w3.org/ns/lws#storageDescription"` to the combined `Link` header (comma-join with whatever `getLinkHeader` already produced). No new param.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -207,24 +212,27 @@ Create `test/lws-storage-link.test.js`:
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getAllHeaders } from '../src/ldp/headers.js';
+import { storageDescriptionUrl } from '../src/lws/storage-description.js';
 
 const REL = 'https://www.w3.org/ns/lws#storageDescription';
-const DESC = 'http://localhost:3000/.well-known/lws-storage';
+const R = 'http://localhost:3000/alice/note.ttl';
 
-test('storageDescription rel present when lwsEnabled + url', () => {
+test('storageDescriptionUrl derives {origin}/.well-known/lws-storage', () => {
+  assert.equal(storageDescriptionUrl(R), 'http://localhost:3000/.well-known/lws-storage');
+});
+
+test('storageDescription rel present when lwsEnabled + resourceUrl', () => {
   const h = getAllHeaders({
     isContainer: false, etag: '"x"', contentType: 'text/turtle',
-    origin: 'http://localhost:3000', resourceUrl: 'http://localhost:3000/alice/note.ttl',
-    lwsEnabled: true, storageDescriptionUrl: DESC,
+    origin: 'http://localhost:3000', resourceUrl: R, lwsEnabled: true,
   });
-  assert.match(h['Link'], new RegExp(`<${DESC.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}>; rel="${REL}"`));
+  assert.match(h['Link'], new RegExp(`<http://localhost:3000/\\.well-known/lws-storage>; rel="${REL}"`));
 });
 
 test('storageDescription rel ABSENT when lwsEnabled is false', () => {
   const h = getAllHeaders({
     isContainer: false, etag: '"x"', contentType: 'text/turtle',
-    origin: 'http://localhost:3000', resourceUrl: 'http://localhost:3000/alice/note.ttl',
-    lwsEnabled: false, storageDescriptionUrl: DESC,
+    origin: 'http://localhost:3000', resourceUrl: R, lwsEnabled: false,
   });
   assert.equal((h['Link'] || '').includes('storageDescription'), false);
 });
@@ -233,36 +241,42 @@ test('storageDescription rel ABSENT when lwsEnabled is false', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `node --test test/lws-storage-link.test.js`
-Expected: FAIL — rel not emitted.
+Expected: FAIL — helper not exported / rel not emitted.
 
-- [ ] **Step 3: Implement in `src/ldp/headers.js`**
+- [ ] **Step 3: Add the helper + emit the rel**
 
-In `getAllHeaders`, after the existing `Link` header is assembled, add (using the rel constant):
+In `src/lws/storage-description.js`, add and export:
+
+```js
+export function storageDescriptionUrl(resourceUrl) {
+  return `${new URL(resourceUrl).origin}/.well-known/lws-storage`;
+}
+```
+
+In `src/ldp/headers.js`, import the helper, define the rel constant once, and after the existing `Link` header is assembled inside `getAllHeaders`:
 
 ```js
 const LWS_STORAGE_DESC_REL = 'https://www.w3.org/ns/lws#storageDescription';
 // … inside getAllHeaders, after Link is built:
-if (lwsEnabled && storageDescriptionUrl) {
-  const sd = `<${storageDescriptionUrl}>; rel="${LWS_STORAGE_DESC_REL}"`;
+if (lwsEnabled && resourceUrl) {
+  const sd = `<${storageDescriptionUrl(resourceUrl)}>; rel="${LWS_STORAGE_DESC_REL}"`;
   headers['Link'] = headers['Link'] ? `${headers['Link']}, ${sd}` : sd;
 }
 ```
 
-Destructure `storageDescriptionUrl` from the options arg. Keep it optional — callers that don't pass it (and the `lwsEnabled:false` path) are unchanged.
+- [ ] **Step 4: Ensure GET/HEAD call sites pass `lwsEnabled`**
 
-- [ ] **Step 4: Thread the URL from the GET/HEAD handlers**
-
-In `src/handlers/resource.js`, at the `getAllHeaders({…, lwsEnabled: request.lwsEnabled})` call sites in the container GET branch, the file GET branch, and `handleHead`, also pass `storageDescriptionUrl: request.lwsEnabled ? \`${request.protocol}://${request.hostname}/.well-known/lws-storage\` : undefined`. (There are several `getAllHeaders` call sites — the spec MUST is "all responses to GET/HEAD targeting storage resources"; cover the resource GET, container GET, and HEAD paths. A small helper `storageDescriptionUrl(request)` in `src/lws/storage-description.js` keeps it DRY.)
+The spec MUST is "all responses to GET/HEAD targeting storage resources." Confirm the container-GET, file-GET, and `handleHead` `getAllHeaders(...)` call sites pass `lwsEnabled: request.lwsEnabled`. The L1 container-LWS branch already does; add `lwsEnabled: request.lwsEnabled` to the file-GET and HEAD sites if missing. Leave the non-GET/HEAD sites (POST/PUT/error responses) alone — they default to `lwsEnabled:false` and correctly omit the rel.
 
 - [ ] **Step 5: Run the unit test + full suite**
 
 Run: `node --test test/lws-storage-link.test.js` then `npm test`
-Expected: both PASS (no default-path regression — the rel only appears when `--lws`).
+Expected: both PASS (no default-path regression — the rel only appears under `--lws` on GET/HEAD).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/ldp/headers.js src/handlers/resource.js src/lws/storage-description.js
+git add src/lws/storage-description.js src/ldp/headers.js src/handlers/resource.js test/lws-storage-link.test.js
 git commit -m "$(printf 'feat(lws): emit rel=storageDescription Link on all storage GET/HEAD (--lws)\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>')"
 ```
 
@@ -388,7 +402,7 @@ if (request.lwsEnabled && selectContentType(acceptHeader, request.connegEnabled)
   const ls = generateLinkset(resourceUrl, {
     parentUrl: parentContainerUrl(resourceUrl),
     isContainer,                                  // true in the container branch, false in the file branch
-    describedByUrl: storageDescriptionUrl(request),
+    describedByUrl: storageDescriptionUrl(resourceUrl),  // helper from Task 3 (src/lws/storage-description.js)
   });
   reply.header('Content-Type', RDF_TYPES.LINKSET);
   reply.header('Vary', 'Accept, Authorization, Origin');
@@ -492,5 +506,5 @@ gh pr create --repo LA3D/JavaScriptSolidServer --base la3d/lws --head la3d/lws-d
 ## Self-review notes
 
 - Spec coverage: storage description `@context`/`id`/`type:"Storage"`/`service[]` with `type`+`serviceEndpoint` (Task 1, `Discovery.html`); the `rel="…#storageDescription"` MUST on all GET/HEAD (Tasks 3+6); RFC 9264 linkset `anchor`/`up`/`type`/`describedby` (Task 4) served via conneg with `rel="linkset"` (Task 5) — all from `Discovery.html` / `Operations/metadata.md` / `Operations/read-resource.md`. `lws-configuration`, linkset mutation, multi-pod, capability/TypeIndex intentionally deferred (see scope section).
-- Type consistency: `generateStorageDescription`, `generateLinkset`, `storageDescriptionUrl(request)`, `RDF_TYPES.LINKSET` are defined once and consumed by name in later tasks. Builds on L1's `RDF_TYPES.LWS_JSON`, `parentContainerUrl`, `request.lwsEnabled`, `getAllHeaders({…,lwsEnabled})` — reused, not re-derived.
+- Type consistency: `generateStorageDescription`, `generateLinkset`, `storageDescriptionUrl(resourceUrl)`, `RDF_TYPES.LINKSET` are defined once and consumed by name in later tasks. Builds on L1's `RDF_TYPES.LWS_JSON`, `parentContainerUrl`, `request.lwsEnabled`, `getAllHeaders({…,lwsEnabled})` — reused, not re-derived.
 - Additivity guarantee is itself tested (Task 6 negative controls: `--lws` off ⇒ no rels/route; `--lws` on + default Accept ⇒ still LDP), so a regression in default behavior fails the suite.

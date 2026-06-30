@@ -40,19 +40,32 @@ standard headers — purely additive (default LDP path provably unchanged). SDD 
 (untouched, for rebasing onto future JSS releases). The L1–L4 stack rides `la3d/lws`; each layer is a
 PR into it.
 
-**▶ L2 = Storage Description + per-resource Linkset (discovery slice).** Plan written:
-**`docs/superpowers/plans/2026-06-30-lws-L2-storage-discovery.md`** — being executed on branch
-**`la3d/lws-discovery`** off `la3d/lws`, the way L1 was done (subagent-driven, TDD, additive,
-`--lws`-gated). Delivers the two storage-side LWS *MUSTs*: the **Storage Description** (`type:"Storage"`,
-`service[]`) at `/.well-known/lws-storage` + `Link: rel="…lws#storageDescription"` on all GET/HEAD;
-**read-only** per-resource RFC 9264 linkset (`application/linkset+json`, `anchor`/`up`/`type`/`describedby`)
-via conneg + `Link: rel="linkset"`. **Scope decisions (in the plan):** `/.well-known/lws-configuration`
-is **deferred to the auth/Keycloak track** — it is RFC 8414 *authorization-server* metadata and JSS is a
-resource server with a direct bearer (no RFC 8693 token-exchange), so emitting it would advertise a
-capability JSS lacks. Linkset **mutation** (If-Match/412/428, the standalone `.meta` resource),
-multi-pod storage descriptions, and `capability`/TypeIndex advertising are deferred carryover. Still
-track open spec PRs **#183** (storage-desc-as-CID-1.0 — feeds `resolveStorageAuthority`) and **#180**
-(linkset profile).
+**▶ L2 DONE (PR #2 open) — L3 IS NEXT.** L2
+(`docs/superpowers/plans/2026-06-30-lws-L2-storage-discovery.md`) is **complete and merge-ready**:
+branch **`la3d/lws-discovery`** (9 commits over `la3d/lws` / `d8166f2`), **PR
+https://github.com/LA3D/JavaScriptSolidServer/pull/2** (base `la3d/lws`), full suite **1031/1031
+green**. Delivers the two storage-side LWS *MUSTs*, all `--lws`-gated + additive (default LDP path
+provably unchanged via negative controls): the **Storage Description** (`type:"Storage"`, `service[]`)
+at `/.well-known/lws-storage` + `Link: rel="…lws#storageDescription"` on all GET/HEAD; **read-only**
+per-resource RFC 9264 linkset (`application/linkset+json`, `anchor`/`up`/`type`/`describedby`) via
+conneg + `Link: rel="linkset"`; HEAD content-type parity. Built subagent-driven (per-task spec+quality
+reviews + opus whole-branch review; one Important TLS-proxy scheme split — `options.ssl` vs
+`request.protocol` — found + fixed `8927ada` with an `X-Forwarded-Proto` regression test). SDD ledger:
+`~/dev/git/LA3D/JavaScriptSolidServer/.superpowers/sdd/progress.md`.
+
+**L2 scope decisions (in the plan):** `/.well-known/lws-configuration` is **deferred to the
+auth/Keycloak track** — it is RFC 8414 *authorization-server* metadata and JSS is a resource server with
+a direct bearer (no RFC 8693 token-exchange), so emitting it would advertise a capability JSS lacks.
+Deferred carryover: linkset **mutation** (If-Match/412/428, standalone `.meta` resource), multi-pod
+storage descriptions (L2 is single-storage), `capability`/TypeIndex advertising. Still track open spec
+PRs **#183** (storage-desc-as-CID-1.0 — feeds `resolveStorageAuthority`) and **#180** (linkset profile).
+
+**▶ L3/L4 next** (per the design §12 sequencing): **L3** = constrained-container SHACL admission (the
+existing `constrained-container/` toolkit, fronting the fork); **L4** = OKF projection **rewritten to
+LWS shapes** (the RED wiki-memory suite gets re-derived, not patched). **Plan 2** (profile mechanism +
+`resolveStorageAuthority` threaded onto the *real* storage-description resource L2 now serves, replacing
+the `urn:okf:base/` placeholder) slots between them. Merge model unchanged: each layer is a PR into
+`la3d/lws`; `la3d/main` stays the pristine `0f4287f` pin.
 
 **L1 deferred carryover** (in the PR + ledger): `--no-lws` flag; HEAD `lws+json` negotiation parity
 (`TODO(lws-head-parity)` marker in `handleHead`); `ContainerPage` pagination; per-variant 304/ETag;
