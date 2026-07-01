@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/30 — substrate RESOLVED (fork JSS); L1 + L2 + L3 shipped, Plan 2 / L4 next
+## ▶▶ 2026-06-29/07-01 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 shipped, indexed-relation / Plan 2 / L4 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -143,9 +143,47 @@ worked profile (RO-Crate base) as a generality proof. Minors (deferred): `shacl.
 dead `msg` arm; problem `type` URI non-resolving (RFC-9457-legal); the `400` reject bypasses
 `getAllHeaders`/CORS (pre-existing codebase convention on error responses — fix repo-wide).
 
-**▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
-*real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder). **L4** =
-OKF projection **rewritten to LWS shapes** (the RED wiki-memory suite gets re-derived, not patched).
+**▶ L2.5 DONE + MERGED (2026-07-01) — indexed-relation / Plan 2 / L4 NEXT.** The LWS **Search & Type
+Index** module (spec `docs/superpowers/specs/2026-07-01-lws-typeindex-search-design.md`, W3C-aligned
+revision; plan `docs/superpowers/plans/2026-07-01-lws-typeindex-search.md`) is **merged into `la3d/lws`**
+(merge **`dc770ca`**, was branch `la3d/lws-typeindex`; 14 commits + 2 finishing fixes). Full fork suite
+**1085/1085**; subagent-driven build (per-task spec+quality reviews + opus whole-branch review — Ready
+to merge, one Important fixed). Delivers (all `--lws`-gated + additive; default LDP path unchanged):
+**`TypeIndexService`** (`GET /types/index`) + **`TypeSearchService`** (`GET|POST /types/search`, CNF
+`type` filter) advertised in the storage description; **system-managed `type` metadata** = intrinsic
+class ∪ user-defined types captured from `Link: rel="type"` on write into a **server-managed
+`.lwstypes` sidecar** (NOT the client `.meta` — per LWS `metadata.md`, `type` is System-Managed),
+surfaced via the resource **linkset** (`type` = intrinsic ∪ declared) and the two services;
+**on-demand authz-filtered walk** reusing `checkAccess` (never a parallel authz path — the filter *is*
+the GET predicate, so no discovery oracle) with a per-query ACL memo. The two endpoints **bypass the
+global WAC preHandler** (like `/mcp`/`/db`) and resolve identity in-handler (fail-closed); the
+per-resource `checkAccess`-and-drop loop is the sole, sound authz boundary (opus-verified).
+
+**L2.5 live-pod gate DONE (2026-07-01).** `Dockerfile.fork` + `docker-compose.fork-tls.yml` pin the L2.5
+merge SHA (`dc770ca`, image `fork-l2_5`). New gate **`tests/lws-typeindex.test.mjs`** + **`make
+test-typeindex`** (against the fork `--lws` TLS pod). **Verified live: `make test-typeindex` 5/5,
+`make test-l3` 2/2, `make test-lws` 6/6** (no L2/L3 regression on the L2.5 pod). The live gate caught a
+real conformance gap the fork suite missed — `ContainerPage` `items[].type` must present the intrinsic
+class **compact** (`"Container"`/`"DataResource"`) per `container-representation.md`, user types as URIs
+— fixed `887e15e`.
+
+**L2.5 deferred carryover** (whole-branch review triage — all DEFER, none block): **the general
+indexed-relation filter (`describedby` etc.) is the immediate next spec** — the profile-layer seam;
+L3 already stores `describedby`, so it's an additive read (must first resolve the `describedby`
+overloading: Solid Description-Resource vs. SHACL-shape pointer). Plus: **spec §7/§8 promised a `400`
+on an over-limit filter + a page/scan bound — NOT implemented** (`parseTypeFilter`/handlers have no
+complexity bound; unauthenticated unbounded full-tree walk is a DoS-amplification surface on large
+pods — harden for the public rung); container `items[].type` **enrichment in L1 listings**; **in-memory
+derivation cache** + notifications-CDC refresh; **body pagination**; `walkResources` **symlink-cycle
+guard** (no visited-set; symlinks are git-push-only); the `.lwstypes` store is LDP-writable by the
+owner (same capability as `rel="type"`, note in §4); test-coverage adds (multi-group CNF,
+matching-nothing, skip-dir, multi-token `rel`); `parseTypeLinks` rel-token boundary.
+
+**▶ indexed-relation / Plan 2 / L4 NEXT.** **Next = the indexed-relation follow-up spec** (`describedby`
+as a Type-Search filter — the profile seam). Then **Plan 2** = profile mechanism + `resolveStorageAuthority`
+threaded onto the *real* storage-description resource L2 now serves (replacing the `urn:okf:base/`
+placeholder). **L4** = OKF projection **rewritten to LWS shapes** (the RED wiki-memory suite gets
+re-derived, not patched).
 
 **Open design question for the Plan 2 brainstorm — profile/shape-selection vocabulary (do NOT prejudge;
 an earlier note wrongly said "adopt the RO-Crate `conformsTo` seam" — RO-Crate merely *reuses* the
