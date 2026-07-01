@@ -16,42 +16,59 @@ required — recorded as the trigger, not built now.
 
 ## Scope
 
+**Rate-limit philosophy (revised 2026-07-01).** The abuse vector is **anonymous crawlers / brute-force
+of the open pod**, NOT authenticated agents doing work. So rate limits are **trust-aware**: anonymous
+callers are limited; authenticated callers run on a *generous per-agent budget* (a runaway-loop
+backstop, not a throttle), with real authenticated write-abuse bounded by **WAC + the storage quota**
+JSS already enforces. **Pre-authentication** endpoints (login, signup, OAuth token) are the exception —
+there is no authenticated user yet, so they stay purely IP-limited abuse guards.
+
 **In (this spec):**
-1. **Read rate limit** on both endpoints.
-2. **CNF complexity cap → `400`** (the spec §7 conformance gap).
-3. **Config gate** to disable the type services per-deployment.
-4. **Re-arm the server's globally-inert route-level rate limits** (folded in 2026-07-01). Implementing
-   (1) surfaced — and an opus review independently reproduced at the library level — that **every**
-   route-level `@fastify/rate-limit` config in JSS is currently a no-op: the plugin's `onRoute` hook is
-   installed only when the plugin boots, but the idp/ap/write routes are registered *before* that (the
-   IdP plugin is even registered before the rate-limit plugin), so the hook never wires them. Result:
-   **IdP brute-force limits** (`/idp/credentials` login, account delete, export) and **write-flood
-   limits** (`PUT/POST/PATCH/DELETE /*`, `POST /.pods`) have **never actually been enforced**. This is
-   a pre-existing substrate security gap, not introduced here; folded into this round because it is the
-   same DoS/abuse concern for the same CRC deployment. Fix: make the rate-limit plugin's `onRoute` hook
-   present before the rate-limited routes register (reorder registration / wrap uniformly), and correct
-   the shared `errorResponseBuilder` to return a real `Error` with `.statusCode` (its plain-object form
-   never yields a `429`). Prove with tests that a write limit and an IdP limit now return `429`.
+1. **Trust-aware rate limiting on resource endpoints** — `/types/index`, `/types/search`, and the write
+   routes (`PUT/POST/PATCH/DELETE /*`): **anonymous → strict per-IP cap** (crawler/flood protection);
+   **authenticated → generous per-`webId` cap** (runaway backstop). A write-flood from an anonymous
+   crawler is already `401` (WAC) — the anon write cap just cheaply bounds the attempt; legitimate
+   authenticated bulk writes (projection engine, git imports, MCP tool bursts) must NOT be throttled.
+2. **CNF complexity cap → `400`** (the spec §7 conformance gap). *(Done — Task 2.)*
+3. **Config gate** to disable the type services per-deployment. *(Done — Task 3.)*
+4. **Keep the pre-auth abuse guards armed** — the plugin-boot ordering fix (Task 4b) that re-armed the
+   globally-inert limits STANDS for the **pre-authentication** endpoints: `/idp/credentials` (login
+   brute-force), `/.pods` (signup, 1/IP/day), `/oauth/token` + `/oauth/authorize` (token brute-force).
+   These are correct IP-limited guards and are unchanged. *(Root cause + fix documented under Task 4b:
+   the rate-limit plugin's `onRoute` hook booted after the idp/ap/write routes registered, so every
+   route-level limit was a no-op; fixed by reordering the plugin ahead of idp/ap + `fastify.after()`
+   wrapping + correcting `errorResponseBuilder` to throw a real `429`.)*
 
 **Out — deferred (kept in FOLLOWUP; not a regression to defer under the VPN threat model):**
 - **Pagination + page-size cap** — the true bound on the per-request walk; required only when pods grow
   large or the pod goes internet-facing.
 - **In-memory derivation cache** — performance, not safety.
 
-## 1. Read rate limit
-Reuse the already-registered `@fastify/rate-limit` plugin (`src/server.js:463`, `global:false`) via a
-per-route `config.rateLimit` override, mirroring `writeRateLimit` (`src/server.js:797`):
-```js
-const typeQueryRateLimit = { config: { rateLimit: {
-  max: 60, timeWindow: '1 minute',
-  keyGenerator: (request) => request.webId || request.ip,
-} } };
-```
-Attach it to the `/types/index` and `/types/search` GET+POST registrations inside the existing
-`if (lwsEnabled)` block. Keyed by `webId` when authenticated, else client IP — so an authenticated
-agent isn't throttled by anonymous traffic and vice-versa. Behind the Caddy TLS proxy, `request.ip`
-must be the forwarded client IP (Fastify `trustProxy`, already enabled on the fork-tls rig for the
-scheme fix). Over-limit → the plugin's standard `429`.
+## 1. Trust-aware rate limiting (resource endpoints)
+Applies to `/types/index`, `/types/search`, and the write routes (`PUT/POST/PATCH/DELETE /*`). Two
+tiers in one `@fastify/rate-limit` config, chosen per request by trust level:
+
+- **Authenticated → generous per-`webId` cap** (default `600 / 1 minute`, tunable via a
+  `writeRateLimitMax` config option for the write routes): a runaway-agent backstop, well above any
+  legitimate bulk workload (projection engine, git imports, MCP bursts). Real authenticated write abuse
+  is bounded by **WAC + the storage quota** JSS already enforces, not by this cap.
+- **Anonymous → strict per-IP cap** (`60 / 1 minute`): crawler / flood protection on the open surface.
+  An anonymous write is `401` regardless (WAC); the anon cap just cheaply bounds the attempt.
+
+Mechanism: `@fastify/rate-limit` v9 supports function-form `max: (request) => number` and a custom
+`keyGenerator: (request) => key` — so one config expresses both tiers:
+`keyGenerator` → `wid:<webId>` when authenticated else `ip:<ip>`; `max` → generous when authenticated
+else strict. **The implementation question this design leaves to the plan:** the rate-limit hook is
+`onRequest`, which runs *before* the auth `preHandler`, so `request.webId` is not yet set at limit time.
+The plan must resolve the requester's credential/`webId` at limit time for these routes (reuse
+`getWebIdFromRequestAsync`) — accepting a lightweight credential check in the hook, or resolving
+identity in an `onRequest` step ahead of the limit — and verify it does not double-run expensive token
+verification on the hot path. Behind the Caddy TLS proxy, `request.ip` must be the forwarded client IP
+(Fastify `trustProxy`, already enabled on the fork-tls rig).
+
+This **replaces** Task 4b's flat `60/min` IP-keyed write limit (which throttled authenticated workers —
+exactly the wrong population) with the trust-aware model. The pre-auth guards in §4 (login/signup/oauth)
+are separate and unchanged.
 
 ## 2. CNF complexity cap → `400`
 The searchindex spec (§Request-Equivalence-Errors) requires an over-complex filter be rejected with
