@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-01 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening shipped, indexed-relation / Plan 2 / L4 next
+## ▶▶ 2026-06-29/07-01 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation shipped, Plan 2 / L4 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -211,11 +211,46 @@ scan. Also: an **in-memory derivation cache** (perf); `podCreateRateLimitMax`/`i
 GET/POST branch DRY; the AP OAuth `max:10` has no test-override knob. **`describedby` indexed-relation
 follow-up + Plan 2 / L4 are still the next feature work.**
 
-**▶ indexed-relation / Plan 2 / L4 NEXT.** **Next = the indexed-relation follow-up spec** (`describedby`
-as a Type-Search filter — the profile seam). Then **Plan 2** = profile mechanism + `resolveStorageAuthority`
-threaded onto the *real* storage-description resource L2 now serves (replacing the `urn:okf:base/`
-placeholder). **L4** = OKF projection **rewritten to LWS shapes** (the RED wiki-memory suite gets
-re-derived, not patched).
+**▶ INDEXED-RELATION DONE + MERGED (2026-07-01) — Plan 2 / L4 NEXT.** The indexed-relation follow-up
+(spec `docs/superpowers/specs/2026-07-01-lws-indexed-relation-design.md`, plan
+`docs/superpowers/plans/2026-07-01-lws-indexed-relation.md`) is **merged into `la3d/lws`** (merge
+**`21d9999`**, was branch `la3d/lws-indexed-relation`; 4 commits, subagent-driven — per-task spec+quality
+reviews + opus whole-branch review: Ready-to-merge, no Critical/Important). Full fork suite **1127/0**.
+Generalizes the shipped Type Search from `type`-only to **`type` + a server-chosen set of indexed
+relations**, indexing exactly one relation in v1: **`describedby` → SHACL shape**, read additively from
+L3's `.meta` store. **One source, two surfaces:** (1) **read** — `generateLinkset` `describedby` now
+carries the resource's L3 shape target(s) and is **omitted when unconstrained** (fixes the L1/L2 bug that
+put the storage-description URL under `describedby`; storage description stays its own
+`rel="…lws#storageDescription"` header); (2) **search** — `/types/search` accepts a `describedby` CNF
+filter, AND-composed with `type`, same grammar/global caps. **No-oracle holds end-to-end** (unindexed/
+unknown relation key → empty 200, never an error, indistinguishable from a target matching nothing);
+**descriptive-only by construction** (`INDEXED_RELATIONS={describedby}`); **authz unchanged** (shape
+resolved only *inside* the already-`checkAccess`-filtered walk — opus-verified no discovery oracle).
+Modules: `describedbyTargets` (`src/lws/constraint.js`); `parseFilter`/`matchesFilter`/`INDEXED_RELATIONS`
+(`src/lws/type-index.js`, `parseTypeFilter` now delegates — DRY); linkset + both GET call sites
+(`src/lws/linkset.js`, `src/handlers/resource.js`); search wiring (`src/handlers/type-index.js`).
+
+**Live-pod gate DONE (2026-07-01).** Container repinned (`Dockerfile.fork` + `docker-compose.fork-tls.yml`
+→ `21d9999`, image `fork-indexed-rel`). New gate **`tests/lws-indexed-relation.test.mjs`** + **`make
+test-indexed-relation`** (fork `--lws` TLS pod at `https://pod.vardeman.me`). **Verified live:
+`make test-indexed-relation` 4/4, `test-typeindex` 7/7, `test-l3` 2/2, `test-lws` 6/6** (no L2/L3/L2.5
+regression). Reconciled the L2 discovery gate (`tests/lws-discovery.test.mjs`) to the corrected read
+surface — an unconstrained file's linkset now **omits** `describedby` (was asserting the old
+storage-description target).
+
+**Indexed-relation deferred carryover** (whole-branch review Minors — none block): **`page` reserved on
+the GET path only, not the POST body** — reserve it on the body path when body pagination lands, to keep
+GET/POST result-set equivalence; add a guard-comment on the now-widened `parseTypeFilter` (iterates all
+keys post-delegation — inert, no mixed-key callers today); spec §4.5/plan over-counted a HEAD linkset
+call site (HEAD sets no linkset body — nothing to change, no regression). Also still: `describedby`
+overloading vs. **`conformsTo`/W3C PROF** is the **Plan 2** profile-authority layer (this layer stays
+spec-literal `describedby`); a general relation-*capture* path (arbitrary descriptive `rel` on write) for
+relations L3 doesn't already store; container `items[].type` describedby enrichment.
+
+**▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
+*real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder); resolve
+the `describedby`-vs-`conformsTo`/PROF vocabulary question (see the Plan-2 brainstorm block above). **L4**
+= OKF projection **rewritten to LWS shapes** (the RED wiki-memory suite gets re-derived, not patched).
 
 **Open design question for the Plan 2 brainstorm — profile/shape-selection vocabulary (do NOT prejudge;
 an earlier note wrongly said "adopt the RO-Crate `conformsTo` seam" — RO-Crate merely *reuses* the
