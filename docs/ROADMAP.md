@@ -12,9 +12,13 @@
 > validated on write, `sh:severity`→`400`+RFC9457 / advisory-body, `shacl-engine` 1.2 pinned. It is
 > **not** the old `constrained-container/` proxy: a spec deep-dive (Solid §5.6 non-normative; LWS silent;
 > Shape Trees/RO-Crate are batch) re-grounded it; design `docs/superpowers/specs/2026-06-30-lws-L3-shacl-admission-design.md`,
-> plan `docs/superpowers/plans/2026-06-30-lws-L3-shacl-admission.md`. Full fork suite 1053/1053.
-> **Plan 2** (profile mechanism + `resolveStorageAuthority` + RO-Crate `conformsTo` seam) is **next**, then
-> **L4**. Deferred: the L3 live-pod gate (`make test-l3`) needs the branch pushed to GitHub. **The live
+> plan `docs/superpowers/plans/2026-06-30-lws-L3-shacl-admission.md`. Full fork suite 1053/1053; **live
+> gate `make test-l3` green** against the fork TLS pod (`la3d/lws` pushed to GitHub).
+> **Plan 2** (profile mechanism + `resolveStorageAuthority`) is **next**, then **L4**. The
+> profile/shape-selection *vocabulary* is an **open Plan-2 question, leaning W3C PROF** (`dct:conformsTo`
+> + Profiles Vocab `prof:` + profile-**roles** `role:validation`/`role:vocabulary`/`role:context`) — NOT
+> RO-Crate's app-stack tiers; `describedby` stays the enforcement pointer. See `FOLLOWUP.md` for the full
+> framing + reservations. **The live
 > forward sequencing is the design doc's §12** (`…2026-06-29-lws-storage-layer-design.md`) + current state in
 > **`FOLLOWUP.md`** — read those, not the Phase-1/2/3 "sidecar" sequencing below, which is superseded history.
 

@@ -144,9 +144,27 @@ dead `msg` arm; problem `type` URI non-resolving (RFC-9457-legal); the `400` rej
 `getAllHeaders`/CORS (pre-existing codebase convention on error responses — fix repo-wide).
 
 **▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
-*real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder), plus
-adopting the RO-Crate `conformsTo` profile-selection seam over the `.meta` `describedby`. **L4** = OKF
-projection **rewritten to LWS shapes** (the RED wiki-memory suite gets re-derived, not patched).
+*real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder). **L4** =
+OKF projection **rewritten to LWS shapes** (the RED wiki-memory suite gets re-derived, not patched).
+
+**Open design question for the Plan 2 brainstorm — profile/shape-selection vocabulary (do NOT prejudge;
+an earlier note wrongly said "adopt the RO-Crate `conformsTo` seam" — RO-Crate merely *reuses* the
+vocabulary below).** The L3 `.meta` `describedby → <shape>` stays as the **enforcement** pointer
+(validate-me-against-this-shape). The separate **authority/bundle** layer — how `resolveStorageAuthority`
+finds the shape+vocab+context set for a profile — is leaning toward **W3C PROF**: `dct:conformsTo`
+(DCMI) + the **Profiles Vocabulary** (`prof:`, W3C DXWG Note, ns `http://www.w3.org/ns/dx/prof/`:
+`prof:Profile ⊑ dct:Standard`, `prof:isProfileOf` for base-floor→profile inheritance, `prof:hasResource`/
+`prof:ResourceDescriptor`, `prof:hasRole`) + the **profile-roles vocabulary** (`…/prof/role/`:
+`role:validation`, `role:vocabulary`, `role:schema`, `role:constraints`, `role:context`…). **Chuck's
+call (2026-06-30): we will likely need the roles + vocabulary + context** — `role:vocabulary`/
+`role:context` are what **close the loop to storage** via advertised JSON-LD `@context`
+(`docs/design-notes/contextual-linked-memory.md`), and **PROF/roles were already used in the prior Solid
+experimentation**, so this is reuse, not new ground. **Reservation to weigh in the brainstorm:** PROF is
+a W3C *Note* (not a REC) and adds indirection (`resource → conformsTo → profile → hasResource →
+role:validation → artifact`) vs the one-hop `describedby`; decide how much of the bundle Plan 2 needs
+now vs. `describedby`-only + `resolveStorageAuthority`. **If adopted, ground PROF + the roles vocab as a
+new `.claude/skills/` grounded skill** (verbatim upstream, per the grounding contract). Threads into
+`docs/design-notes/iri-minting.md` (reuse-first, w3id/DID-friendly).
 **Merge model (solo dev — no PR ceremony):** each layer is built on its own `la3d/*` feature branch and
 **`git merge --no-ff` directly into `la3d/lws`** (the subagent per-task + opus whole-branch reviews are
 the gate, not a GitHub PR); `la3d/main` stays the pristine `0f4287f` pin for rebasing onto upstream releases.
