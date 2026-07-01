@@ -86,4 +86,26 @@ describe.skipIf(!lwsTypeIndex)('LWS Type Index / Search (L2.5)', () => {
     })
     expect(wrongCt.status).toBe(415)
   })
+
+  // The security-critical property: authorization-filtered discovery. /alice/lws-typeprobe
+  // is owner-private (the pod's default ACL — an anonymous GET on it 401s), so its declared
+  // type must be visible to the owner's bearer but NOT to an anonymous caller, in both the
+  // index and search. This is the live end-to-end proof of the checkAccess-and-drop filter.
+  it('authz filter: an anonymous caller does NOT see a private resource type (the bearer does)', async () => {
+    const authedIdx = await (await fetch(`${BASE}/types/index`, { headers: { Authorization: `Bearer ${token}` } })).json()
+    expect(authedIdx.items.map(i => i.id)).toContain(PROBE)
+
+    const anonIdx = await (await fetch(`${BASE}/types/index`)).json()
+    expect(anonIdx.type).toBe('TypeIndex')
+    expect(anonIdx.items.map(i => i.id)).not.toContain(PROBE)
+
+    const url = `${BASE}/types/search?type=${encodeURIComponent(PROBE)}`
+    const authedSearch = await (await fetch(url, { headers: { Authorization: `Bearer ${token}` } })).json()
+    expect(authedSearch.items.map(i => i.id).some(u => u.endsWith('/alice/lws-typeprobe'))).toBe(true)
+
+    const anonSearch = await (await fetch(url)).json()
+    expect(anonSearch.type).toBe('ContainerPage') // empty result, not an error
+    expect(anonSearch.totalItems).toBe(0)
+    expect(anonSearch.items).toEqual([])
+  })
 })
