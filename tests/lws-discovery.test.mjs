@@ -66,7 +66,10 @@ describe.skipIf(!lwsEnabled)('LWS L2 discovery surface (live --lws pod)', () => 
     expect(link.anchor.endsWith('/alice/notes/disc.ttl')).toBe(true)
     expect(link.type[0].href).toBe(`${LWS}DataResource`)
     expect(link.up[0].href.endsWith('/alice/notes/')).toBe(true)
-    expect(link.describedby[0].href.endsWith('/.well-known/lws-storage')).toBe(true)
+    // Unconstrained resource: linkset omits describedby (the shape-declaration
+    // relation). The storage description is its own rel=storageDescription
+    // header (asserted above), not a linkset describedby target.
+    expect('describedby' in link).toBe(false)
   })
 
   it('serves lws+json items[] and a Container linkset for a container', async () => {

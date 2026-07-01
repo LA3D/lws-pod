@@ -104,6 +104,13 @@ test-typeindex:
 	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/lws-typeindex.test.mjs
 
+# Indexed-relation gate — describedby Type-Search filter + linkset describedby.
+# Self-skips on a non-`--lws` pod. Needs `make up-fork-tls` running + `make cert`'s CA.
+test-indexed-relation:
+	@[ -d node_modules ] || npm ci
+	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/lws-indexed-relation.test.mjs
+
 # Projection app gate — pure unit tests + e2e against the running pod (Task 6-8).
 test-projection:
 	@[ -d projection/node_modules ] || ( cd projection && npm ci )
