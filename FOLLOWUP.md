@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-01 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 shipped, indexed-relation / Plan 2 / L4 next
+## ▶▶ 2026-06-29/07-01 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening shipped, indexed-relation / Plan 2 / L4 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -178,6 +178,38 @@ derivation cache** + notifications-CDC refresh; **body pagination**; `walkResour
 guard** (no visited-set; symlinks are git-push-only); the `.lwstypes` store is LDP-writable by the
 owner (same capability as `rel="type"`, note in §4); test-coverage adds (multi-group CNF,
 matching-nothing, skip-dir, multi-token `rel`); `parseTypeLinks` rel-token boundary.
+
+**▶ L2.5 HARDENING DONE + MERGED (2026-07-01) — safe for a VPN-fronted CRC container.** Spec
+`docs/superpowers/specs/2026-07-01-lws-typeindex-hardening-design.md`, plan
+`docs/superpowers/plans/2026-07-01-lws-typeindex-hardening.md`. **Merged into `la3d/lws`** (merge
+**`6cd5d9b`**, was branch `la3d/lws-typeindex-harden`; 8 commits). Full fork suite **1102/1102**;
+subagent-driven with three focused opus reviews of the rate-limit changes + an opus whole-branch review
+(Ready-to-merge). Container repinned (`Dockerfile.fork` + compose → `6cd5d9b`, image `fork-l2_5h`).
+**Live-verified: `make test-typeindex` 7/7 (incl. over-limit `400`), `test-l3` 2/2, `test-lws` 6/6.**
+
+Delivers: (1) **CNF complexity cap → `400`** on `/types/search` (`MAX_GROUPS=32`/`VALUES=64`/`TERMS=256`,
+dedup-evasion-proof) — closes the searchindex §Request-Equivalence-Errors / design §7 gap; (2)
+**`lwsTypeIndex` config gate** (`--no-lws-type-index` unregisters the routes + bypass + service
+advertisement; default on); (3) **trust-aware rate limits** on the resource endpoints (writes +
+`/types/*`) — **anonymous → strict per-IP `60/min`** (crawler/flood), **authenticated → generous
+per-`webId` `600/min`**, tunable via **`--write-rate-limit-max` / `JSS_WRITE_RATE_LIMIT_MAX`** (real
+write abuse bounded by WAC + quota; the cap is a runaway-agent backstop); (4) — **security finding,
+folded in** — the `@fastify/rate-limit` plugin booted *after* the idp/ap/write routes registered, so
+**every route-level limit was globally inert**: the **IdP login brute-force**, signup, and OAuth-token
+limits had **never fired**. Fixed (plugin-boot ordering + `fastify.after()` + `errorResponseBuilder`
+now throws a real `429`); these pre-auth guards stay IP-limited. Design principle: **limit the
+anonymous/pre-auth surface, not authenticated workers** (identity resolved once via a per-request
+memo on `getWebIdFromRequestAsync`, so the two-tier limit adds exactly one token-verify on the hot
+path and never changes an auth decision — opus-verified fail-safe: no path grants the generous tier
+without a *resolved* webId; `trustProxy` keeps the anon per-IP cap from collapsing behind Caddy).
+
+**Hardening deferred (all recorded, none block the VPN deploy):** **pagination + page-size cap** remains
+the **internet-facing trigger** — `/types/*` is still an on-demand full-tree walk; a rate-limited
+single walk is fine behind a VPN, but an internet-facing pod needs pagination to bound the per-request
+scan. Also: an **in-memory derivation cache** (perf); `podCreateRateLimitMax`/`idpRateLimitMax` are
+`createServer`-only (not CLI/env-threaded — defaults are the right security guards, low priority); CNF
+GET/POST branch DRY; the AP OAuth `max:10` has no test-override knob. **`describedby` indexed-relation
+follow-up + Plan 2 / L4 are still the next feature work.**
 
 **▶ indexed-relation / Plan 2 / L4 NEXT.** **Next = the indexed-relation follow-up spec** (`describedby`
 as a Type-Search filter — the profile seam). Then **Plan 2** = profile mechanism + `resolveStorageAuthority`

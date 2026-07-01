@@ -108,4 +108,11 @@ describe.skipIf(!lwsTypeIndex)('LWS Type Index / Search (L2.5)', () => {
     expect(anonSearch.totalItems).toBe(0)
     expect(anonSearch.items).toEqual([])
   })
+
+  it('an over-limit CNF filter is rejected with 400 (searchindex §Request-Equivalence-Errors)', async () => {
+    // > MAX_GROUPS (32 repeated type params) must be rejected, never silently narrowed.
+    const params = Array.from({ length: 40 }, (_, i) => `type=${encodeURIComponent('https://ex.org/T' + i)}`).join('&')
+    const r = await fetch(`${BASE}/types/search?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+    expect(r.status).toBe(400)
+  })
 })
