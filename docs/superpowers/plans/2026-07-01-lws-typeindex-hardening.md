@@ -196,6 +196,29 @@ Then attach it as the route options on the type routes (Fastify `(path, opts, ha
 
 ---
 
+### Task 4c: Trust-aware rate limiting on resource endpoints
+
+**Files:** Modify `src/server.js` (the `/types/*` + write-route rate-limit config), `src/config.js` (+ `writeRateLimitMax`), possibly a small identity-resolution step; Test: `test/` (trust-aware behavior).
+
+**Goal:** the resource-endpoint limits (writes `PUT/POST/PATCH/DELETE /*` and `/types/index` + `/types/search`) become **two-tier by trust level**, replacing Task 4b's flat `60/min` IP write limit and Task 4's flat `/types/*` limit:
+- **Authenticated → generous per-`webId` cap**, default **600 / 1 minute**, tunable via a new `writeRateLimitMax` config option (mirror the `podCreateRateLimitMax`/`idpRateLimitMax` pattern from Task 4b: `config.js` default + env + BOOLEAN/size handling + pass-through). A runaway-agent backstop; real write abuse is bounded by WAC + storage quota.
+- **Anonymous → strict per-IP cap**, `60 / 1 minute` (crawler/flood defense-in-depth; anon writes `401` anyway via WAC).
+
+**KEEP UNCHANGED** (Task 4b): the pre-auth IP guards on `/idp/credentials`, `/.pods`, `/oauth/token`, `/oauth/authorize`. Do NOT make those trust-aware — they are pre-authentication abuse guards.
+
+**Mechanism (investigate + VERIFY — this is the crux):** `@fastify/rate-limit` v9 supports function-form `max: (request) => number` and a custom `keyGenerator: (request) => string`. Use them to express both tiers in one config: `keyGenerator` → `wid:<webId>` when the caller is authenticated, else `ip:<ip>`; `max` → 600 (or `writeRateLimitMax`) when authenticated, else 60. **The wrinkle:** the rate-limit hook is `onRequest`, which runs BEFORE the auth `preHandler`, so `request.webId` is not set at limit time. Resolve the requester's `webId` at limit time — reuse `getWebIdFromRequestAsync` (`src/auth/token.js`). Strongly prefer resolving identity ONCE in an `onRequest` step (or a shared helper) that stashes `request.webId`, so the auth `preHandler` (writes) and the in-handler resolution (`/types/*` is preHandler-bypassed and already calls `getWebIdFromRequestAsync`) REUSE it rather than verifying the token twice on the hot path. If a clean single-resolution path isn't feasible and you'd be double-verifying tokens on every write, STOP and report the cost + options rather than shipping a hidden per-write double-verify.
+
+- [ ] **Step 1: Failing tests** in a dedicated `test/` file:
+  - Authenticated caller (bearer): fire 61 `/types/index` requests → all succeed (NOT 429; under the 600 authenticated cap). *(This fails today — the flat 60/min limit 429s the 61st.)*
+  - Anonymous caller: fire 61 `/types/index` requests (no auth) → a 429 appears (60/min anon cap).
+  - Authenticated write backstop (optional but preferred): with a low `writeRateLimitMax` test override, fire past it with a bearer → 429 keyed by webId; a different webId is unaffected (per-agent, not shared).
+- [ ] **Step 2: Run — expect FAIL** (authenticated 61st is 429 under the flat limit). Name commands.
+- [ ] **Step 3: Implement** the trust-aware config + `writeRateLimitMax` + the single identity-resolution path. Apply to the write routes and `/types/*`; leave idp/pods/oauth as-is.
+- [ ] **Step 4: Run — expect PASS**; re-run the Task-4b arming tests (`test/rate-limit-arming.test.js`) — the pre-auth guards must still fire. Full suite `node --test --test-concurrency=1 'test/*.test.js'` — fix any test that assumed the old flat behavior (respect the new tiers; do not weaken a limit).
+- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat(security): trust-aware rate limits on resource endpoints (anon strict / authenticated generous per-agent)"`
+
+---
+
 ### Task 5: lws-pod live gate + repin + FOLLOWUP (after Task 6 merge)
 
 **Files (lws-pod):** `tests/lws-typeindex.test.mjs`, `Dockerfile.fork`, `docker-compose.fork-tls.yml`, `FOLLOWUP.md`
