@@ -20,6 +20,18 @@ required — recorded as the trigger, not built now.
 1. **Read rate limit** on both endpoints.
 2. **CNF complexity cap → `400`** (the spec §7 conformance gap).
 3. **Config gate** to disable the type services per-deployment.
+4. **Re-arm the server's globally-inert route-level rate limits** (folded in 2026-07-01). Implementing
+   (1) surfaced — and an opus review independently reproduced at the library level — that **every**
+   route-level `@fastify/rate-limit` config in JSS is currently a no-op: the plugin's `onRoute` hook is
+   installed only when the plugin boots, but the idp/ap/write routes are registered *before* that (the
+   IdP plugin is even registered before the rate-limit plugin), so the hook never wires them. Result:
+   **IdP brute-force limits** (`/idp/credentials` login, account delete, export) and **write-flood
+   limits** (`PUT/POST/PATCH/DELETE /*`, `POST /.pods`) have **never actually been enforced**. This is
+   a pre-existing substrate security gap, not introduced here; folded into this round because it is the
+   same DoS/abuse concern for the same CRC deployment. Fix: make the rate-limit plugin's `onRoute` hook
+   present before the rate-limited routes register (reorder registration / wrap uniformly), and correct
+   the shared `errorResponseBuilder` to return a real `Error` with `.statusCode` (its plain-object form
+   never yields a `429`). Prove with tests that a write limit and an IdP limit now return `429`.
 
 **Out — deferred (kept in FOLLOWUP; not a regression to defer under the VPN threat model):**
 - **Pagination + page-size cap** — the true bound on the per-request walk; required only when pods grow

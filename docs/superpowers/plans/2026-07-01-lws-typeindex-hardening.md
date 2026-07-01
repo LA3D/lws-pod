@@ -177,6 +177,25 @@ Then attach it as the route options on the type routes (Fastify `(path, opts, ha
 
 ---
 
+### Task 4b: Re-arm the server's globally-inert route-level rate limits
+
+**Files:** Modify `src/server.js` (rate-limit plugin registration ordering + shared `errorResponseBuilder`); possibly `src/idp/index.js` / `src/ap/index.js` if their limits need the plugin registered earlier. Test: `test/` (a rate-limit integration test proving a write limit and an IdP limit now `429`).
+
+**Confirmed root cause (opus review, reproduced against `fastify@4.29.1` + `@fastify/rate-limit@9.1.0`):** the plugin wires per-route limits via an `onRoute` hook added inside the plugin body, which only fires for routes registered *after* the plugin boots. In `createServer()`: the IdP plugin (`~:409`) and AP plugin (`~:441`) register **before** the rate-limit plugin (`~:467`), and the write/`.pods` routes register synchronously — so none of their `config.rateLimit` overrides ever wire. The `/types/*` routes were already fixed in Task 4 via `fastify.after()`. Also the shared `errorResponseBuilder` returns a plain object with no `.statusCode`, so even a tripped counter never yields `429`.
+
+**Goal:** every route-level rate limit in the server actually fires — specifically the **IdP brute-force** limits (`/idp/credentials`, account delete, export) and the **write-flood** limits (`PUT/POST/PATCH/DELETE /*`, `POST /.pods`) — and returns a proper `429`.
+
+- [ ] **Step 1: Write failing integration tests** proving the limits are inert today: e.g. fire `POST /.pods` (or a write) past its limit and assert a `429` appears; fire `POST /idp/credentials` past its limit and assert `429`. (Use small dedicated servers / fresh state per test; the IdP credentials limit is nominally 10/min — confirm the exact configured max and fire max+1.) These MUST fail first (no `429` today).
+- [ ] **Step 2: Run — expect FAIL** (never `429` — the bug). Name the exact commands.
+- [ ] **Step 3: Fix the ordering** — make the rate-limit plugin's `onRoute` hook present before the rate-limited routes register. Investigate and choose the minimal robust mechanism, then VERIFY it actually arms each limit (don't assume):
+  - Register `@fastify/rate-limit` **before** the idp/ap plugins and before the write/`.pods` route registrations, and/or wrap the synchronous rate-limited route registrations in `fastify.after(...)` (the pattern Task 4 proved for `/types/*`), so the hook wires them.
+  - For the idp/ap limits (registered *inside* their plugins), the plugin must boot after rate-limit's hook exists — i.e. register rate-limit ahead of them.
+- [ ] **Step 4: Correct the shared `errorResponseBuilder`** in the `fastify.register(rateLimit, {...})` block to return a real `Error` with `.statusCode = 429` (preserving a helpful message / `Retry-After`). Now that limits fire server-wide, this is the correct global behavior; the Task-4 per-route builder on `typeQueryRateLimit` may then be removed (type routes ride the fixed global builder) OR left (harmless) — pick one and state it.
+- [ ] **Step 5: Run — expect PASS** (write + IdP limits now `429`); re-run the `/types/*` `429` test (still green); full suite `node --test --test-concurrency=1 'test/*.test.js'` — **investigate any newly-failing test**: a test that previously passed *because* a limit was inert may now legitimately hit `429`; fix such tests to respect the now-armed limit rather than masking the fix.
+- [ ] **Step 6: Commit** — `git add -A && git commit -m "fix(security): arm the globally-inert route-level rate limits (plugin-boot ordering + errorResponseBuilder)"`
+
+---
+
 ### Task 5: lws-pod live gate + repin + FOLLOWUP (after Task 6 merge)
 
 **Files (lws-pod):** `tests/lws-typeindex.test.mjs`, `Dockerfile.fork`, `docker-compose.fork-tls.yml`, `FOLLOWUP.md`
