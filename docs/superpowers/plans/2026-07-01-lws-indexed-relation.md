@@ -157,7 +157,7 @@ EOF
   - `INDEXED_RELATIONS: Set<string>` = `{'describedby'}` (the extensibility seam).
   - `parseFilter({query, body}) → { type: string[][], relations: Record<string,string[][]>, hasUnindexed: boolean }`. `type` handled specially; each key in `INDEXED_RELATIONS` becomes a `relations[key]` CNF; any other non-reserved key sets `hasUnindexed = true`. Caps enforced on a **shared budget** across all keys. Query pagination keys (`page`) and the body `@context` key are ignored (not relations).
   - `matchesFilter(resource, filter) → boolean` where `resource = { types: string[], relations?: Record<string,string[]> }`. Returns `false` if `hasUnindexed`; else type-CNF AND every relation-CNF must hold.
-- `parseTypeFilter` (existing) stays exported and behavior-identical (its own budget) — existing callers/tests unaffected.
+- `parseTypeFilter` (existing) stays exported and behavior-identical, but is **rewritten to delegate** to `parseFilter` (`return parseFilter(args).type`) — no duplicated cap logic; existing callers/tests unaffected.
 
 - [ ] **Step 1: Write failing tests**
 
@@ -234,7 +234,7 @@ Expected: FAIL — `parseFilter`/`matchesFilter`/`INDEXED_RELATIONS` not exporte
 
 - [ ] **Step 3: Implement**
 
-In `src/lws/type-index.js`, **after** the existing `parseTypeFilter` (do not modify `parseTypeFilter`), add:
+In `src/lws/type-index.js`, add the following **after** the existing `parseTypeFilter`:
 
 ```js
 export const INDEXED_RELATIONS = new Set(['describedby']);
@@ -300,6 +300,15 @@ export function matchesFilter(resource, filter) {
     if (!matchesTypeFilter((resource.relations && resource.relations[rel]) || [], cnf)) return false;
   }
   return true;
+}
+```
+
+Then **replace** the body of the existing `parseTypeFilter` so it delegates (removing its now-duplicated inline cap/group logic — DRY, behavior-identical since a type-only filter uses the same shared budget):
+
+```js
+// GET query (URLSearchParams) OR POST body → the type CNF only (back-compat).
+export function parseTypeFilter(args) {
+  return parseFilter(args).type;
 }
 ```
 
