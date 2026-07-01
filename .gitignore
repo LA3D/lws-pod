@@ -8,3 +8,6 @@ certs/
 
 # fork-build tarball (npm pack of LA3D/JavaScriptSolidServer; produced for in-container L-layer testing)
 jss-fork.tgz
+
+# transient read-only worktree of the JSS fork (source dives)
+.worktree-jss-lws/
