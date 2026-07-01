@@ -12,3 +12,4 @@ jss-fork.tgz
 # transient read-only worktree of the JSS fork (source dives)
 .worktree-jss-lws/
 .worktree-lws-typeindex/
+.worktree-harden/
