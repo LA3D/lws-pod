@@ -18,7 +18,7 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 | 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) |
 | 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
-| 6 | LWS-CID identity | CONFORMS; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
+| 6 | LWS-CID identity | CONFORMS (RS-direct profile of the AS-mediated suite); `aud`+`exp` replay-guards enforced; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS — `.meta`/`constrainedBy` work, proxy ports *(verified live)* · GAP (in-process hooks) |
 
 ---
@@ -177,6 +177,25 @@ But the "browser doctor required" reading is **wrong**: an agent can provision t
 round-trip is *only verifiable on a public deployment* — the blocker is JSS's SSRF policy, not a
 missing capability. Until that's run (public host + domain, or a patched test build), axis-2's
 bearer-replay risk stands: the practical headless credential is the replayable RS256 bearer.
+
+**Token-replay posture (verified 2026-07-02, `src/auth/lws-cid.js`).** Core §Token Security
+(`lws10-core/Security-Considerations.html`) makes **audience-binding + short lifetime** the primary
+replay mitigations (governed by RFC 9700; **RFC 8693** token-exchange for cross-domain), and all
+four auth suites require the ID Token's `aud` + `exp`/`iat`. **JSS's CID verifier enforces exactly
+this:** `aud` is required and matched against the pod's **own origin** (fail-closed if absent,
+mismatched, or if the origin can't be determined — `lws-cid.js:238-259`); `exp`/`iat` are required
+and the lifetime `exp − iat` is capped (clock-skew-tolerant — `:206-235`). So the LWS-CID credential
+is audience-bound + short-lived *as the spec mandates* — the replay protection the RS256 bearer
+(axis 2, no `aud`) structurally lacks. (Note: `aud`+short-`exp` is the spec's mitigation for CID;
+per-request proof-of-possession à la DPoP is *not* mandated for the CID suite.)
+
+**Divergence — RS-direct vs AS-mediated (record).** The auth suites are written for an
+authorization server: the ID Token's *"`aud` MUST include the target authorization server."* JSS
+has no AS — it accepts the self-signed CID JWT **directly at the resource server** and verifies
+`aud` = its own pod origin (the pod *is* the audience). This is a coherent, *more*-decentralized
+RS-direct profile that still satisfies core Token Security, but it diverges from the letter of the
+suite (audience = AS). Cross-security-domain credentials (pod↔pod / federation) are where the
+spec's RFC 8693 token-exchange + an AS would re-enter — deferred to the federation/auth track.
 
 ## 7. L2 port landing: SHACL admission, projection-on-write, git-commit-on-write
 
