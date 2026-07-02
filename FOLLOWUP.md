@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-01 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation shipped, Plan 2 / L4 next
+## ▶▶ 2026-06-29/07-02 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP shipped, Plan 2 / L4 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -246,6 +246,49 @@ call site (HEAD sets no linkset body — nothing to change, no regression). Also
 overloading vs. **`conformsTo`/W3C PROF** is the **Plan 2** profile-authority layer (this layer stays
 spec-literal `describedby`); a general relation-*capture* path (arbitrary descriptive `rel` on write) for
 relations L3 doesn't already store; container `items[].type` describedby enrichment.
+
+**▶ WORKING MCP DONE + MERGED (2026-07-02) — Plan 2 / L4 NEXT.** Made the pod's MCP a faithful,
+governed, discoverable surface over the LWS layer (spec
+`docs/superpowers/specs/2026-07-02-working-mcp-design.md`, plan
+`docs/superpowers/plans/2026-07-02-working-mcp.md`). **Merged into `la3d/lws`** (merge **`fbafd13`**, was
+branch `la3d/mcp-working`; 8 commits = 6 tasks + 2 review fixes; subagent-driven per-task reviews + opus
+whole-branch review: READY TO MERGE, no Critical/Important). Delivers (all additive; default LDP /
+non-`--lws` paths provably unchanged):
+- **Governed write** — MCP `write_resource`/`create_resource` route through a new shared `applyLwsWrite`
+  core (SHACL admission → write → type-capture), the SAME path as HTTP PUT/POST, so an MCP write can no
+  longer bypass the L3 admission floor (+ a `types` param = the `rel="type"` equivalent). Closes the
+  finding that MCP writes hit `storage.write` directly.
+- **LWS-aware read tools** — `lws_type_search` / `lws_linkset` / `lws_storage_description`, each reusing
+  the HTTP-side function (`collectAuthorizedResources` WAC-filtered walk / `generateLinkset` /
+  `buildStorageDescription`) so the **no-oracle** property is inherited, not reimplemented.
+- **`/mcp` rate-limited** — trust-aware (anon 60/min per-IP, authed per-webId), matching `/types/*`;
+  closes the previously-uncapped MCP surface.
+- **Skill reads honor WAC** — `get_skill`/`get_pod_skill`/`list_skills` **and `pod_info`** now WAC-gate;
+  closed an unauthenticated arbitrary-file read AND a pod-SKILL metadata oracle. "Public" = a public-read
+  ACL, not an auth-layer bypass.
+- **Credential-tier seam** — `mcpCredentialPolicy` (default **`trusted-local`** = today's behavior;
+  `audience-bound` fails closed, refusing the replayable bearer / anonymous, requiring LWS-CID or
+  Solid-OIDC-DPoP). Guard covers single + batch + streaming dispatch (opus-verified).
+
+**Live-pod gate DONE (2026-07-02).** `Dockerfile.fork` + `docker-compose.fork-tls.yml` repinned to
+`fbafd13` (image `fork-mcp`). New gate **`tests/mcp.test.mjs`** + **`make test-mcp`** (fork `--lws` TLS pod
+at `https://pod.vardeman.me`). **Verified live: `make test-mcp` 8/8, `test-indexed-relation` 4/4,
+`test-typeindex` 7/7, `test-l3` 2/2, `test-lws` 6/6** (no L2/L2.5/L3/indexed-relation regression). Security
+divergence recorded in `docs/foundations/05-jss-spec-conformance.md` axis 6 (CID `aud`+`exp` enforced;
+RS-direct vs AS-mediated profile).
+
+**Working-MCP deferred (recorded, with forcing functions — none block Plan 2):**
+- **Comunica/SPARQL "ask the memory" query surface** → after OKF (a cold agent needs published
+  vocabulary/`@context` to interpret raw triples). Ties to open items 5–6.
+- **Skills over the MCP Resources primitive (SEP-2640)** → align-when-stable (JSS has no Resources
+  primitive; the SEP is experimental) — kept as bespoke tools for now.
+- **Strict credential default + end-to-end CID-over-MCP accept** → public-IP rung (SSRF guard blocks CID
+  doc-fetch on a private IP); the `@public-rung` skipped test (`test/mcp-cid-e2e.test.js`) is the forcing function.
+- **A2A Agent Card / federation-as-A2A / RFC 8693 token-exchange** → federation track (`call_remote_pod` is
+  the current home-grown stand-in).
+- **Whole-branch review Minors (all defer):** an explicit anonymous-reject-under-`audience-bound` unit test
+  (fail-closed is correct-by-construction but only implicitly tested); admission-error dedup; policy-validation
+  consolidation.
 
 **▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
 *real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder); resolve
