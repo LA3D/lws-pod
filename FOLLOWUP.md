@@ -290,6 +290,20 @@ RS-direct vs AS-mediated profile).
   (fail-closed is correct-by-construction but only implicitly tested); admission-error dedup; policy-validation
   consolidation.
 
+**▶ MCP v2 REDESIGN — SPEC WRITTEN, planning next (NEW SESSION).** The working-MCP surface above works
+but is over the ~15-tool selection-accuracy budget and **drops the L3 teaching channel over MCP**
+(observed live 2026-07-02: an MCP admission reject shows only `admission rejected /path`; the SHACL
+`sh:message`/`violations` sit in an unrendered `data` field). Design of record:
+`docs/superpowers/specs/2026-07-02-mcp-v2-agent-surface-design.md` — a full **Resource-Gateway**
+redesign (reads → MCP **Resources**, queries+mutations → **Tools**, a thin composed-convenience layer
+`put_typed_resource`/`describe_resource`, structured-error teaching content, content sanitization).
+**Hard clean break** (no external consumers); a clean profile-neutral **upstream-shaped** module in
+`la3d/lws`; carries the working-MCP governance forward (`applyLwsWrite`, `collectAuthorizedResources`
+no-oracle walk, `mcpCredentialPolicy`, `/mcp` rate-limit). The spec is **self-contained for a fresh
+agent** (§0 orientation). **Next session: run `superpowers:writing-plans` against that spec**, then
+subagent-driven implementation on a new `la3d/mcp-v2` branch. Grounded in **arXiv 2606.30317** (MCP
+Server Architecture Patterns). This is the MCP *interface* track — orthogonal to the memory track below.
+
 **▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
 *real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder); resolve
 the `describedby`-vs-`conformsTo`/PROF vocabulary question (see the Plan-2 brainstorm block above). **L4**
