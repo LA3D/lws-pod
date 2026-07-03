@@ -11,6 +11,8 @@ async function rpc(method, params, token, id = 1) {
   return { status: r.status, body: r.ok ? await r.json() : null }
 }
 const text = (res) => res?.contents?.[0]?.text ?? ''
+const toolText = (res) => res?.content?.[0]?.text ?? ''
+const toolData = (res) => { try { return JSON.parse(toolText(res)) } catch { return {} } }
 
 const init = await rpc('initialize', {}).then(r => r.body).catch(() => null)
 const hasResources = !!init?.result?.capabilities?.resources
@@ -65,4 +67,35 @@ describe.skipIf(!hasResources)('MCP v2 (Resource Gateway)', () => {
     expect(obj.linkset).toBeTruthy()
     expect(obj.types).toContain(PROBE)
   })
+
+  // --- carried forward from the v1 gate (review #10) ------------------------
+
+  it('no-oracle: an anonymous lws_type_search does NOT enumerate the owner-private probe', async () => {
+    const page = toolData((await rpc('tools/call', { name: 'lws_type_search', arguments: { type: [PROBE] } } /* no token */)).body.result)
+    expect(page.type).toBe('ContainerPage')
+    expect((page.items || []).some(i => String(i.id).endsWith(PROBE_PATH))).toBe(false)
+  })
+
+  it('skill-WAC: anonymous lws://skill of the owner-private probe path is denied', async () => {
+    const r = await rpc('resources/read', { uri: `lws://skill${PROBE_PATH}` } /* no token */)
+    expect(r.body.error).toBeTruthy()
+    expect(String(r.body.error.message).toLowerCase()).toContain('access denied')
+  })
+
+  it('a bearer lws://skill of the same path is NOT denied (WAC, not a path bypass)', async () => {
+    const r = await rpc('resources/read', { uri: `lws://skill${PROBE_PATH}` }, token)
+    // Readable, or not-a-skill — but it must NOT be an access-denied error.
+    const msg = (r.body.error ? r.body.error.message : text(r.body.result)).toLowerCase()
+    expect(msg).not.toContain('access denied')
+  })
+
+  it('/mcp is rate-limited: a burst of anonymous calls eventually returns 429', async () => {
+    // Anonymous per-IP cap is 60/min; drive past it. Tolerant: SOME 429 within 75 calls.
+    let saw429 = false
+    for (let i = 0; i < 75 && !saw429; i++) {
+      const r = await rpc('tools/list', {}, undefined, 1000 + i)
+      if (r.status === 429) saw429 = true
+    }
+    expect(saw429).toBe(true)
+  }, 30_000)
 })
