@@ -325,6 +325,31 @@ behind a page-bound (v1 = fixed + templates only); `put_typed_resource` **`.meta
 `sanitizeField(e.name)` double-call (DRY); **SEP-2640** align-when-stable (skills are `lws://skill` resources, not the Resources *primitive* per the experimental SEP); strict credential default + CID-over-MCP at the public rung.
 This was the MCP *interface* track — **Plan 2 / L4 (the memory track) is now the next feature work.**
 
+**▶ MCP v2 REVIEW FIXES — DONE + MERGED (2026-07-03).** A high-effort code review of the v2 surface
+(9 finder angles + adversarial verify) surfaced 12 findings; **all 12 fixed, TDD, merged into `la3d/lws`**
+(merge **`7e9c2c1`**, was branch `la3d/mcp-v2-review-fixes`; 4 commits). Fork changes are covered by
+`test/mcp-v2-review-fixes.test.js` (14 unit/live-pod cases); mcp/lws/wac/acl/storage/container/handler
+suites green per-file (273 + 101). **Correctness/security:** #1 `put_typed_resource` now declares the
+`describedby` shape **transactionally** (snapshot → merge → roll back on reject) — no `.meta` clobber /
+dangling shape / persist-on-reject; #2 client-controlled `types`/`describedby` are **sanitized** into
+linkset/describe responses + the MCP `types` path is URI-validated (`captureDeclaredTypes` choke point);
+#3 `readAcl` resolves `<dir>/.acl` for a **slashless container** path (was showing an empty ACL for a
+governed container); #4 a **malformed `%`** in an `lws://` path → invalid-params, not a raw `URIError`
+→ `-32603`; #5/#6 new `src/mcp/read.js#readBounded` = one **byte-range bounded read** (no full load of a
+huge object) + an explicit **truncation marker** on both `lws://resource` and `describe_resource`; #7
+`call_remote_pod` **deep-sanitizes** the federated `remote_result` (the God-Tool proxy shape kept — the
+gate/depth-cap/sanitize is the governance, noted in-code); #8 a genuine skill **read error** is no longer
+masked as not-found; #9 `ResourceError` carries the same **`isError`+`content[]`** teaching shape as a
+tool error. **Maintainability:** #11 a **single surface registry** (`src/mcp/surface.js`) — parse set +
+dispatch + advertisement derive from one table (guard test); #12 reuse (`getContentType`,
+`getParentContainer`, `toolText` envelope); #10 **restored the live-gate coverage** the v2 gate dropped
+(anon no-oracle *enumeration*, `lws://skill` WAC, `/mcp` rate-limit burst). **Live-verified** on the fork
+TLS pod repinned to `7e9c2c1` (image `fork-mcp-v2-fixes`): **`make test-mcp-v2` 9/9** (was 5/5),
+**`test-l3` 2/2, `test-typeindex` 7/7, `test-indexed-relation` 4/4, `test-lws` 6/6** (no regression).
+This clears the review carryover above except the two design-level items reserved for later: `lws://` as a
+parallel namespace vs. real `https://` resource URIs (undermines LWS self-describing discovery — the
+highest-leverage redesign), and `resources/list` child enumeration behind a page-bound.
+
 **▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
 *real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder); resolve
 the `describedby`-vs-`conformsTo`/PROF vocabulary question (see the Plan-2 brainstorm block above). **L4**
