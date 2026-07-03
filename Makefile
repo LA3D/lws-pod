@@ -119,6 +119,19 @@ test-mcp-v2:
 	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/mcp-v2.test.mjs
 
+# Cold-agent affordance harness (experiments/agent-eval). -dry = plumbing smoke
+# (MCP handshake + read surface, no API key); full run needs ANTHROPIC_API_KEY.
+test-agent-eval-dry:
+	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
+	@[ -d experiments/agent-eval/node_modules ] || ( cd experiments/agent-eval && npm install --silent --no-audit --no-fund )
+	cd experiments/agent-eval && BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem node run.mjs --dry
+
+test-agent-eval:
+	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
+	@[ -n "$$ANTHROPIC_API_KEY" ] || { echo "ANTHROPIC_API_KEY not set — the agent battery needs it (use test-agent-eval-dry for the no-key smoke)"; exit 1; }
+	@[ -d experiments/agent-eval/node_modules ] || ( cd experiments/agent-eval && npm install --silent --no-audit --no-fund )
+	cd experiments/agent-eval && BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem node run.mjs
+
 # Projection app gate — pure unit tests + e2e against the running pod (Task 6-8).
 test-projection:
 	@[ -d projection/node_modules ] || ( cd projection && npm ci )
