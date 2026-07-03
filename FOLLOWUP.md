@@ -350,6 +350,39 @@ This clears the review carryover above except the two design-level items reserve
 parallel namespace vs. real `https://` resource URIs (undermines LWS self-describing discovery — the
 highest-leverage redesign), and `resources/list` child enumeration behind a page-bound.
 
+**▶ MCP AFFORDANCE SURFACE — DONE + MERGED (2026-07-03).** Resolved the first (and larger) of those two
+reserved items. Design of record `docs/superpowers/specs/2026-07-03-mcp-affordance-surface-design.md`;
+plan `docs/superpowers/plans/2026-07-03-mcp-affordance-surface.md`. **Merged into `la3d/lws`** (merge
+**`343f0bc`** + a live-gate follow-up **`161bb99`**; branch `la3d/mcp-affordance`, 6 task commits + fix
+pass + docs; subagent-driven — per-task spec+quality reviews + fable whole-branch review: Ready to merge).
+Reframed through the LWS spec + Verborgh's 2013 (affordances / "APIs they're not programmed for") and 2024
+(PIQ triad, pods-as-graph) vision; invariant = the **cold-agent affordance test**. Delivers:
+- **Retire `lws://`** — MCP Resources are the pod's **real `https://` URLs**, dispatched on the resource
+  itself (container→`lws+json`, `<X>.acl`→Control-gated view, `<X>.meta`→view, else body). The `lws://`
+  scheme (and `parseUri`/registry) fully excised; 8 `lws://` test files migrated with **every**
+  WAC/no-oracle/Control/skill assertion preserved (reviewer-verified).
+- **JSON-LD preserved** — the pod's own RDF/JSON-LD is returned structured with `@context` intact
+  (leaf-sanitized via `sanitizeJsonLeaves`); only untrusted free-text is enveloped. Content-sniff keeps
+  extensionless JSON-LD (agent cards) from being enveloped (`161bb99`, found by the live gate).
+- **Core JSON-LD `@context` made resolvable** — `www.w3.org/ns/lws/v1` **404s**; `src/lws/context.js`
+  serves + inlines the normative LWS context (`withInlineContext`) and serves it + the vocab as fixed
+  resources (`/.well-known/lws/context|vocab`). DID/VC/security contexts already resolve — `lws/v1` was
+  the single hole. (Profile/domain vocab publishing deferred to Plan 2 — deliberately, to observe cold
+  agentic behavior on core JSON-LD first.)
+- **Affordance-driven federation** — `call_remote_pod`'s `{tool,arguments}` God-Tool replaced by a thin
+  `read_remote_resource({url})` (WAC federation gate + depth cap carried verbatim, `sanitizeDeep` on the
+  remote body). Reads public remote resources; authenticated remote read deferred to the trust track.
+- **Promote-the-behavior** — `pod-info` advertises the storage root + storage description + context/vocab
+  locations + a steering `hint`; tool/resource descriptions steer toward following typed links + `@context`.
+
+**Live-verified** on the fork TLS pod repinned to `161bb99` (image `fork-affordance`): **`make test-mcp-v2`
+9/9** (real-URI read → JSON-LD w/ resolvable `@context`; no-oracle read + enumeration; teaching content;
+`describe_resource` linkset carrier; federation gate; rate-limit), **`test-l3` 2/2, `test-typeindex` 7/7,
+`test-indexed-relation` 4/4, `test-lws` 6/6** (no L2/L2.5/L3/indexed-relation regression). Deferred
+follow-ups (all recorded, none block): HTTP-layer `@context` inlining (MCP-layer shipped; §6 staged);
+`read_remote_resource` authenticated reads (trust track); non-JSON RDF (Turtle) raw passthrough;
+storage-description naming the vocab locations (spec §7); `resources/list` child enumeration (page-bound).
+
 **▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
 *real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder); resolve
 the `describedby`-vs-`conformsTo`/PROF vocabulary question (see the Plan-2 brainstorm block above). **L4**

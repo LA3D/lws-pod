@@ -12,7 +12,7 @@ RUN apt-get update \
 # Install the fork from a pinned git ref. Default = indexed-relation merge (describedby filter).
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=7e9c2c14fda8e4b0e866b2d570e138cda28a0569
+ARG JSS_GIT_REF=161bb99d6e6ba70727903dfbf29c71fb2ec56632
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
