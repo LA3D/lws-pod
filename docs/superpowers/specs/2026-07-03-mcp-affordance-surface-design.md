@@ -61,6 +61,10 @@ not seen it yet"* — the MCP surface is where we make it visible.
 Every decision below serves this test. A design element that requires the agent to already "know" the
 pod's scheme, vocabulary, or capabilities has reintroduced the out-of-band API and fails the test.
 
+It is also this round's **experiment.** Run against a core-JSON-LD-only pod — system + identity/credential
+planes resolvable, no domain profile yet (§10) — the test measures how far *core* semantics alone carry
+an agent. That measurement is the evidence that shapes Plan 2's domain layer.
+
 ---
 
 ## 2. Conceptual foundation (do not re-litigate)
@@ -83,6 +87,18 @@ LWS is JSON-LD-first. The same `@context` move recurses at each layer; each answ
 | **LWS (system)** | `…/lws/v1` (`@protected`, reuses `as:`/`schema:`) | **how is storage organized + what can it DO** (`items`, `service`, `storageDescription`, notifications) | JSS emits the reference; the target **404s** (§6) |
 | **Profile (domain)** | array `[…/lws/v1, …/profile/ctx]` | **what does the content MEAN** (OKF `concept`/`resource:`; data-catalog DCAT/CSVW) | not yet — Plan 2 dependency (§6) |
 | **Resource (instance)** | its own `@context` + `describedby` → SHACL | **what is THIS + its constraints** | L3 shapes exist, not surfaced as affordances |
+
+**The behavior to reinforce is core JSON-LD `@context` resolution — it is universal, not per-layer.**
+The **identity and trust plane rides the exact same mechanism**: a DID document, a Verifiable
+Credential, and the LWS-CID / did:key verification material are all JSON-LD `@context` documents, and the
+LWS vocabulary *reuses the security terms directly* (`sec:verificationMethod`, `sec:controller`,
+`sec:publicKeyJwk`, `sec:authentication`). So storage, identity, credentials, and domain are not four
+mechanisms — they are four instances of one: an agent that can resolve and consume `@context` at runtime
+understands all of them. And most of it is **already resolvable** — `www.w3.org/ns/did/v1`,
+`…/credentials/v1`, `…/credentials/v2`, `w3id.org/security/v2` all return `application/ld+json` (verified
+2026-07-03). The single hole is `www.w3.org/ns/lws/v1` (§6). This is why the design reinforces the
+*generic* core-JSON-LD behavior rather than any one vocabulary: patch the one hole, and the same agent
+capability lights up storage navigation, identity, and credentials for free.
 
 **Two complementary affordance kinds** (Verborgh 2013's three agent needs: machine-readable resources,
 a uniform interface, and *semantics of change*):
@@ -197,8 +213,12 @@ no, neutralize it.
 
 **The gap, verified 2026-07-03:** `https://www.w3.org/ns/lws/v1`, `…/ns/lws#`, `…/ns/lws` all **404**;
 no machine-readable LWS context/vocab is served anywhere public. JSS emits `@context:
-"https://www.w3.org/ns/lws/v1"` *by reference* → a cold agent that dereferences it gets nothing. The
-self-description stack is broken at the bottom **today**, at both the system and profile layers.
+"https://www.w3.org/ns/lws/v1"` *by reference* → a cold agent that dereferences it gets nothing. By
+contrast the identity/credential contexts the pod also relies on **do resolve** (`did/v1`,
+`credentials/v1`, `credentials/v2`, `security/v2` → 200 `application/ld+json`), so the core-JSON-LD
+behavior is mostly already supported — **`lws/v1` is the single system-layer hole.** The domain/profile
+layer is a separate, not-yet-existing job. So the self-description stack is broken at the bottom
+**today** in exactly two places: the LWS-system context (patch now) and the profile context (Plan 2).
 
 Resolvability is not polish — it is the cold-agent test. "APIs they're not programmed for" *requires*
 the agent to resolve unfamiliar terms at runtime; if it must know LWS/OKF from pretraining, it is
@@ -289,8 +309,13 @@ affordance surfacing + sanitization reconciliation; §2/§4 retire `lws://`; §3
 → thin affordance-driven remote read; §6 **system-layer** context/vocab mirror + inline context; §7
 promote-the-behavior surface.
 
-**Dependency, sequenced with Plan 2:** §6 **profile-layer** `@context`/vocab publishing (profile
-mechanism + iri-minting); this is when the *domain* self-description becomes real.
+**Dependency, sequenced with Plan 2 — deliberately, not just by ordering:** §6 **profile-layer**
+`@context`/vocab publishing. Deferred on purpose: we want to **observe agentic behavior with the core
+JSON-LD semantics first** — the system + identity/credential planes, which are (once `lws/v1` is
+mirrored) fully resolvable — before adding domain-profile richness. The cold-agent test (§1) is thus run
+first as an *experiment*: how far does a cold agent get on core JSON-LD affordances alone? What it can
+and cannot do without the domain vocab is the evidence that shapes Plan 2. Adding the profile vocab
+before observing the core-only behavior would confound that measurement.
 
 **Deferred (own later phase):** §8 the expressive query pillar.
 
