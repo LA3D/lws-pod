@@ -78,17 +78,33 @@ Solid requires LDP CRUD and WAC modes *"acl:Read … acl:Write … acl:Control"*
 *"acl:agent … acl:default"* inheritance, ACL discovery via *"a Link header with the rel
 value of acl"* (`wac.html`).
 
-**JSS.** `--mcp` exposes `POST /mcp` (JSON-RPC 2.0, `tools/list`) with `list/read/write/
-create/delete/head_resource`, `read_acl`/`write_acl`, `subscribe`, `call_remote_pod`
-(`features/mcp.md`). Crucially: *"There is no separate MCP auth layer — granting an agent
-access … is the same operation as granting a human: edit the ACL"* — every tool call is
-*"WAC-checked against that WebID, on the resource path the tool touches."* WAC modes/agent
-classes match the spec (`features/access-control.md`).
+**JSS + affordance surface (2026-07-03; fork `la3d/lws`).** `--mcp` exposes `POST /mcp`
+(JSON-RPC 2.0). **Reads are MCP Resources** addressed by the pod's **real `https://` URLs**,
+dispatched on the resource itself (container→`application/lws+json` `items[]`, `<X>.acl`→a
+`Control`-gated ACL view, `<X>.meta`→metadata, else the body — the pod's own JSON-LD preserved
+with `@context` intact, untrusted free-text enveloped). Mutations/queries stay **9 tools**:
+`write_resource`/`create_resource`/`delete_resource`/`write_acl`/`lws_type_search`/`subscribe`/
+`read_remote_resource` + convenience `put_typed_resource`/`describe_resource` (`docs/mcp.md`).
+Crucially: *"There is no separate MCP auth layer — granting an agent access … is the same
+operation as granting a human: edit the ACL"* — every **read and** tool call is WAC-checked on
+the path it touches (no-oracle: WAC **before** existence). WAC modes/agent classes match the
+spec. The real-URI model **aligns with LWS core** — a resource's URI is *independent of
+containment* and structure lives in `rel="up"`/`items`, not a URI scheme — which is why the
+earlier invented `lws://` scheme was retired.
 
 **Verdict: EXTENDS.** WAC + LDP CRUD **CONFORMS**; `/mcp` is a value-add surface on top with
-no spec to violate. Note one carve-out: `update_resource` (PATCH) is deferred (`features/
-mcp.md` "What's not yet included") — Solid PATCH exists on the raw HTTP API
-(`reference/api.md`) but not as an MCP tool.
+no spec to violate, and its reads now follow the LWS URI/discovery model rather than an
+invented namespace. Carve-outs: `update_resource` (PATCH) still deferred; `read_remote_resource`
+reads *public* remote resources only (authenticated remote read = trust track).
+
+**Finding (2026-07-03) — the LWS `@context` 404s.** `https://www.w3.org/ns/lws/v1` (and
+`…/ns/lws#`) return **404** — the W3C WG has not minted the namespace. JSS emits it by
+reference, so a cold agent that dereferences it gets nothing. The fork now **serves + inlines a
+verbatim mirror** of the normative context + a vocab doc (`/.well-known/lws/context|vocab`,
+`src/lws/context.js`) so term resolution works with zero network; canonical `www.w3.org/ns/lws#`
+term URIs are kept so the mirror retires when W3C publishes. The DID/VC/security contexts the
+pod also uses (`did/v1`, `credentials/v1|v2`, `security/v2`) **do** resolve — `lws/v1` was the
+single hole. This is a divergence-until-upstream-publishes, not a conformance gap.
 
 **Implication.** This is the cleanest win — agent identity *is* a WAC subject, revocation is
 one ACL edit. The MCP `write_acl` structured form is exactly where the L2 governance hooks
