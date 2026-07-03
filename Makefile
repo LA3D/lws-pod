@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app constrained-container experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -111,10 +111,13 @@ test-indexed-relation:
 	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/lws-indexed-relation.test.mjs
 
-test-mcp:
+# MCP v2 Resource-Gateway gate — resources/* primitive, teaching content, no-oracle,
+# put_typed_resource/describe_resource. Self-skips unless initialize advertises `resources`.
+# Needs `make up-fork-tls` running (fork-mcp-v2 image) + `make cert`'s CA.
+test-mcp-v2:
 	@[ -d node_modules ] || npm ci
 	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
-	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/mcp.test.mjs
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=certs/rootCA.pem npx vitest run tests/mcp-v2.test.mjs
 
 # Projection app gate — pure unit tests + e2e against the running pod (Task 6-8).
 test-projection:

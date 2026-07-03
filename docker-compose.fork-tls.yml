@@ -17,8 +17,8 @@ services:
       dockerfile: Dockerfile.fork
       args:
         # default JSS_GIT_REF is pinned in Dockerfile.fork (working-MCP merge); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-fbafd13547734b283e99e9ef7380a6756dea9cb6}"
-    image: lws-pod:fork-mcp
+        JSS_GIT_REF: "${JSS_GIT_REF:-0c1dd8b0cd373caaf3b21e7fdb71d728289976ba}"
+    image: lws-pod:fork-mcp-v2
     container_name: lws-pod-fork
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.
     expose:

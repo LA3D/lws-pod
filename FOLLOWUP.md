@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-02 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP shipped, Plan 2 / L4 next
+## ▶▶ 2026-06-29/07-03 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 shipped, Plan 2 / L4 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -290,19 +290,40 @@ RS-direct vs AS-mediated profile).
   (fail-closed is correct-by-construction but only implicitly tested); admission-error dedup; policy-validation
   consolidation.
 
-**▶ MCP v2 REDESIGN — SPEC WRITTEN, planning next (NEW SESSION).** The working-MCP surface above works
-but is over the ~15-tool selection-accuracy budget and **drops the L3 teaching channel over MCP**
-(observed live 2026-07-02: an MCP admission reject shows only `admission rejected /path`; the SHACL
-`sh:message`/`violations` sit in an unrendered `data` field). Design of record:
-`docs/superpowers/specs/2026-07-02-mcp-v2-agent-surface-design.md` — a full **Resource-Gateway**
-redesign (reads → MCP **Resources**, queries+mutations → **Tools**, a thin composed-convenience layer
-`put_typed_resource`/`describe_resource`, structured-error teaching content, content sanitization).
-**Hard clean break** (no external consumers); a clean profile-neutral **upstream-shaped** module in
-`la3d/lws`; carries the working-MCP governance forward (`applyLwsWrite`, `collectAuthorizedResources`
-no-oracle walk, `mcpCredentialPolicy`, `/mcp` rate-limit). The spec is **self-contained for a fresh
-agent** (§0 orientation). **Next session: run `superpowers:writing-plans` against that spec**, then
-subagent-driven implementation on a new `la3d/mcp-v2` branch. Grounded in **arXiv 2606.30317** (MCP
-Server Architecture Patterns). This is the MCP *interface* track — orthogonal to the memory track below.
+**▶ MCP v2 REDESIGN — DONE + MERGED (2026-07-03) — Plan 2 / L4 NEXT.** Redesigned the pod's MCP into a
+faithful **Resource-Gateway** surface (spec `docs/superpowers/specs/2026-07-02-mcp-v2-agent-surface-design.md`,
+plan `docs/superpowers/plans/2026-07-03-mcp-v2-agent-surface.md`). **Merged into `la3d/lws`** (merge
+**`0c1dd8b`**, was branch `la3d/mcp-v2`; 8 task commits + 1 final-review fix; subagent-driven — per-task
+spec+quality reviews + opus whole-branch review: Ready-with-fixes, the one Important fixed). Fork docs
+follow-up `4401ff8`. Delivers (all additive; default LDP / non-`--lws` paths provably unchanged):
+- **Reads → MCP Resources** under an `lws://` URI scheme (`resources/list|templates/list|read`): templated
+  `resource`/`container`/`linkset`/`meta`/`acl`/`skill` + fixed `storage-description`/`pod-info`/`skills`.
+  New module `src/mcp/{uri,resources,errors,sanitize,wac}.js`; `initialize` advertises `resources`.
+- **Hard break** — the 12 flat read/docs tools removed; capability re-appears as Resources. Tool registry
+  is now **exactly 9**: 7 core (`write_resource`,`create_resource`,`delete_resource`,`write_acl`,
+  `lws_type_search`,`subscribe`,`call_remote_pod`) + 2 convenience (`put_typed_resource`,`describe_resource`)
+  — under the ~10–15 selection-accuracy budget (arXiv 2606.30317).
+- **L3 teaching channel restored over MCP** — admission rejects now carry the SHACL `sh:message`/
+  violations/shape URI in the `content[]` text the model reads (was dropped into an unrendered `data` field).
+- **Content sanitization** — externally-sourced bodies/skills/child-names/ACL-agents are stripped of
+  hidden/bidi chars (incl. Trojan-Source isolates) and free-text bodies are wrapped in a **nonce-fenced**
+  envelope (unspoofable) — closes the cross-agent "Unsanitized Resource Content" injection on a shared pod.
+- **Governance carried forward unchanged** (opus-verified): writes route through `applyLwsWrite`; discovery
+  reuses `collectAuthorizedResources` (no-oracle — every resolver WAC-checks before `storage.exists`);
+  `mcpCredentialPolicy` + `/mcp` rate-limit untouched (`src/server.js` diff = one comment word).
+
+**Live-pod gate DONE (2026-07-03).** `Dockerfile.fork` + `docker-compose.fork-tls.yml` repinned to `0c1dd8b`
+(image `fork-mcp-v2`). New gate **`tests/mcp-v2.test.mjs`** + **`make test-mcp-v2`** (replaces the v1
+`tests/mcp.test.mjs` + `make test-mcp`). **Verified live: `make test-mcp-v2` 5/5, `test-l3` 2/2,
+`test-typeindex` 7/7, `test-indexed-relation` 4/4, `test-lws` 6/6** (no L2/L2.5/L3/indexed-relation regression).
+
+**MCP v2 deferred carryover** (all recorded, none block Plan 2): `resources/list` **child enumeration**
+behind a page-bound (v1 = fixed + templates only); `put_typed_resource` **`.meta` clobber + persist-on-reject**
+(overwrites existing `.meta` and leaves the `describedby` if admission then rejects — read-merge / write-after-success);
+`lws://resource` **200 KB truncation** drops the old `truncated` signal (agent can't tell a body is partial);
+`lws://acl` shape asymmetry (`agentClasses` full-URI vs `modes` compact); `admissionError` `String(value)` guard;
+`sanitizeField(e.name)` double-call (DRY); **SEP-2640** align-when-stable (skills are `lws://skill` resources, not the Resources *primitive* per the experimental SEP); strict credential default + CID-over-MCP at the public rung.
+This was the MCP *interface* track — **Plan 2 / L4 (the memory track) is now the next feature work.**
 
 **▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
 *real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder); resolve
