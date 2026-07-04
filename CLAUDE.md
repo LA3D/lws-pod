@@ -29,7 +29,7 @@ inlined here.
 - **`README.md`** — run instructions + repo layout.
 - **`docs/foundations/`** — the four canon docs + `05-jss-spec-conformance.md` (spec-vs-JSS map).
 - **`docs/design-notes/`** — active deliberation, **exploratory, NOT canon** (don't build from it as settled).
-- **`.claude/skills/`** — seven grounded, source-pinned spec/implementation reference skills (`.claude/skills/README.md`).
+- **`.claude/skills/`** — eleven grounded, source-pinned spec/implementation reference skills (`.claude/skills/README.md`).
 
 **Direction of record (2026-06-28):** re-founded as a general substrate. Design of record is
 `docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md`. The reconciliation (profile

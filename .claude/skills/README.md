@@ -14,6 +14,10 @@ decisions, eval results, or open research threads live in a skill — those stay
 | `okf` | Open Knowledge Format v0.1 | wiki-memory content model |
 | `semantic-markdown` | Semantic Markdown (RDFa-Lite-for-md) | inline RDF in concept cards |
 | `jss-server` | JavaScriptSolidServer published docs site (implementation) | the actual server under eval — getting-started, features, guides, API/CLI/config reference |
+| `databook` | W3C Holon CG DataBook — Markdown carrier for typed RDF/SPARQL/SHACL (the semantic-web profile over OKF) | OKF↔DataBook crosswalk; parameterized queries |
+| `json-ld` | W3C JSON-LD 1.1 — syntax / API / framing RECs + Best Practices | the `@context` base of the self-description stack (LWS = an application of it) |
+| `profiles` | W3C "The Profiles Vocabulary" (PROF) + the profile-roles vocabulary | the profile-authority / bundle layer (Plan 2 — `isProfileOf`, `hasResource`, `role:validation`/`vocabulary`/`context`) |
+| `mcp-protocol` | MCP 2025-03-26 spec + schema + the experimental Skills-over-MCP extension (SEP-2640); arXiv 2606.30317 cited-not-vendored | the pod's `/mcp` agent surface — the Tools (model-controlled) vs Resources (application-driven) control model |
 
 Provenance for each is in its `UPSTREAM.md`. Verify the contract with
 `scripts/check-skill-grounding.sh`.

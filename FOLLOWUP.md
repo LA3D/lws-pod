@@ -11,6 +11,15 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
+**▶▶ NEXT SESSION (2026-07-04 decision — do this first).** Build **profiles / Plan 2 (the memory track)
+FIRST**, *then* loop back to the deferred **MCP affordance-spec correction** (the model-driven read/nav
+fix, see the POST-AFFORDANCE block below). **Rationale:** Plan 2 (profile mechanism + the pod-served
+operating-skills direction) will reshape what the MCP surface must expose — correcting the surface now and
+re-correcting it after Plan 2 repeats work; do the memory layer, let it inform the surface, then correct
+MCP once. The three base reference groundings this needs are **DONE**: `.claude/skills/{json-ld, profiles,
+mcp-protocol}` (all pass `check-skill-grounding.sh`). Plan-2 grounding is ready (`profiles`/PROF +
+`json-ld` + `lws-protocol`).
+
 **Decision (design of record):** `docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`,
 the **"Substrate — RESOLVED"** block. We **fork production JSS 0.0.210 and add the LWS storage layer
 in-process** (not a fronting proxy, not lwsd/tudor). Why: LWS-CID auth already ships in 0.0.210; the
@@ -382,6 +391,40 @@ Reframed through the LWS spec + Verborgh's 2013 (affordances / "APIs they're not
 follow-ups (all recorded, none block): HTTP-layer `@context` inlining (MCP-layer shipped; §6 staged);
 `read_remote_resource` authenticated reads (trust track); non-JSON RDF (Turtle) raw passthrough;
 storage-description naming the vocab locations (spec §7); `resources/list` child enumeration (page-bound).
+
+**▶ POST-AFFORDANCE — harness + Resources-vs-Tools finding + grounding pass (2026-07-04).** After the
+affordance surface merged, we tested it *with an agent* and grounded the gaps that surfaced:
+
+- **Cold-agent harness — DONE.** `experiments/agent-eval/` (`make test-agent-eval[-dry]`): a real Claude
+  tool-use loop over the pod's MCP surface, cold (root URL only), scoring read/navigate/write-recover/
+  federate/injection/resolve-term. **Dry smoke passes live** (handshake + read surface + no-oracle); the
+  full battery needs `ANTHROPIC_API_KEY`. This is the **R&D pipeline** for the eventual operating skills
+  (working trajectories → documented procedures). Next for it: the **ablation** (affordances on vs
+  `@context`-404 vs no steering hint) — needs pod variants.
+- **JSS MCP handshake VERIFIED + Claude Code can use the pod as a tool.** JSS speaks a **stateless** subset
+  of MCP Streamable HTTP (2025-03-26; no `Mcp-Session-Id`, JSON not SSE, no `GET`/`DELETE /mcp`). Empirically
+  `claude mcp add` → `✔ Connected`, and a headless `claude -p` **called a pod tool end-to-end**. Claude Code
+  subagents can use the pod tools (`mcp__<server>__*`, inherited or scoped in agent frontmatter).
+- **▶ OPEN: the Resources-vs-Tools consumption finding (the MCP correction thread — DEFERRED to after Plan
+  2).** The affordance spec makes autonomous cold-agent navigation THE invariant (§1) but puts the read/
+  follow loop in the MCP **Resources** primitive — which the `mcp-protocol` skill now grounds as
+  **application-driven** (host-staged), not **model-controlled** (Tools). So a stock client (Claude Code)
+  and the API loop don't drive the affordance loop autonomously — the harness had to **bridge** Resources
+  into read *tools*. Fix (spec §1/§4/§7/§11): a **model-driven read/nav tool path** (`read(uri)` + a
+  discovery entry, ~2–3 tools, under budget) *alongside* Resources (kept for the host/@-mention view). **Do
+  this AFTER Plan 2** (see NEXT SESSION at top).
+- **Design-note — `docs/design-notes/agent-operating-skills.md`.** Two skill classes: **grounding-reference**
+  (verbatim upstream, for *building*) vs **agent-operating** (authored how-to, for *using* — cannot live
+  under the grounded contract). The Obsidian vault's skills are the proven prototype; the LWS operating
+  skills generalize them onto the substrate. Layer them base (`linked-web-memory`, harness-portable) +
+  profile (**pod-served**, SEP-2640). Gate: pod-served skills must be **model-driven-reachable** (same fix
+  as above). Operating skills are built **last**, distilled from the harness. SEP-2640 delegates the skill
+  *format* to **agentskills.io** (a likely future grounded skill for the operating layer).
+- **Grounded-skill pass — DONE (3 new, 11/11 pass).** `json-ld` (data-axis base — JSON-LD 1.1 syntax/api/
+  framing RECs + BP), `profiles` (PROF — the profile-authority vocab Plan 2 needs), `mcp-protocol`
+  (interface-axis base — MCP 2025-03-26 spec + schema + the experimental SEP-2640 skills-ext, Apache-2.0
+  vendored; **arXiv 2606.30317 cited-not-vendored** — arXiv license + it's guidance not a spec). These close
+  the grounding gap that let the reads-as-Resources decision go unexamined.
 
 **▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
 *real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder); resolve
