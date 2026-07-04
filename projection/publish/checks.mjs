@@ -94,7 +94,7 @@ export function usedTermsFromContext(ctxObj) {
   return [...new Set(out)]
 }
 
-export async function checkVocabulary(ttlText, usedTerms) {
+export async function checkVocabulary(ttlText, usedTerms, knownGaps = []) {
   let quads
   try { quads = new Parser().parse(ttlText) } catch (e) { return [`vocabulary: unparseable Turtle (${e.message})`] }
   const subjects = new Set(quads.map((q) => q.subject.value).filter((s) => s.startsWith('http')))
@@ -104,5 +104,9 @@ export async function checkVocabulary(ttlText, usedTerms) {
   return usedTerms
     .filter((t) => localNs.has(t.slice(0, Math.max(t.lastIndexOf('#'), t.lastIndexOf('/')) + 1)))
     .filter((t) => !subjects.has(t))
+    // knownGaps: verified upstream gaps (declared in a curated context, undefined
+    // in the pinned mirror) — recorded rather than patched (spec §3, verbatim-
+    // mirror discipline). Silently excluded here; the caller logs the notice.
+    .filter((t) => !knownGaps.includes(t))
     .map((t) => `vocabulary: used term not defined: ${t}`)
 }

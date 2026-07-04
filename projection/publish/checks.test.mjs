@@ -6,6 +6,10 @@ import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsF
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const read = (f) => readFile(join(DEFS, f), 'utf8')
+// publish.mjs is a top-level script (no main() guard) — importing it runs the
+// whole publish flow and throws '--base required'. Redeclared here, single
+// source of truth stays the KNOWN_VOCAB_GAPS export in publish.mjs.
+const KNOWN_VOCAB_GAPS = ['https://la3d.github.io/llm-wiki-colab/ontology#mentions']
 
 describe('declaration-time checks (spec §9 — fail loud at publish)', () => {
   it('our own descriptors pass', async () => {
@@ -50,12 +54,18 @@ describe('declaration-time checks (spec §9 — fail loud at publish)', () => {
     // '@base' and the 'type':'@type' keyword alias must not leak through as terms.
     expect(used.some((t) => t.endsWith('#type') || t === '@type')).toBe(false)
   })
-  it('vocabulary completeness: llm-wiki context terms are ALL defined in the ontology (genuine pass — publish-gate viability proof)', async () => {
+  it('vocabulary completeness: llm-wiki context terms are ALL defined in the ontology, modulo the recorded known-gaps allowlist (genuine pass — publish-gate viability proof)', async () => {
     const ctx = JSON.parse(await read('llm-wiki/context.jsonld'))
     const used = usedTermsFromContext(ctx)
     expect(used.length).toBeGreaterThan(10) // sanity: real CURIE-resolved coverage, not zero
-    const report = await checkVocabulary(await read('llm-wiki/ontology.ttl'), used)
+    const report = await checkVocabulary(await read('llm-wiki/ontology.ttl'), used, KNOWN_VOCAB_GAPS)
     expect(report).toEqual([])
+  })
+  it('vocabulary completeness: WITHOUT the allowlist, the real tree surfaces exactly the known mentions gap (pins the upstream fact as visible)', async () => {
+    const ctx = JSON.parse(await read('llm-wiki/context.jsonld'))
+    const used = usedTermsFromContext(ctx)
+    const report = await checkVocabulary(await read('llm-wiki/ontology.ttl'), used)
+    expect(report).toEqual([`vocabulary: used term not defined: ${KNOWN_VOCAB_GAPS[0]}`])
   })
   it('vocabulary completeness: external-vocabulary terms (dct:, skos:, …) are out of scope', async () => {
     const used = usedTermsFromContext({ '@context': { title: 'http://purl.org/dc/terms/title' } })
@@ -65,7 +75,9 @@ describe('declaration-time checks (spec §9 — fail loud at publish)', () => {
     const ctx = JSON.parse(await read('llm-wiki/context.jsonld'))
     ctx['@context'].fake = 'llm-wiki-colab:doesNotExist'
     const used = usedTermsFromContext(ctx)
-    const report = await checkVocabulary(await read('llm-wiki/ontology.ttl'), used)
+    // Pass the allowlist so this isolates the freshly-injected drift from the
+    // already-recorded, real upstream 'mentions' gap (asserted separately above).
+    const report = await checkVocabulary(await read('llm-wiki/ontology.ttl'), used, KNOWN_VOCAB_GAPS)
     expect(report).toEqual(['vocabulary: used term not defined: https://la3d.github.io/llm-wiki-colab/ontology#doesNotExist'])
   })
 })
