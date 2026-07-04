@@ -49,6 +49,36 @@ describe('resolveStorageAuthority', () => {
     const r = await resolveStorageAuthority('https://pod.example/z.md', { fetchFn: f })
     expect(r.profileIndex).toBeNull()
   })
+
+  it('falls back to the well-known convention when the HEAD probe throws', async () => {
+    const inner = mockFetch({ [SD_URL]: { body: SD } })
+    const f = async (url, opts = {}) => {
+      if (opts.method === 'HEAD') throw new Error('network down')
+      return inner(url, opts)
+    }
+    const r = await resolveStorageAuthority('https://pod.example/alice/notes/x.md', { fetchFn: f })
+    expect(r.authority).toBe('https://pod.example/')
+  })
+
+  it('picks the storageDescription link from comma-separated Link header', async () => {
+    const f = mockFetch({
+      'https://pod.example/alice/notes/x.md': { body: '', headers: {
+        link: `<https://other.example/x>; rel="preload", <${SD_URL}>; rel="https://www.w3.org/ns/lws#storageDescription"` } },
+      [SD_URL]: { body: SD },
+    })
+    const r = await resolveStorageAuthority('https://pod.example/alice/notes/x.md', { fetchFn: f })
+    expect(r.authority).toBe('https://pod.example/')
+  })
+
+  it('recognizes storageDescription in multi-token rel attribute', async () => {
+    const f = mockFetch({
+      'https://pod.example/alice/notes/x.md': { body: '', headers: {
+        link: `<${SD_URL}>; rel="preconnect https://www.w3.org/ns/lws#storageDescription"` } },
+      [SD_URL]: { body: SD },
+    })
+    const r = await resolveStorageAuthority('https://pod.example/alice/notes/x.md', { fetchFn: f })
+    expect(r.authority).toBe('https://pod.example/')
+  })
 })
 
 describe('readProfileIndex', () => {
