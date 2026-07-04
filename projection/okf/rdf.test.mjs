@@ -24,4 +24,15 @@ describe('jsonldToQuads', () => {
   it('throws on unparseable input', async () => {
     await expect(jsonldToQuads('not json at all')).rejects.toThrow()
   })
+
+  it('threads a custom documentLoader for remote @context resolution', async () => {
+    const doc = { '@context': 'ctx.jsonld', '@id': '', title: 'hi' }
+    const loader = async (url) => {
+      if (url === 'https://x/profiles/ctx.jsonld')
+        return { contextUrl: null, document: { '@context': { dct: 'http://purl.org/dc/terms/', title: 'dct:title' } }, documentUrl: url }
+      throw new Error(`unexpected fetch of ${url}`)
+    }
+    const quads = await jsonldToQuads(doc, 'https://x/profiles/d.jsonld', { documentLoader: loader })
+    expect(quads[0].predicate.value).toBe('http://purl.org/dc/terms/title')
+  })
 })

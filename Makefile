@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app constrained-container experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-projection test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-projection publish-profiles test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -136,6 +136,14 @@ test-agent-eval:
 test-projection:
 	@[ -d projection/node_modules ] || ( cd projection && npm ci )
 	cd projection && npm test
+
+# Publish the profile definitions to the fork TLS pod + bind the demo container.
+# Needs `make up-fork-tls` running + `make cert`'s CA. POD_TOKEN via tests helper flow.
+publish-profiles:
+	@[ -d projection/node_modules ] || ( cd projection && npm ci )
+	cd projection && NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem \
+	  node publish/publish.mjs --base https://pod.vardeman.me --container /alice/profiles/ \
+	  --bind /alice/concepts/=llm-wiki --token $${POD_TOKEN}
 
 # Wiki-memory app gate — unit tests (jsdom/node), e2e excluded (Task 10).
 test-app:

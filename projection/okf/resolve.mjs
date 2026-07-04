@@ -29,5 +29,8 @@ export async function readProfileIndex(indexUrl, { fetchFn = fetch } = {}) {
   const r = await fetchFn(indexUrl, { headers: { accept: 'application/ld+json, application/json' } })
   if (!r.ok) throw new Error(`profile index ${indexUrl} -> ${r.status}`)
   const doc = await r.json()
-  return { profiles: doc.profiles ?? [], defaultProfile: doc.defaultProfile ?? null }
+  return {
+    profiles: (doc.profiles ?? []).map((p) => new URL(p, indexUrl).href),
+    defaultProfile: doc.defaultProfile ? new URL(doc.defaultProfile, indexUrl).href : null,
+  }
 }

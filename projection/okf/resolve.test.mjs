@@ -93,4 +93,19 @@ describe('readProfileIndex', () => {
     expect(r.profiles).toHaveLength(2)
     expect(r.defaultProfile).toBe('https://pod.example/profiles/okf-base.jsonld')
   })
+
+  it('resolves relative profile entries against the index URL', async () => {
+    const f = mockFetch({
+      'https://pod.example/profiles/index.jsonld': { body: {
+        profiles: ['substrate-floor.jsonld', 'llm-wiki/profile.jsonld'],
+        defaultProfile: 'okf-base.jsonld',
+      } },
+    })
+    const r = await readProfileIndex('https://pod.example/profiles/index.jsonld', { fetchFn: f })
+    expect(r.profiles).toEqual([
+      'https://pod.example/profiles/substrate-floor.jsonld',
+      'https://pod.example/profiles/llm-wiki/profile.jsonld',
+    ])
+    expect(r.defaultProfile).toBe('https://pod.example/profiles/okf-base.jsonld')
+  })
 })
