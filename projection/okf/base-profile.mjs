@@ -2,26 +2,34 @@
 import { indexChannel } from './index-channel.mjs'
 import { makeIdentityPolicy } from './identity.mjs'
 
-// The OKF floor: any OKF bundle projects under this. `base` is a placeholder, overridden
-// per-pod at deploy (Plan 3 wires the pod's storage IRI authority). Maps `type`→@type and
-// `title`/`description`→dcterms — nothing else. A bare `type:` value is NOT resolved to an
-// absolute class IRI: asTypeCurie() hardcodes `skos:` prefix which is absent here, so the
-// emitted rdf:type object is an unresolved curie ('skos:Reference'). Engine-vocabulary debt
-// violating the no-vocab-in-engine rule; real type-scheme resolution is deferred to Plan 2.
-// Bundles that rely on the type triple must wait for Plan 2.
-const context = {
-  '@context': {
-    dcterms: 'http://purl.org/dc/terms/',
-    type: '@type',
-    title: { '@id': 'dcterms:title' },
-    description: { '@id': 'dcterms:description' },
-  },
+// The OKF floor context: type→@type, title/description→dcterms — nothing else.
+// Type-scheme resolution happens through the profile context (+ proto @vocab);
+// the old asTypeCurie 'skos:' engine-vocabulary debt is gone (Plan-1 #4 fixed).
+const baseContext = {
+  dcterms: 'http://purl.org/dc/terms/',
+  type: '@type',
+  title: { '@id': 'dcterms:title' },
+  description: { '@id': 'dcterms:description' },
 }
 
+// The running path: authority is RESOLVED (resolveStorageAuthority), never a
+// config literal. The proto @vocab layer implements P6 (mint, don't drop).
+export function makeBaseProfile(authority) {
+  return {
+    application: 'okf-base',
+    types: null,
+    channels: [indexChannel],
+    context: { '@context': { ...baseContext, '@vocab': authority + 'proto#' } },
+    identityPolicy: makeIdentityPolicy({ base: authority }),
+  }
+}
+
+// Legacy placeholder export — unit-test fixture ONLY. Not reachable from any
+// running path (acceptance #2). Kept so pre-Plan-2 okf unit tests still compile.
 export const baseProfile = {
   application: 'okf-base',
   types: null,
   channels: [indexChannel],
-  context,
+  context: { '@context': baseContext },
   identityPolicy: makeIdentityPolicy({ base: 'urn:okf:base/' }),
 }
