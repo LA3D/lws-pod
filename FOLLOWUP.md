@@ -68,6 +68,21 @@ vocabulary gate, carried as `KNOWN_VOCAB_GAPS` in `publish.mjs` (the mirror is N
 discipline held). (4) Fork `test/mcp-lws-read.test.js` has a pre-existing open-handle hang (node
 v26.4.0) — suites run with `--test-force-exit`.
 
+**▶ Cold-agent probe over the profile mechanism — PASSED (2026-07-04).** A fresh agent (zero project
+context; given only the pod URL + CA cert, read-only, no mention of LWS/Solid/profiles) reconstructed
+the whole stack from HTTP affordances alone: protocol identification from root headers; storage
+description → `ProfileIndexService` → the full PROF chain (floor ← okf-base ← llm-wiki, `isProfileOf`
+walked, role operation-contracts understood — quoted "never a source of meaning" back); `/alice/concepts/`
+governance via `.meta` → `dct:conformsTo` + `powder:describedby` → shapes; and derived the actual write
+rules (title = the sole Violation-level gate; typed edges advisory; identity `pathPrefix/#it` with
+"never carries an authority literal" noted; terms via the profile context). **Friction found (maps to
+recorded carryovers):** (a) it expected `ldp:constrainedBy` on the container Link header (Solid §5.6) —
+the L3 co-emission carryover validated by a real cold agent; (b) it SAW the `rel="linkset"` affordance
+but never negotiated it — found `.meta` by listing the container instead; the conformsTo-in-linkset
+surface works (gate-proven) but isn't *salient* to a cold agent — steering/promote-the-behavior input
+for the MCP-correction round; (c) NEW minor: `GET /mcp` 404s with an `Allow` header that omits `POST` —
+a small misleading affordance on the MCP endpoint, fold into the MCP correction.
+
 **Deferred carryover (recorded, none block):** conformsTo as a second indexed relation +
 fork-native conformsTo admission (post-L4); w3id registration (public rung); edge-target cross-card
 `id:` resolution, trigger runtime adoption of `loadProfile`, typing-channel materialization rule,
