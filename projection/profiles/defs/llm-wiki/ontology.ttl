@@ -469,3 +469,8 @@ llm-wiki-colab:excludes a rdf:Property ;
     skos:definition "Inverse of outOfScopeFor. Materialized: if A outOfScopeFor B, then B excludes A."@en ;
     owl:inverseOf llm-wiki-colab:outOfScopeFor ;
     skos:editorialNote "Materialized by build-graph.sh. Not asserted in frontmatter."@en .
+
+llm-wiki-colab:mentions a rdf:Property ;
+    rdfs:label "mentions"@en ;
+    skos:definition "This page references the target via a plain body wikilink, distinct from the typed edge fields above."@en ;
+    skos:editorialNote "Materialized by build-graph.sh from plain-text wikilinks in the note body. Not asserted in frontmatter."@en .

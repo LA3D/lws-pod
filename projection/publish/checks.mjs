@@ -74,9 +74,35 @@ export function checkContext(jsonText, name, curatedBases = []) {
   return out
 }
 
+// Terms actually USED by a context: skip @-keywords and keyword aliases,
+// skip namespace-prefix declarations (values ending #/), expand CURIEs
+// against the context's own prefixes. Returns absolute IRIs only.
+export function usedTermsFromContext(ctxObj) {
+  const ctx = ctxObj['@context'] ?? ctxObj ?? {}
+  const prefixes = {}
+  for (const [k, v] of Object.entries(ctx))
+    if (!k.startsWith('@') && typeof v === 'string' && /[#/]$/.test(v)) prefixes[k] = v
+  const out = []
+  for (const [k, raw] of Object.entries(ctx)) {
+    if (k.startsWith('@')) continue
+    const v = typeof raw === 'object' && raw !== null ? raw['@id'] : raw
+    if (typeof v !== 'string' || v.startsWith('@') || /[#/]$/.test(v)) continue
+    if (/^https?:/i.test(v)) { out.push(v); continue }
+    const i = v.indexOf(':')
+    if (i > 0 && prefixes[v.slice(0, i)]) out.push(prefixes[v.slice(0, i)] + v.slice(i + 1))
+  }
+  return [...new Set(out)]
+}
+
 export async function checkVocabulary(ttlText, usedTerms) {
   let quads
   try { quads = new Parser().parse(ttlText) } catch (e) { return [`vocabulary: unparseable Turtle (${e.message})`] }
-  const subjects = new Set(quads.map((q) => q.subject.value))
-  return usedTerms.filter((t) => !subjects.has(t)).map((t) => `vocabulary: used term not defined: ${t}`)
+  const subjects = new Set(quads.map((q) => q.subject.value).filter((s) => s.startsWith('http')))
+  // Local namespaces = where this ontology actually defines things; terms in
+  // external vocabularies (dct:, skos:, …) are defined elsewhere, not here.
+  const localNs = new Set([...subjects].map((s) => s.slice(0, Math.max(s.lastIndexOf('#'), s.lastIndexOf('/')) + 1)))
+  return usedTerms
+    .filter((t) => localNs.has(t.slice(0, Math.max(t.lastIndexOf('#'), t.lastIndexOf('/')) + 1)))
+    .filter((t) => !subjects.has(t))
+    .map((t) => `vocabulary: used term not defined: ${t}`)
 }

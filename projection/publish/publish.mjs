@@ -5,7 +5,7 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
-import { checkDescriptor, checkShapes, checkContext, checkVocabulary } from './checks.mjs'
+import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext } from './checks.mjs'
 import { loadProfile } from '../okf/profile-loader.mjs'
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
@@ -39,7 +39,7 @@ for (const v of Object.values(wikiCtx)) if (typeof v === 'string' && /[#/]$/.tes
 for (const d of DESCRIPTORS) failures.push(...await checkDescriptor(await readFile(join(DEFS, d), 'utf8'), new URL(d, root).href))
 for (const s of ['okf-base.shape.ttl', 'llm-wiki/shapes.ttl']) failures.push(...await checkShapes(await readFile(join(DEFS, s), 'utf8'), s))
 for (const c of ['okf-base.context.jsonld', 'llm-wiki/context.jsonld']) failures.push(...checkContext(await readFile(join(DEFS, c), 'utf8'), c, curatedBases))
-const used = Object.values(wikiCtx).map((v) => (typeof v === 'object' ? v['@id'] : v)).filter((v) => typeof v === 'string' && v.startsWith('http'))
+const used = usedTermsFromContext(wikiCtx)
 failures.push(...await checkVocabulary(await readFile(join(DEFS, 'llm-wiki/ontology.ttl'), 'utf8'), used))
 if (failures.length) { console.error('DECLARATION CHECKS FAILED:\n' + failures.map((f) => ' - ' + f).join('\n')); process.exit(1) }
 
@@ -62,7 +62,7 @@ for (const b of binds) {
   const descriptor = tokenName === 'llm-wiki' ? new URL('llm-wiki/profile.jsonld', root).href
     : new URL(`${tokenName}.jsonld`, root).href
   const loaded = await loadProfile(descriptor)
-  const metaUrl = new URL(path.endsWith('/') ? path + '.meta' : path + '.meta', base).href
+  const metaUrl = new URL(path + '.meta', base).href
   let meta = {}
   const r0 = await fetch(metaUrl, { headers: { ...headers, accept: 'application/ld+json' } })
   if (r0.ok) { try { meta = await r0.json() } catch { meta = {} } }

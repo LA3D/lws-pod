@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { checkDescriptor, checkShapes, checkContext, checkVocabulary } from './checks.mjs'
+import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext } from './checks.mjs'
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const read = (f) => readFile(join(DEFS, f), 'utf8')
@@ -33,18 +33,39 @@ describe('declaration-time checks (spec §9 — fail loud at publish)', () => {
     expect(checkContext('{"@context":{"@vocab":""}}', 'bad', []).length).toBeGreaterThan(0)
     expect(checkContext('{"@context":{"items":"https://example.org/x#items"}}', 'bad', []).length).toBeGreaterThan(0)
   })
-  it('vocabulary completeness: llm-wiki context/shape terms are defined in the ontology', async () => {
-    const ctx = JSON.parse(await read('llm-wiki/context.jsonld'))['@context'] ?? {}
-    const used = Object.values(ctx).map((v) => (typeof v === 'object' ? v['@id'] : v))
-      .filter((v) => typeof v === 'string' && v.startsWith('http'))
-    // KNOWN FINDING (Task 7 review): the naive value-extraction above pulls in the
-    // context's namespace-prefix values and @base (full https:// strings) alongside
-    // any fully-expanded term IRIs — none of those are meant to be ontology SUBJECTS,
-    // so checkVocabulary correctly reports them as "used but undefined". This is not
-    // a checkVocabulary bug (kept strict) nor a real llm-wiki-colab ontology gap — it's
-    // this test's extraction picking up namespace roots. Documented in task-7-report.md.
+  it('context lint: keyword-alias exemption has a boundary — only the EXACT alias is exempt', () => {
+    // 'type' re-declared as the real @type alias is a no-op, not a collision.
+    expect(checkContext('{"@context":{"type":"@type","id":"@id"}}', 'ok', [])).toEqual([])
+    // 'type' re-pointed at anything else is a real collision with the LWS protected term.
+    expect(checkContext('{"@context":{"type":"https://example/other"}}', 'bad', []).length).toBeGreaterThan(0)
+  })
+  it('usedTermsFromContext: resolves CURIEs, skips keywords/aliases/prefix declarations', async () => {
+    const ctx = JSON.parse(await read('llm-wiki/context.jsonld'))
+    const used = usedTermsFromContext(ctx)
+    expect(used).toContain('https://la3d.github.io/llm-wiki-colab/ontology#up')
+    expect(used).toContain('http://purl.org/dc/terms/title')
+    // namespace-prefix declarations themselves (llm-wiki-colab:, skos:, dcterms:, xsd:)
+    // are not "used terms" — they're plumbing, not vocabulary the ontology must define.
+    expect(used).not.toContain('https://la3d.github.io/llm-wiki-colab/ontology#')
+    // '@base' and the 'type':'@type' keyword alias must not leak through as terms.
+    expect(used.some((t) => t.endsWith('#type') || t === '@type')).toBe(false)
+  })
+  it('vocabulary completeness: llm-wiki context terms are ALL defined in the ontology (genuine pass — publish-gate viability proof)', async () => {
+    const ctx = JSON.parse(await read('llm-wiki/context.jsonld'))
+    const used = usedTermsFromContext(ctx)
+    expect(used.length).toBeGreaterThan(10) // sanity: real CURIE-resolved coverage, not zero
     const report = await checkVocabulary(await read('llm-wiki/ontology.ttl'), used)
-    expect(report.length).toBeGreaterThan(0)
-    expect(report).toEqual(used.map((t) => `vocabulary: used term not defined: ${t}`))
+    expect(report).toEqual([])
+  })
+  it('vocabulary completeness: external-vocabulary terms (dct:, skos:, …) are out of scope', async () => {
+    const used = usedTermsFromContext({ '@context': { title: 'http://purl.org/dc/terms/title' } })
+    expect(await checkVocabulary(await read('llm-wiki/ontology.ttl'), used)).toEqual([])
+  })
+  it('vocabulary completeness: a drifted local term IS caught', async () => {
+    const ctx = JSON.parse(await read('llm-wiki/context.jsonld'))
+    ctx['@context'].fake = 'llm-wiki-colab:doesNotExist'
+    const used = usedTermsFromContext(ctx)
+    const report = await checkVocabulary(await read('llm-wiki/ontology.ttl'), used)
+    expect(report).toEqual(['vocabulary: used term not defined: https://la3d.github.io/llm-wiki-colab/ontology#doesNotExist'])
   })
 })
