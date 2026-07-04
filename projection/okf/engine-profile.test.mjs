@@ -62,4 +62,20 @@ describe('makeEngineProfile', () => {
     const { quads } = cardToQuads('---\nextends: did:web:pod.example:z\n---\n', AUTH + 'e.md', ns, p.identityPolicy)
     expect(quads.find((q) => q.predicate.value === 'https://example.org/wm#extends').object.value).toBe('did:web:pod.example:z')
   })
+
+  it('explicit-curie type: resolves through the context prefixes end-to-end', () => {
+    const p = makeEngineProfile(loaded, AUTH)
+    const ns = loadNamespaces(p.context)
+    const { quads } = cardToQuads('---\ntype: wm:Concept\n---\n', AUTH + 'c2.md', ns, p.identityPolicy)
+    expect(quads.find((q) => q.predicate.value.endsWith('#type')).object.value).toBe('https://example.org/wm#Concept')
+  })
+
+  it('unknown key with NO vocab in context is dropped silently, protoTerms empty (legacy branch)', () => {
+    const noVocabCtx = { '@context': { dcterms: 'http://purl.org/dc/terms/', title: { '@id': 'dcterms:title' } } }
+    const ns = loadNamespaces(noVocabCtx)
+    const p = makeEngineProfile(loaded, AUTH)
+    const { quads, protoTerms } = cardToQuads('---\ntitle: X\nvibe: chill\n---\n', AUTH + 'n2.md', ns, p.identityPolicy)
+    expect(quads.some((q) => q.predicate.value.includes('vibe'))).toBe(false)
+    expect(protoTerms).toEqual([])
+  })
 })

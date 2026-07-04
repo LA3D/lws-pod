@@ -7,7 +7,7 @@ const { namedNode, literal, quad } = DataFactory
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
 
 function targetIri(href, policy) {
-  if (/^[a-z][a-z0-9+.-]*:\S*$/i.test(href) && href.includes(':')) return href   // any absolute IRI (urn:, did:, https:) passes through
+  if (/^[a-z][a-z0-9+.-]*:\S*$/i.test(href)) return href                        // any absolute IRI (urn:, did:, https:) passes through
   return policy.mint(slugFromUrl(href))                                          // in-bundle link -> minted subject IRI
 }
 
