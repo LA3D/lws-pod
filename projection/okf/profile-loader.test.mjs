@@ -42,7 +42,7 @@ const MAP = {
   [`${B}/llm-wiki/context.jsonld`]: { body: { '@context': { wm: 'https://example.org/wm#' } } },
   [`${B}/llm-wiki/identity.jsonld`]: { body: { pathPrefix: 'id/', fragment: '#it' } },
   [`${B}/ro-crate/context.jsonld`]: { body: { '@context': {} } },
-  // note: https://w3id.org/ro/crate/1.2 is deliberately NOT in the map → opaque
+  'https://w3id.org/ro/crate/1.2': { body: { '@context': { schema: 'https://schema.org/' }, '@id': '', 'schema:name': 'RO-Crate 1.2 spec page' } },
 }
 
 describe('loadProfile', () => {
@@ -59,12 +59,21 @@ describe('loadProfile', () => {
   })
 
   it('treats a non-resolvable parent as opaque conformance, not an error (RO-Crate stub)', async () => {
-    const p = await loadProfile(`${B}/ro-crate/profile.jsonld`, { fetchFn: mockFetch(MAP) })
+    const mapWithout404 = { ...MAP }
+    delete mapWithout404['https://w3id.org/ro/crate/1.2']
+    const p = await loadProfile(`${B}/ro-crate/profile.jsonld`, { fetchFn: mockFetch(mapWithout404) })
     const ext = p.conformance.find((c) => c.iri === 'https://w3id.org/ro/crate/1.2')
     expect(ext).toEqual({ iri: 'https://w3id.org/ro/crate/1.2', resolved: false })
     const fl = p.conformance.find((c) => c.iri === `${B}/substrate-floor.jsonld`)
     expect(fl.resolved).toBe(true)
     expect(p.identityPolicy).toEqual({ fragment: '#it' })   // inherited from the resolved floor
+  })
+
+  it('a fetchable non-PROF parent (real doc, zero PROF triples) is opaque too', async () => {
+    const p = await loadProfile(`${B}/ro-crate/profile.jsonld`, { fetchFn: mockFetch(MAP) })
+    const ext = p.conformance.find((c) => c.iri === 'https://w3id.org/ro/crate/1.2')
+    expect(ext).toEqual({ iri: 'https://w3id.org/ro/crate/1.2', resolved: false })
+    expect(p.identityPolicy).toEqual({ fragment: '#it' })   // floor still contributes
   })
 
   it('guards against isProfileOf cycles', async () => {

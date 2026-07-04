@@ -35,6 +35,13 @@ async function walk(url, acc, visited, fetchFn) {
   let d
   try { d = await descriptorToProfile(await fetchJson(url, fetchFn), url) }
   catch { acc.conformance.push({ iri: url, resolved: false }); return }   // opaque parent (spec §2/§6)
+  // Non-PROF parent (valid JSON-LD, zero PROF triples about itself) is opaque
+  // too (spec §6) — external standards like w3id.org/ro/crate resolve to real
+  // docs that are not PROF descriptors. Legit descriptors always carry a token.
+  if (!d.token && !d.parents.length && !d.resources.length) {
+    acc.conformance.push({ iri: url, resolved: false })
+    return
+  }
   acc.conformance.push({ iri: url, resolved: true })
   for (const p of d.parents) await walk(p, acc, visited, fetchFn)
   await dispatch(d.resources, acc, fetchFn)
