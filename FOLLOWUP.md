@@ -11,16 +11,75 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
-**▶▶ NEXT SESSION (2026-07-04 decision — do this first).** Build **profiles / Plan 2 (the memory track)
-FIRST**, *then* loop back to the deferred **MCP affordance-spec correction** (the model-driven read/nav
-fix, see the POST-AFFORDANCE block below). **Rationale:** Plan 2 (profile mechanism + the pod-served
-operating-skills direction) will reshape what the MCP surface must expose — correcting the surface now and
-re-correcting it after Plan 2 repeats work; do the memory layer, let it inform the surface, then correct
-MCP once. The three base reference groundings this needs are **DONE**: `.claude/skills/{json-ld, profiles,
+**▶ PLAN 2 / PROFILE MECHANISM — DONE + MERGED (2026-07-04) — MCP correction then L4 NEXT.** Spec
+`docs/superpowers/specs/2026-07-04-profile-mechanism-design.md` (governed by
+`docs/design-notes/layer-cake-principles.md`), plan `docs/superpowers/plans/2026-07-04-profile-mechanism.md`.
+Built subagent-driven (per-task spec+quality reviews, fix rounds, re-reviews).
+
+**Shipped, lws-pod (`main`, commits `1699ecf..94f69d3`):** the mechanism in `projection/okf/` —
+`rdf.mjs` (jsonldToQuads + documentLoader threading, global-fetch default), `resolve.mjs`
+(resolveStorageAuthority — authority from the REAL storage description; readProfileIndex w/
+relative-entry resolution), `profile-doc.mjs` (graph-level PROF read), `profile-loader.mjs`
+(isProfileOf walk, role dispatch, opaque non-PROF/non-resolvable parents incl. the RO-Crate stub
+proof, discoverBinding), `engine-profile.mjs` (Loaded→engine bridge; mint base = resolved authority +
+pathPrefix; runtime `@vocab={authority}proto#` layer); `card.mjs` P6 mint-to-proto (returns
+`{quads, protoTerms}` — unknown keys mint, never silently drop; bare `type:` resolves via profile
+context — the `asTypeCurie` `skos:` hardcode is DEAD, Plan-1 #4 fixed; `urn:`/`did:` edge targets
+pass through, Plan-1 #2 fixed). `urn:okf:base/` is GONE from running paths (legacy test-fixture
+export only).
+
+**Profile definitions** `projection/profiles/defs/`: lwsp vocab (minted roles w/ operation contracts:
+context→parser, identity-policy→minter-config, plane-mapping→projection-config), substrate-floor /
+okf-base / llm-wiki adoption descriptor (PROF compact JSON-LD, `prof:hasToken`, multi-parent
+conformance), pinned upstream mirrors (**pin 2026-07-04/`c91b7a1`**, verified byte-identical),
+descriptor shape, profiles-compact context, index.jsonld. **Publish + declaration checks**
+`projection/publish/`: checks fail loud pre-write (descriptor shape + SHACL-SHACL + context lint +
+CURIE-expanding local-ns-scoped vocabulary completeness); `make publish-profiles` PUTs + binds (.meta
+read-merge-write: dct:conformsTo index + powder:describedby enforcement cache).
+
+**Fork rung (`la3d/lws` @ `fbd4bfd`, pushed):** linkset surfaces declared `dct:conformsTo` (FULL URI,
+RFC 8288 extension relation; omitted when undeclared; `constraint.js`'s `metaTargets` generalized,
+`describedbyTargets` delegates) + `ProfileIndexService` storage-description advertisement
+(`--lws-profile-index <path>` / `JSS_LWS_PROFILE_INDEX`, default off, HTTP+MCP surfaces share the one
+builder + a parity test).
+
+**Live-verified** (pod repinned `fbd4bfd`, image `fork-profiles`): `make test-profiles` **5/5** + full
+sweep `test-lws` 6/6, `test-l3` 2/2, `test-typeindex` 7/7, `test-indexed-relation` 4/4, `test-mcp-v2`
+9/9 — zero regression. okf+publish unit suites **82 tests green**; **wiki-memory suite still RED by
+design + fenced** (`okf/red-fence.test.mjs` asserts the `TODO(plan-2)` breadcrumb survives until L4).
+
+**Recorded deviations:** proto-Warning ships as a projection advisory (`protoTerms`), not the
+okf-base shape rule (shacl-engine SPARQL-constraint support unverified — revisit at L4).
+Acceptance-#5's strict arm is blocked by a fork bug (next item); the gate now pins the failure
+signature so a regression stays distinguishable from real SHACL rejection.
+
+**Findings (this round):** (1) **FORK BUG:** L3 admission **500s** on `application/ld+json` bodies in
+describedby-bound containers (`"Expected entity but got {"` — the body hits a Turtle parse path) —
+SHACL never runs for JSON-LD writes there; needs a small fork round. (2) **OPS:** JSS default
+owner-only ACLs mean `/alice/profiles/**` + bound containers need **public-read ACLs before binding**
+for unauthenticated profile resolution (reproducible sequence in `.superpowers/sdd/task-10-report.md`);
+`publish.mjs` should learn ACL provisioning. (3) **FLAG UPSTREAM (llm-wiki-colab):** `mentions` is
+declared in `context.jsonld` but undefined in `ontology.ttl` @ pin `c91b7a1` — caught by the
+vocabulary gate, carried as `KNOWN_VOCAB_GAPS` in `publish.mjs` (the mirror is NOT patched — verbatim
+discipline held). (4) Fork `test/mcp-lws-read.test.js` has a pre-existing open-handle hang (node
+v26.4.0) — suites run with `--test-force-exit`.
+
+**Deferred carryover (recorded, none block):** conformsTo as a second indexed relation +
+fork-native conformsTo admission (post-L4); w3id registration (public rung); edge-target cross-card
+`id:` resolution, trigger runtime adoption of `loadProfile`, typing-channel materialization rule,
+`profile-select.mjs` legacy-baseProfile retirement (all L4); plane-mapping parsed-not-consumed;
+authorized-resources conformsTo parity; minor debt: @vocab-in-prefixes smell (`namespaces.mjs`),
+defsLoader flat-basename resolution, `checkContext` array-form `@context`, origin+path concat lint,
+`KNOWN_VOCAB_GAPS` lib extraction.
+
+**▶▶ NEXT SESSION (2026-07-04 decision, superseded — Plan 2 is now DONE).** Next up: the deferred **MCP
+affordance-spec correction** (the model-driven read/nav fix, the POST-AFFORDANCE block below), *then*
+**L4** (OKF projection rewritten to LWS shapes — the wiki-memory suite fenced RED above). The three base
+reference groundings this needed are **DONE**: `.claude/skills/{json-ld, profiles,
 mcp-protocol}` (all pass `check-skill-grounding.sh`). Plan-2 grounding is ready (`profiles`/PROF +
-`json-ld` + `lws-protocol`). **The 2026-07-04 layering walk is DONE — the Plan 2 brainstorm/spec operate
+`json-ld` + `lws-protocol`). **The 2026-07-04 layering walk is DONE — the Plan 2 spec operated
 inside `docs/design-notes/layer-cake-principles.md`** (guiding principles + established facts + the open
-questions D1–D7; note the `role:context` correction recorded there and in the Plan-2 block below).
+questions D1–D7; note the `role:context` correction recorded there and in the Plan-2 block above).
 
 **Decision (design of record):** `docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`,
 the **"Substrate — RESOLVED"** block. We **fork production JSS 0.0.210 and add the LWS storage layer
@@ -428,10 +487,11 @@ affordance surface merged, we tested it *with an agent* and grounded the gaps th
   vendored; **arXiv 2606.30317 cited-not-vendored** — arXiv license + it's guidance not a spec). These close
   the grounding gap that let the reads-as-Resources decision go unexamined.
 
-**▶ Plan 2 / L4 NEXT.** **Plan 2** = profile mechanism + `resolveStorageAuthority` threaded onto the
-*real* storage-description resource L2 now serves (replacing the `urn:okf:base/` placeholder); resolve
-the `describedby`-vs-`conformsTo`/PROF vocabulary question (see the Plan-2 brainstorm block above). **L4**
-= OKF projection **rewritten to LWS shapes** (the RED wiki-memory suite gets re-derived, not patched).
+**▶ Plan 2 / L4 NEXT.** *(DONE 2026-07-04 — see the block at top.)* **Plan 2** = profile mechanism +
+`resolveStorageAuthority` threaded onto the *real* storage-description resource L2 now serves
+(replacing the `urn:okf:base/` placeholder); resolve the `describedby`-vs-`conformsTo`/PROF vocabulary
+question (see the Plan-2 brainstorm block above). **L4** = OKF projection **rewritten to LWS shapes**
+(the RED wiki-memory suite gets re-derived, not patched).
 
 **Open design question for the Plan 2 brainstorm — profile/shape-selection vocabulary (do NOT prejudge;
 an earlier note wrongly said "adopt the RO-Crate `conformsTo` seam" — RO-Crate merely *reuses* the

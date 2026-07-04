@@ -79,7 +79,9 @@ fork lives only in the `*.fork*` files + `caddy/`. Full rig notes: `README.md` "
   --conneg --mashlib-cdn --git --notifications --provision-keys` (Dockerfile comments explain each).
   Base+override compose: `docker-compose.yml` (env-neutral) + `docker-compose.local.yml`.
 - **`projection/`** — OKF projection engine. `okf/` = generic floor (identity, card→quads, channels);
-  `profiles/wiki-memory/` = the typed-edge profile; `triggers/` = CLI one-shot + WebSocket CDC watcher.
+  `profiles/wiki-memory/` = the typed-edge profile; `profiles/defs/` = profile definition sources (PROF
+  descriptors, pinned upstream mirrors); `publish/` = declaration-time checks + the publish/bind step;
+  `triggers/` = CLI one-shot + WebSocket CDC watcher.
 - **`constrained-container/`** — standalone SHACL admission proxy (the L2 governance floor): a write
   is validated against a base shape + per-container `ldp:constrainedBy`; a violation returns `422`
   plus the teaching `sh:message`. (`constrained-container/README.md`)

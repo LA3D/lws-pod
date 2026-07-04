@@ -89,6 +89,26 @@ run against the **fork** `--lws` pod at `https://pod.vardeman.me` (needs `make u
 cert`). `tests/lws-discovery.test.mjs` self-skips on a non-`--lws` pod, so plain `make test` against the
 base pod stays green (it reports the L2 suite as skipped).
 
+### Profiles
+
+`/profiles/` on the pod is the **profile-authority layer** (Plan 2, `docs/superpowers/specs/2026-07-04-profile-mechanism-design.md`,
+governed by `docs/design-notes/layer-cake-principles.md`): W3C PROF descriptors (`prof:Profile`,
+`prof:isProfileOf`, `prof:hasRole`) for the substrate floor, the OKF base, and the llm-wiki adoption
+profile, plus pinned byte-identical mirrors of upstream vocab/shapes and an `index.jsonld` the pod
+advertises via `ProfileIndexService` in its storage description. Source tree: `projection/profiles/defs/`;
+declaration-time checks + the publish/bind step: `projection/publish/`.
+
+```bash
+make publish-profiles   # needs POD_TOKEN (owner bearer) — PUTs descriptors/mirrors, then binds
+                         # dct:conformsTo + powder:describedby onto the target containers
+make test-profiles      # live gate — needs `make up-fork-tls` (the fork pod, --lws-profile-index)
+```
+
+**ACL caveat:** JSS auto-creates new containers **owner-only**. `/alice/profiles/**` and any container
+you bind a profile to need an explicit public-read `.acl` *before* `make publish-profiles`/binding, or
+unauthenticated profile resolution (and the live gate) will 401/403 — see the reproducible sequence in
+`.superpowers/sdd/task-10-report.md`.
+
 No official JSS image exists; the `Dockerfile` pins `javascript-solid-server@0.0.209`
 from npm and adds `git` (required by the `--git` backend). Pinned deliberately — JSS is a
 single-maintainer v0.0.x; we bump when we choose to.
