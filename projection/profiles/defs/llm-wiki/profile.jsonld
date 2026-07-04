@@ -1,0 +1,17 @@
+{
+  "@context": "../profiles-compact.context.jsonld",
+  "@id": "",
+  "@type": "Profile",
+  "hasToken": "llm-wiki",
+  "isProfileOf": "../okf-base.jsonld",
+  "dct:title": "llm-wiki adoption descriptor — our assertion bundling the upstream artifacts",
+  "hasResource": [
+    { "@id": "#vocab", "hasRole": "role:vocabulary", "hasArtifact": "ontology.ttl", "format": "text/turtle",
+      "source": "https://la3d.github.io/llm-wiki-colab/ontology.ttl", "version": "2026-07-04/c91b7a1" },
+    { "@id": "#ctx", "hasRole": "lwspr:context", "hasArtifact": "context.jsonld", "format": "application/ld+json",
+      "source": "https://la3d.github.io/llm-wiki-colab/context.jsonld", "version": "2026-07-04/c91b7a1" },
+    { "@id": "#shape", "hasRole": "role:validation", "hasArtifact": "shapes.ttl", "format": "text/turtle",
+      "source": "https://la3d.github.io/llm-wiki-colab/shapes.ttl", "version": "2026-07-04/c91b7a1" },
+    { "@id": "#identity", "hasRole": "lwspr:identity-policy", "hasArtifact": "identity.jsonld", "format": "application/ld+json" }
+  ]
+}

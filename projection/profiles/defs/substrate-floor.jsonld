@@ -1,0 +1,10 @@
+{
+  "@context": "profiles-compact.context.jsonld",
+  "@id": "",
+  "@type": "Profile",
+  "hasToken": "substrate-floor",
+  "dct:title": "lws-pod substrate floor — stable-subject-IRI + conformsTo handoff contract",
+  "hasResource": [
+    { "@id": "#identity", "hasRole": "lwspr:identity-policy", "hasArtifact": "floor-identity.jsonld", "format": "application/ld+json" }
+  ]
+}

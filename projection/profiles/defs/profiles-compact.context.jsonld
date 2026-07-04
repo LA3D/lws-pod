@@ -1,0 +1,19 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "prof": "http://www.w3.org/ns/dx/prof/",
+    "dct": "http://purl.org/dc/terms/",
+    "role": "http://www.w3.org/ns/dx/prof/role/",
+    "lwspr": "https://w3id.org/lws-pod/profile/role/",
+    "Profile": "prof:Profile",
+    "isProfileOf": { "@id": "prof:isProfileOf", "@type": "@id" },
+    "hasToken": "prof:hasToken",
+    "hasResource": { "@id": "prof:hasResource", "@type": "@id" },
+    "hasRole": { "@id": "prof:hasRole", "@type": "@id" },
+    "hasArtifact": { "@id": "prof:hasArtifact", "@type": "@id" },
+    "format": "dct:format",
+    "source": { "@id": "dct:source", "@type": "@id" },
+    "version": "dct:hasVersion",
+    "conformsTo": { "@id": "dct:conformsTo", "@type": "@id" }
+  }
+}

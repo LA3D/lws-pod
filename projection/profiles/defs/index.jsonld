@@ -1,0 +1,7 @@
+{
+  "@context": { "profiles": { "@id": "https://w3id.org/lws-pod/profile#profiles", "@type": "@id", "@container": "@list" },
+                "defaultProfile": { "@id": "https://w3id.org/lws-pod/profile#defaultProfile", "@type": "@id" } },
+  "@id": "",
+  "profiles": ["substrate-floor.jsonld", "okf-base.jsonld", "llm-wiki/profile.jsonld"],
+  "defaultProfile": "okf-base.jsonld"
+}

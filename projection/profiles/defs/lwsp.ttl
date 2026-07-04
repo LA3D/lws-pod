@@ -1,0 +1,24 @@
+@prefix lwsp: <https://w3id.org/lws-pod/profile#> .
+@prefix lwspr: <https://w3id.org/lws-pod/profile/role/> .
+@prefix prof: <http://www.w3.org/ns/dx/prof/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+lwsp: a skos:ConceptScheme ;
+  rdfs:label "lws-pod profile mechanism vocabulary"@en ;
+  rdfs:comment "Minted resource roles PROF lacks. Served from the pod; w3id registration is a later public rung."@en .
+
+lwspr:context a prof:ResourceRole, skos:Concept ;
+  skos:prefLabel "JSON-LD context"@en ;
+  skos:definition "Syntactic binding: hand this artifact to JSON-LD processing (term-to-IRI mapping). It is never a source of meaning — for term semantics use the role:vocabulary artifact."@en ;
+  skos:inScheme lwsp: .
+
+lwspr:identity-policy a prof:ResourceRole, skos:Concept ;
+  skos:prefLabel "Identity policy"@en ;
+  skos:definition "Config consumed by the identity minter: slug strategy, path prefix, fragment, versioning, DID-anchoring. Combined at runtime with the pod's resolved storage authority; never carries an authority literal."@en ;
+  skos:inScheme lwsp: .
+
+lwspr:plane-mapping a prof:ResourceRole, skos:Concept ;
+  skos:prefLabel "Plane mapping"@en ;
+  skos:definition "Config consumed by the projection: how knowledge bundles map onto storage containers."@en ;
+  skos:inScheme lwsp: .

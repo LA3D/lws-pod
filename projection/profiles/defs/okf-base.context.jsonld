@@ -1,0 +1,8 @@
+{
+  "@context": {
+    "dcterms": "http://purl.org/dc/terms/",
+    "type": "@type",
+    "title": { "@id": "dcterms:title" },
+    "description": { "@id": "dcterms:description" }
+  }
+}

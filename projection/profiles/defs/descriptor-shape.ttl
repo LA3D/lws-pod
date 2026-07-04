@@ -1,0 +1,18 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix prof: <http://www.w3.org/ns/dx/prof/> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix lwsp: <https://w3id.org/lws-pod/profile#> .
+
+lwsp:DescriptorShape a sh:NodeShape ;
+  sh:targetClass prof:Profile ;
+  sh:property [ sh:path prof:hasToken ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+    sh:message "A descriptor MUST carry exactly one prof:hasToken slug." ] ;
+  sh:property [ sh:path prof:hasResource ; sh:node lwsp:ResourceDescriptorShape ;
+    sh:message "Every hasResource must be a well-formed ResourceDescriptor." ] .
+
+lwsp:ResourceDescriptorShape a sh:NodeShape ;
+  sh:property [ sh:path prof:hasRole ; sh:minCount 1 ; sh:nodeKind sh:IRI ;
+    sh:message "A ResourceDescriptor MUST declare at least one role (prof:hasRole IRI)." ] ;
+  sh:property [ sh:path prof:hasArtifact ; sh:minCount 1 ; sh:nodeKind sh:IRI ;
+    sh:message "A ResourceDescriptor MUST point at an artifact (prof:hasArtifact IRI)." ] .

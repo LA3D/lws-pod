@@ -1,0 +1,12 @@
+{
+  "@context": "profiles-compact.context.jsonld",
+  "@id": "",
+  "@type": "Profile",
+  "hasToken": "okf-base",
+  "isProfileOf": "substrate-floor.jsonld",
+  "dct:title": "OKF floor — markdown+frontmatter family base (OKF §9 conformance)",
+  "hasResource": [
+    { "@id": "#ctx", "hasRole": "lwspr:context", "hasArtifact": "okf-base.context.jsonld", "format": "application/ld+json" },
+    { "@id": "#shape", "hasRole": "role:validation", "hasArtifact": "okf-base.shape.ttl", "format": "text/turtle" }
+  ]
+}
