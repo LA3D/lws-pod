@@ -51,7 +51,11 @@ design + fenced** (`okf/red-fence.test.mjs` asserts the `TODO(plan-2)` breadcrum
 **Recorded deviations:** proto-Warning ships as a projection advisory (`protoTerms`), not the
 okf-base shape rule (shacl-engine SPARQL-constraint support unverified — revisit at L4).
 Acceptance-#5's strict arm is blocked by a fork bug (next item); the gate now pins the failure
-signature so a regression stays distinguishable from real SHACL rejection.
+signature so a regression stays distinguishable from real SHACL rejection. **Residual (final-review
+flag):** the gate's 2xx arm proves container *wiring* only — a silent-accept of a shape-TARGETED
+node would also land there; profile-sourced SHACL rejection is wired + negatively pinned but NOT yet
+demonstrated end-to-end. Closes with the ld+json-500 fork round, which should precede L4's reliance
+on that path.
 
 **Findings (this round):** (1) **FORK BUG:** L3 admission **500s** on `application/ld+json` bodies in
 describedby-bound containers (`"Expected entity but got {"` — the body hits a Turtle parse path) —
