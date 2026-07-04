@@ -18,7 +18,9 @@ operating-skills direction) will reshape what the MCP surface must expose — co
 re-correcting it after Plan 2 repeats work; do the memory layer, let it inform the surface, then correct
 MCP once. The three base reference groundings this needs are **DONE**: `.claude/skills/{json-ld, profiles,
 mcp-protocol}` (all pass `check-skill-grounding.sh`). Plan-2 grounding is ready (`profiles`/PROF +
-`json-ld` + `lws-protocol`).
+`json-ld` + `lws-protocol`). **The 2026-07-04 layering walk is DONE — the Plan 2 brainstorm/spec operate
+inside `docs/design-notes/layer-cake-principles.md`** (guiding principles + established facts + the open
+questions D1–D7; note the `role:context` correction recorded there and in the Plan-2 block below).
 
 **Decision (design of record):** `docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`,
 the **"Substrate — RESOLVED"** block. We **fork production JSS 0.0.210 and add the LWS storage layer
@@ -439,16 +441,24 @@ finds the shape+vocab+context set for a profile — is leaning toward **W3C PROF
 (DCMI) + the **Profiles Vocabulary** (`prof:`, W3C DXWG Note, ns `http://www.w3.org/ns/dx/prof/`:
 `prof:Profile ⊑ dct:Standard`, `prof:isProfileOf` for base-floor→profile inheritance, `prof:hasResource`/
 `prof:ResourceDescriptor`, `prof:hasRole`) + the **profile-roles vocabulary** (`…/prof/role/`:
-`role:validation`, `role:vocabulary`, `role:schema`, `role:constraints`, `role:context`…). **Chuck's
-call (2026-06-30): we will likely need the roles + vocabulary + context** — `role:vocabulary`/
-`role:context` are what **close the loop to storage** via advertised JSON-LD `@context`
+`role:validation`, `role:vocabulary`, `role:schema`, `role:constraints`…). **CORRECTION (2026-07-04):
+`role:context` does NOT exist** — the W3C roles vocab defines exactly eight roles (constraints, example,
+guidance, mapping, schema, specification, validation, vocabulary; see `.claude/skills/profiles/`); the
+scheme is extensible, so a context role would be minted by us, with a syntactic operation contract
+(context→parser, not interpreter — see the layer-cake note below). **Chuck's
+call (2026-06-30): we will likely need the roles + vocabulary + context** — the vocabulary + context
+artifacts are what **close the loop to storage** via advertised JSON-LD `@context`
 (`docs/design-notes/contextual-linked-memory.md`), and **PROF/roles were already used in the prior Solid
 experimentation**, so this is reuse, not new ground. **Reservation to weigh in the brainstorm:** PROF is
 a W3C *Note* (not a REC) and adds indirection (`resource → conformsTo → profile → hasResource →
 role:validation → artifact`) vs the one-hop `describedby`; decide how much of the bundle Plan 2 needs
-now vs. `describedby`-only + `resolveStorageAuthority`. **If adopted, ground PROF + the roles vocab as a
-new `.claude/skills/` grounded skill** (verbatim upstream, per the grounding contract). Threads into
-`docs/design-notes/iri-minting.md` (reuse-first, w3id/DID-friendly).
+now vs. `describedby`-only + `resolveStorageAuthority`. PROF + roles are now grounded
+(`.claude/skills/profiles`). Threads into `docs/design-notes/iri-minting.md` (reuse-first,
+w3id/DID-friendly).
+**▶ GUIDING FRAME (2026-07-04): `docs/design-notes/layer-cake-principles.md`** — the agreed synthesis
+of the pre-spec layering walk (three views, the two-hop context/vocabulary split, the `@vocab`
+mint-to-proto policy, declaration-time shape integrity, the one-question-one-mechanism acceptance
+table, PROF-as-candidate-not-decision). **The Plan 2 brainstorm and spec operate inside this frame.**
 **Merge model (solo dev — no PR ceremony):** each layer is built on its own `la3d/*` feature branch and
 **`git merge --no-ff` directly into `la3d/lws`** (the subagent per-task + opus whole-branch reviews are
 the gate, not a GitHub PR); `la3d/main` stays the pristine `0f4287f` pin for rebasing onto upstream releases.
