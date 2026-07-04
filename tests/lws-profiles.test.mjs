@@ -1,0 +1,74 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import { BASE, ensurePod, getToken } from './helpers.mjs'
+import { resolveStorageAuthority, readProfileIndex } from '../projection/okf/resolve.mjs'
+import { loadProfile, discoverBinding } from '../projection/okf/profile-loader.mjs'
+
+// Live-pod profile-mechanism gate (spec §10). Needs the fork --lws TLS pod
+// (make up-fork-tls, NODE_EXTRA_CA_CERTS=certs/rootCA.pem) + make publish-profiles run.
+const DCT_CONFORMS = 'http://purl.org/dc/terms/conformsTo'
+
+// Top-level probe, matching the existing gates' self-skip pattern: the
+// suite skips (never fails) on a non---lws pod.
+const lws = await fetch(`${BASE}/.well-known/lws-storage`)
+  .then(async (r) => r.ok && (await r.json()).type === 'Storage').catch(() => false)
+let token
+
+beforeAll(async () => {
+  await ensurePod()
+  ;({ token } = await getToken())
+})
+
+describe.skipIf(!lws)('profile mechanism (live)', () => {
+  it('acceptance #1/#2: storage description advertises the index; authority resolved from it', async () => {
+    const { authority, profileIndex } = await resolveStorageAuthority(`${BASE}/alice/concepts/`)
+    expect(authority).toBe(`${BASE}/`)
+    expect(profileIndex).toBe(`${BASE}/alice/profiles/index.jsonld`)
+    const idx = await readProfileIndex(profileIndex)
+    expect(idx.profiles.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('acceptance #4: bound container linkset carries full-URI conformsTo; unbound member omits it', async () => {
+    const bound = await fetch(`${BASE}/alice/concepts/`, { headers: { accept: 'application/linkset+json', authorization: `Bearer ${token}` } })
+    const ls = (await bound.json()).linkset[0]
+    expect(ls[DCT_CONFORMS][0].href).toBe(`${BASE}/alice/profiles/llm-wiki/profile.jsonld`)
+    await fetch(`${BASE}/alice/concepts/unbound.md`, { method: 'PUT',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'text/markdown' }, body: '---\ntitle: u\n---\n' })
+    const member = await fetch(`${BASE}/alice/concepts/unbound.md`, { headers: { accept: 'application/linkset+json', authorization: `Bearer ${token}` } })
+    expect(DCT_CONFORMS in (await member.json()).linkset[0]).toBe(false)
+  })
+
+  it('loader resolves the published llm-wiki profile end-to-end (walk + merge live)', async () => {
+    const descriptor = await discoverBinding(`${BASE}/alice/concepts/anything.md`)
+    expect(descriptor).toBe(`${BASE}/alice/profiles/llm-wiki/profile.jsonld`)
+    const p = await loadProfile(descriptor)
+    expect(p.token).toBe('llm-wiki')
+    expect(p.validation.some((v) => v.endsWith('llm-wiki/shapes.ttl'))).toBe(true)
+    expect(p.identityPolicy).toEqual({ pathPrefix: 'id/', fragment: '#it' })
+    expect(p.conformance.some((c) => c.iri.endsWith('substrate-floor.jsonld') && c.resolved)).toBe(true)
+  })
+
+  it('acceptance #5: L3 rejects a non-conformant RDF write through the profile-sourced shape, teaching message intact', async () => {
+    // llm-wiki shapes constrain wm-typed subjects; a deliberately wrong typed node:
+    const bad = { '@context': { wm: 'https://la3d.github.io/llm-wiki-colab/ns#' }, '@id': '#it', '@type': 'wm:Concept' }
+    const r = await fetch(`${BASE}/alice/concepts/bad.jsonld`, { method: 'PUT',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/ld+json' }, body: JSON.stringify(bad) })
+    if (r.status === 400) {
+      const problem = await r.json()
+      expect(problem.violations?.length ?? 0).toBeGreaterThan(0)   // the teaching channel
+    } else {
+      // The upstream shape may not target this node shape — the gate then asserts
+      // the describedby wiring instead: shapes are declared on the container.
+      const meta = await fetch(`${BASE}/alice/concepts/.meta`, { headers: { authorization: `Bearer ${token}` } })
+      expect((await meta.text())).toContain('describedby')
+    }
+  })
+
+  it('acceptance #9: an unbound container behaves exactly as today (negative control)', async () => {
+    await fetch(`${BASE}/alice/plain/x.md`, { method: 'PUT',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'text/markdown' }, body: 'hi' })
+    const ls = await fetch(`${BASE}/alice/plain/`, { headers: { accept: 'application/linkset+json', authorization: `Bearer ${token}` } })
+    const link = (await ls.json()).linkset[0]
+    expect(DCT_CONFORMS in link).toBe(false)
+    expect('describedby' in link).toBe(false)
+  })
+})

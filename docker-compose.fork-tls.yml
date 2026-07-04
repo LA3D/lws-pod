@@ -16,10 +16,15 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (working-MCP merge); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-161bb99d6e6ba70727903dfbf29c71fb2ec56632}"
-    image: lws-pod:fork-affordance
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (profile-mechanism rung); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-fbd4bfd}"
+    image: lws-pod:fork-profiles
     container_name: lws-pod-fork
+    # Same flags as the Dockerfile's default CMD, plus --lws-profile-index (opt-in,
+    # per-deployment: advertises the ProfileIndexService at this pod path — spec §10).
+    command: ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data",
+      "--idp", "--mcp", "--conneg", "--mashlib-cdn", "--git", "--notifications", "--provision-keys",
+      "--lws", "--lws-profile-index", "/alice/profiles/index.jsonld"]
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.
     expose:
       - "3000"
