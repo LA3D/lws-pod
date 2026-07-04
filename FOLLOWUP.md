@@ -82,6 +82,18 @@ but never negotiated it — found `.meta` by listing the container instead; the 
 surface works (gate-proven) but isn't *salient* to a cold agent — steering/promote-the-behavior input
 for the MCP-correction round; (c) NEW minor: `GET /mcp` 404s with an `Allow` header that omits `POST` —
 a small misleading affordance on the MCP endpoint, fold into the MCP correction.
+**Priming ablation (same day, Chuck's hypothesis CONFIRMED):** re-ran the probe with ONE added
+sentence naming RFC 9264 → the agent negotiated `application/linkset+json` on the container and read
+`describedby` + `conformsTo` straight from the linkset ("no prior knowledge of a `.meta` convention
+was needed"); the unprimed agent had seen the same `rel="linkset"` everywhere and never dereferenced
+it. **Affordance salience is prior-dependent — RFC 9264-as-storage-metadata is LWS-new and outside
+model priors (Solid's `ldp:constrainedBy` is IN them).** Consequences: the `linked-web-memory`
+operating skill's read path must open with "this substrate speaks RFC 9264 — negotiate the linkset
+first"; the HTTP surface should name it (storage description / root), not just MCP `pod-info`. NEW
+defect w/ evidence: the pod root advertises `rel="linkset"` but index-shadowing ignores Accept
+(known JSS baseline, now shown to actively mislead) — candidate fork fix: suppress the rel where
+conneg won't honor it. This A/B = the first knowledge-priming ablation for the agent-eval battery
+(add a priming axis to the planned ablations).
 
 **Deferred carryover (recorded, none block):** conformsTo as a second indexed relation +
 fork-native conformsTo admission (post-L4); w3id registration (public rung); edge-target cross-card
