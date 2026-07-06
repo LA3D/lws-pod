@@ -85,6 +85,22 @@ subject IRI back to a dereferenceable stored card is a **separate** concern (the
 assuming URI = storage path. Kept distinct so identity does not silently re-couple to location.
 [deferred → §11 #4]
 
+### Plane 1 — graph semantics (added L4b Phase A)
+
+The name/dereference separation above is now realized **in-band** via JSON-LD 1.1:
+
+- A resource's RDF is a JSON-LD **graph object** `{ "@id": <graph name>, "@graph": [ <nodes> ] }`.
+  The **graph name is the document IRI** (`{authority}{profile-path}/{slug}`); the **subject** is the
+  `#it` fragment within it. Two distinct `@id`s at two levels (httpRange-14).
+- **Serialization is JSON-LD 1.1 only** on the agent path. TriG is an optional conneg export; Turtle is
+  an *unnamed union* export only (it cannot carry a graph name; the fork's Turtle conneg drops `@graph`).
+- **Containment:** a resource = one named graph; a **container = the dataset** (members are its named
+  graphs, name = member URL); an **aggregate derived view** may be a resource-as-dataset (multi-`@graph`)
+  when its declaration asks (`mode: dataset`).
+- **Read-side minimum:** a derived view's `named_graph` is its own pod resource URL, so the graph name is
+  directly dereferenceable. For a card whose graph name is the authority doc IRI (≠ storage URL), the
+  resolution is the plane mapping (`rel="up"`/`describedby`/type index) — the read half of §11 #4.
+
 ---
 
 ## Plane 2 — vocabulary minting (reuse-first)
