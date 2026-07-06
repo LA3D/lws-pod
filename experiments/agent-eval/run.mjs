@@ -25,13 +25,15 @@ if (dry || !process.env.ANTHROPIC_API_KEY) {
   const mcp = new JssMcp(BASE, token);
   const init = await mcp.initialize();
   log(`handshake: protocolVersion=${init.protocolVersion} server=${init.serverInfo?.name} caps=[${Object.keys(init.capabilities || {}).join(', ')}]`);
-  log(`tools: ${(await mcp.listTools()).map(t => t.name).join(', ')}`);
-  const info = await mcp.readResource(`${BASE}/.well-known/mcp/pod-info`);
-  log(`pod-info steering hint present: ${/follow/i.test(info?.contents?.[0]?.text || '')}`);
-  const ctx = await mcp.readResource(`${BASE}/.well-known/lws/context`);
-  log(`lws @context resolves (items→lws:items): ${JSON.parse(ctx.contents[0].text)['@context'].items === 'lws:items'}`);
-  const anon = await new JssMcp(BASE, null).readResource(`${BASE}/alice/notes/n1`);
-  log(`no-oracle (anon read of owner-private note denied): ${!!anon?.error}`);
+  const toolNames = (await mcp.listTools()).map(t => t.name);
+  log(`tools: ${toolNames.join(', ')}`);
+  log(`model-driven read path present: ${toolNames.includes('read_resource') && toolNames.includes('list_resources')}`);
+  const info = await mcp.callTool('read_resource', { uri: `${BASE}/.well-known/mcp/pod-info` });
+  log(`pod-info via read_resource, RFC 9264 primed: ${/9264/.test(info?.content?.[0]?.text || '')}`);
+  const ctx = await mcp.readResource(`${BASE}/.well-known/lws/context`);   // Resources primitive parity (host view)
+  log(`resources/read parity (lws @context resolves): ${JSON.parse(ctx.contents[0].text)['@context'].items === 'lws:items'}`);
+  const anon = await new JssMcp(BASE, null).callTool('read_resource', { uri: `${BASE}/alice/notes/n1` });
+  log(`no-oracle (anon read_resource of owner-private note is a teaching error): ${anon?.isError === true}`);
   if (!process.env.ANTHROPIC_API_KEY) log('\nANTHROPIC_API_KEY not set — ran plumbing smoke only. Set it to run the agent battery.');
   process.exit(0);
 }
