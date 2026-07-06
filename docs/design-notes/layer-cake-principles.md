@@ -125,6 +125,16 @@ layer-conflict audit as a standing axis in `docs/foundations/05-jss-spec-conform
 per LWS revision (watch for: adoption of `@vocab`, more pinned lexical forms, the linkset-mutation
 story).
 
+**P13 — Code only guards; applications are data.** Code belongs server-side exactly where
+(a) enforcement must be independent of the agent being guarded — admission/SHACL, WAC/no-oracle,
+sanitization, rate limits — or (b) affordances must exist before any agent arrives — discovery
+surfaces, the MCP tool surface, teaching errors. The profile-mechanism tier may be code only if
+it dispatches on profile data and contains no application vocabulary (P5). Everything
+application-semantic — content models/parsers, derived-view renderers, domain vocabularies — is
+profile data plus agent behavior. Onboarding a new application requires zero code anywhere.
+(P9 generalized: same courthouse, any law. Added 2026-07-06 by the L4a spec, from the coupling
+review.)
+
 ### The acceptance checklist (P1's table)
 
 | Agent's question | The one answering mechanism |
