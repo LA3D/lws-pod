@@ -14,13 +14,13 @@ mechanism/onboarding (code iff data-driven, zero app vocabulary) — **3** appli
 | Fork admission fixtures use notes-with-titles only (review A2) | 1 | test-diversity nit — next fork round adds one non-document fixture | fork-queue |
 | Fork `test/lws-profiles-linkset.test.js` names llm-wiki URLs (review A1) | 1 | cosmetic — rename fixtures on next touch | fork-queue |
 | `projection/okf/{resolve,profile-doc,rdf,namespaces,materialize}.mjs` | 2 | keep — verified neutral (coupling review "explicitly clean") | keep |
-| `projection/okf/profile-loader.mjs` `discoverBinding` collapses plural conformsTo (B6) | 2 | fix — return every declared target | planned (Task 2) |
-| `projection/publish/publish.mjs` hardcoded family wiring (B4) | 2 | fix — manifest-driven off `defs/index.jsonld` + descriptor roles | planned (Task 4) |
-| `projection/publish/checks.mjs` `defsLoader` flat-basename (B5) | 2 | fix — path-aware loader | planned (Task 4) |
-| `KNOWN_VOCAB_GAPS` constant in publish code | 2 | fix — becomes manifest data | planned (Task 4) |
-| `defs/lwsp.ttl` `plane-mapping` definition says "knowledge bundles" (B3) | 2 | fix — reword neutral + republish | planned (Task 3) |
-| `projection/okf/profile-select.mjs` (B8) | 3 | delete — dead, superseded by `discoverBinding` | planned (Task 3) |
-| `projection/okf/links.mjs` `skos:` fallback + `implementedBy`/`broader` defaults (B9) | 3→2 | fix — no engine vocabulary; rels become caller parameters | planned (Task 3) |
+| `projection/okf/profile-loader.mjs` `discoverBinding` collapses plural conformsTo (B6) | 2 | fix — return every declared target | done (L4a) |
+| `projection/publish/publish.mjs` hardcoded family wiring (B4) | 2 | fix — manifest-driven off `defs/index.jsonld` + descriptor roles | done (L4a) |
+| `projection/publish/checks.mjs` `defsLoader` flat-basename (B5) | 2 | fix — path-aware loader | done (L4a) |
+| `KNOWN_VOCAB_GAPS` constant in publish code | 2 | fix — becomes manifest data | done (L4a) |
+| `defs/lwsp.ttl` `plane-mapping` definition says "knowledge bundles" (B3) | 2 | fix — reword neutral + republish | done (L4a) |
+| `projection/okf/profile-select.mjs` (B8) | 3 | delete — dead, superseded by `discoverBinding` | done (L4a) |
+| `projection/okf/links.mjs` `skos:` fallback + `implementedBy`/`broader` defaults (B9) | 3→2 | fix — no engine vocabulary; rels become caller parameters | done (L4a) |
 | `projection/engine.mjs` (markdown-shaped core, wiki RESERVED list — B2) | 3 | app-tooling — application #1's client projector; move at L4b | L4b |
 | `projection/okf/engine-profile.mjs` (force-fits index channel — B1) | 3 | app-tooling — channel wiring moves with the engine at L4b | L4b |
 | `projection/okf/{card,identity,frontmatter,index-channel,base-profile}.mjs` + gray-matter | 3 | app-tooling — OKF family engine; move at L4b | L4b |

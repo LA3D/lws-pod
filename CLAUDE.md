@@ -8,7 +8,7 @@ application** built on it is a memory pod (the wiki-memory profile family: OKF p
 SHACL admission floor, curation console; the pod is the canonical home, Obsidian and git are
 clients), under the thesis that typed, progressively-disclosed memory helps agents more than flat
 retrieval. Other applications = other profiles (data catalogs, RO-Crate, sensor data, …) on the
-same unmodified substrate — the 2026-07-06 coupling review (FOLLOWUP) is the standing gate on this
+same unmodified substrate — `docs/foundations/06-code-placement-audit.md` (P13) is the standing gate on this
 separation.
 
 **Substrate (RESOLVED 2026-06-29).** The target is **LWS** — the W3C standardization successor to

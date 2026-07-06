@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-06 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix shipped; L4 next
+## ▶▶ 2026-06-29/07-06 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality shipped; L4b next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -159,13 +159,51 @@ layer-cake ("L4 = profile-defined projection", not "OKF projection"); remaining 
 (okf/-directory houses the neutral PROF machinery → consider `projection/prof/` split;
 `base-shape.ttl`'s "universal" comment vs its dcterms:title gate) → L4.
 
-**▶▶ NEXT: L4 — reframed by the coupling review: "the projection becomes PROFILE-DEFINED", not
-"the OKF projection rewritten".** Scope: the Tier-B requirements above (channel role + parser seam
-+ manifest-driven publish + plural conformsTo) with the wiki-memory family as proof #1 (RED+fenced
-suite re-derived, not patched) and **a genuinely non-OKF profile binding (e.g. DCAT catalog or
-RO-Crate, shapes+context on a container, no markdown) as the anti-overfit acceptance gate**.
-Carry-in design inputs: earned-at-admission member conformsTo vs up-walk; defaultProfile
-precedence; membership steering wording; hint "every resource" vs suppressed root.
+**▶ L4a — SUBSTRATE NEUTRALITY — DONE (2026-07-06, same day; the L4 split's first half).** Spec
+`docs/superpowers/specs/2026-07-06-l4a-substrate-neutrality-design.md`, plan
+`docs/superpowers/plans/2026-07-06-l4a-substrate-neutrality.md` (subagent-driven, per-task
+spec+quality reviews; commits `a36fd2b..7b9d634` + close-out). **FORK UNTOUCHED — asserted**
+(HEAD `8b86a87` + clean tree, byte-identical before/after; acceptance #1). Shipped: **P13** in
+`layer-cake-principles.md` (code only guards; applications are data) + the durable
+**`docs/foundations/06-code-placement-audit.md`** (every extension point dispositioned; now the
+standing gate CLAUDE.md names); **manifest-driven publish** (descriptor set + vocab gaps from
+`defs/index.jsonld`, checks driven by each descriptor's own PROF roles, path-aware loader, generic
+token→descriptor bind, `--check` mode; one plan gap caught+fixed by the implementer:
+`descriptorToProfile` needed optional `documentLoader` threading); **plural `discoverBinding`**
+(B6, `string[]`, `[undefined]`-guarded); smalls (B3 neutral plane-mapping wording republished,
+B8 selector deleted, B9 links.mjs de-vocabularied — the wiki edge choice moved to the proxy
+caller). **THE ZERO-CODE GATE PASSED:** `dcat-catalog` (isProfileOf substrate-floor, DCAT/DCTERMS
+reuse-first, Turtle shapes w/ teaching messages) onboarded **as pure data through agentic requests
+only** — 3 artifact PUTs + TWO `write_acl` calls (the bound container needs its own public-read for
+unauthenticated profile discovery — the Plan-2 OPS finding re-confirmed, fixed agentically) +
+`.meta` bind; the recipe IS the gate's beforeAll and is documented in foundations/06. **`make
+test-dcat` 5/5** (teaching 400 / admit+advisory / handoff edges / live profile walk / type search),
+publish idempotent over it (4-profile checks, both binds), **full sweep 46/46 live gates
+zero-regression**. **Probe #3 (unprimed) PASSED decisively:** both families discovered and walked by
+the same recipe; the agent reconstructed the design intent cold ("dcat-catalog skips okf-base — it
+is not markdown"), mapped the llm-wiki shape stack to the SPARQL rule level, and read the published
+`knownVocabGaps` as pod self-honesty. **Probe-#3 new findings (recorded):** (a) **fork-queue,
+spec-weight: the anonymous container LISTING is not WAC-filtered** — `/alice/` advertises members
+that then 401 (existence leak; LWS's Policy pillar wants members-you-may-access; the /types/* walk
+already filters — the listing doesn't); (b) probe/scratch clutter in `/alice/` pollutes the
+cold-agent view (seed hygiene — clean or fence the probe artifacts); (c) `.lwstypes`/`.meta`
+sidecars served as opaque `application/octet-stream` (mediaType affordance nit, fork-queue); (d)
+root linkset-promise wording re-confirmed (already fork-queued); (e) no governance edges on
+intermediate containers (leaf-binding is the design — steering could say so). Review minors
+carried to L4b/final-triage: defs.test.mjs hardcodes per-family file lists (B4-adjacent — should
+enumerate from the manifest); stale `KNOWN_VOCAB_GAPS` comment in checks.test.mjs:11; double
+`jsonldToQuads` per descriptor (perf nit); gate-3 member-`type` assertion.
+
+**▶▶ NEXT: L4b — "wiki-memory re-derived on the decoupled floor."** Scope (spec §6 + carried):
+engine demotion executed (split `projection/` → neutral PROF mechanism vs wiki projector as
+app-#1 tooling; naming decided then), the RED+fenced wiki-memory suite re-derived (not patched),
+derived-view-declaration vocabulary minted when wiki needs it, B7 identity-config vocabulary,
+read-side semantics (earned-at-admission member conformsTo vs up-walk; defaultProfile precedence;
+plural-binding governance), constrained-container retirement decision, membership steering wording,
+`base-shape.ttl` universality comment. Fork-queue (first fork round after): container-listing
+WAC-filtering (probe-#3 finding a — spec-weight), sidecar mediaTypes, hint "every resource" wording,
+MCP gateway advertisement in the storage description, GET-405 Content-Type, admission fixture
+diversity, npm-test `--test-force-exit`.
 
 **▶ PLAN 2 / PROFILE MECHANISM — DONE + MERGED (2026-07-04).** *(The "MCP correction then L4 NEXT"
 pointer this block used to carry is superseded by the block above.)* Spec
