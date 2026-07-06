@@ -1,0 +1,12 @@
+{
+  "@context": {
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "dct": "http://purl.org/dc/terms/",
+    "Dataset": "dcat:Dataset",
+    "Catalog": "dcat:Catalog",
+    "title": "dct:title",
+    "description": "dct:description",
+    "distribution": { "@id": "dcat:distribution", "@type": "@id" },
+    "downloadURL": { "@id": "dcat:downloadURL", "@type": "@id" }
+  }
+}

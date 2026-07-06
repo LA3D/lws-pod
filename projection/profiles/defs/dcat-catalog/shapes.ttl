@@ -1,0 +1,11 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix lwss: <https://w3id.org/lws-pod/shapes/dcat#> .
+
+lwss:DatasetShape a sh:NodeShape ;
+  sh:targetClass dcat:Dataset ;
+  sh:property [ sh:path dct:title ; sh:minCount 1 ; sh:maxCount 1 ; sh:severity sh:Violation ;
+    sh:message "Every dcat:Dataset must declare exactly one dct:title." ] ;
+  sh:property [ sh:path dct:description ; sh:minCount 1 ; sh:severity sh:Info ;
+    sh:message "Consider adding a dct:description for catalog disclosure." ] .

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { loadProfile, discoverBinding } from './profile-loader.mjs'
 import { mockFetch } from './resolve.test.mjs'
+import { readFileSync } from 'fs'
 
 const B = 'https://pod.example/profiles'
 const ROLE = 'http://www.w3.org/ns/dx/prof/role/'
@@ -81,6 +82,39 @@ describe('loadProfile', () => {
     const b = { '@context': CTX, '@id': '', '@type': 'Profile', isProfileOf: `${B}/a.jsonld`, hasResource: [] }
     const p = await loadProfile(`${B}/a.jsonld`, { fetchFn: mockFetch({ [`${B}/a.jsonld`]: { body: a }, [`${B}/b.jsonld`]: { body: b } }) })
     expect(p.id).toBe(`${B}/a.jsonld`)   // terminates
+  })
+
+  it('dcat-catalog loads end-to-end: walk reaches substrate-floor, identity inherited, roles dispatch', async () => {
+    const defs = (rel) => new URL(`../profiles/defs/${rel}`, import.meta.url)
+    const readJson = (rel) => JSON.parse(readFileSync(defs(rel), 'utf8'))
+    const contextPath = 'profiles-compact.context.jsonld'
+    const ctx = readJson(contextPath)['@context']
+
+    // Build the dcat-catalog descriptor with expanded context (like the test MAP pattern)
+    const dcatCatalog = {
+      '@context': ctx,
+      '@id': '',
+      '@type': 'Profile',
+      hasToken: 'dcat-catalog',
+      isProfileOf: `${B}/substrate-floor.jsonld`,
+      hasResource: [
+        { '@id': '#ctx', hasRole: LWSP_ROLE + 'context', hasArtifact: `${B}/dcat-catalog/context.jsonld` },
+        { '@id': '#shape', hasRole: ROLE + 'validation', hasArtifact: `${B}/dcat-catalog/shapes.ttl`, format: 'text/turtle' }
+      ]
+    }
+
+    const mapWithDcat = {
+      ...MAP,
+      [`${B}/dcat-catalog/profile.jsonld`]: { body: dcatCatalog },
+      [`${B}/dcat-catalog/context.jsonld`]: { body: readJson('dcat-catalog/context.jsonld') },
+      [`${B}/dcat-catalog/shapes.ttl`]: { body: readFileSync(defs('dcat-catalog/shapes.ttl'), 'utf8') }
+    }
+
+    const p = await loadProfile(`${B}/dcat-catalog/profile.jsonld`, { fetchFn: mockFetch(mapWithDcat) })
+    expect(p.token).toBe('dcat-catalog')
+    expect(p.validation.some((v) => v.endsWith('dcat-catalog/shapes.ttl'))).toBe(true)
+    expect(p.identityPolicy).toEqual({ fragment: '#it' })
+    expect(p.conformance.some((c) => c.iri.endsWith('substrate-floor.jsonld') && c.resolved)).toBe(true)
   })
 })
 
