@@ -101,6 +101,21 @@ expose-headers (baseline JSS), bare-401 notification REST endpoint. **The full t
 (`make test-agent-eval`) still pending an ANTHROPIC_API_KEY run** — the dry battery passes; the
 model-in-the-loop run over the pod's own tools is the remaining validation.
 
+**▶ conformsTo observability — ADDRESSED (2026-07-06, probe finding (b) + hint).** Empirically
+settled first: a CONFORMANT member **admits (201 + Info advisory — the positive path live-proven
+for the first time)** and its linkset carries **up/type only**; `describedby` + `conformsTo` live on
+the **container's** linkset. That two-hop handoff (member → `up` → container → `conformsTo` →
+profile) is the current design of record — consistent with the hierarchical-retrieval thesis
+(declared facts on the linkset; derived/materialized views belong to a build, the vault's own KG
+pattern). Shipped: **acceptance #5b** (conformant member admits + stays as the observable seed +
+pins the handoff design), probe artifact yanked, and the **storage-description hint reworded**
+(fork `la3d/lws@8b86a87`, direct small commit; the old wording made the probe infer member-level
+governance edges — wording is the affordance). Pod repinned; full sweep green (profiles **6/6**,
+l3 2/2, lws 6/6, typeindex 7/7, indexed-relation 4/4, mcp-v2 16/16). **Recorded L4 brainstorm
+input:** should a member carry an *earned-at-admission* `conformsTo` (validation is a fact, not an
+inference — provenance-flavored), or does the `up`-walk stay the contract? Decide in L4's read-side
+design, not ad hoc; #5b's assertions flip deliberately if the design changes.
+
 **▶▶ NEXT: L4** (OKF projection rewritten to LWS shapes — the RED+fenced wiki-memory suite gets
 re-derived, not patched; profile-sourced SHACL admission is now proven end-to-end under it).
 
