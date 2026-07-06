@@ -3,6 +3,7 @@ import { describe, it, beforeAll, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
 import { materializeDerivedView } from '../projection/okf/derived-view.mjs'
+import { discoverBinding } from '../projection/okf/profile-loader.mjs'
 
 const PROF = '/alice/profiles/ex-graph/'
 const DATA = '/alice/graphs/'                                     // ungoverned: no describedby bound
@@ -62,6 +63,19 @@ describe.skipIf(!probe?.ok)('generic graph-semantics gate (L4b Phase A)', () => 
     const names = (view['@graph'] || []).map(g => g['@id']).sort()
     expect(names).toContain(`${AUTHORITY}/a`)
     expect(names).toContain(`${AUTHORITY}/b`)
+  })
+
+  it('read-side: the derived-view graph name resolves to its own resource (plane-mapping minimum)', async () => {
+    // The union view declared @id == its storage URL, so the name is directly dereferenceable.
+    const url = `${BASE}${DATA}view.jsonld`
+    const doc = await (await fetch(url, { headers: { ...H(), accept: 'application/ld+json' } })).json()
+    expect(doc['@id']).toBe(url)                                  // graph name == the resource you GET
+  })
+
+  it('read-side: an ungoverned container has no binding (discoverBinding -> [])', async () => {
+    const bound = await discoverBinding(`${BASE}${DATA}a.jsonld`)  // /alice/graphs/ has no .meta conformsTo
+    expect(Array.isArray(bound)).toBe(true)
+    expect(bound).toEqual([])                                     // container-authority precedence: no local bind => empty
   })
 
   it('exercises no application vocabulary (generic proof)', async () => {
