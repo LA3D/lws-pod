@@ -132,8 +132,40 @@ TypeSearch for membership, else a linkset-only client thinks containers are empt
 (d) phantom payment CORS headers (already recorded). Same-session loop closed twice: probe finding →
 surface fix → re-probe behavioral flip, both times.
 
-**▶▶ NEXT: L4** (OKF projection rewritten to LWS shapes — the RED+fenced wiki-memory suite gets
-re-derived, not patched; profile-sourced SHACL admission is now proven end-to-end under it).
+**▶ COUPLING REVIEW (2026-07-06, Chuck-requested + adversarial fable pass) — claim "generic layers
+presuppose no application" is UPHELD at the substrate, REFUTED at the mechanism.** Full report in
+the review transcript; the standing identity statement is now in CLAUDE.md ("LWS + W3C PROF; memory
+is application #1, not the substrate's identity"). **Tier A (fork substrate): CLEAN** — all 23
+lws/mcp modules read; SHACL seam vocabulary-agnostic, plural opaque conformsTo/describedby,
+steering teaches protocol only; substrate gates use generic fixtures (minors: llm-wiki URLs in one
+fork test fixture; notes-with-titles as the universal admission fixture; skills.js pod-layout
+convention). **Tier B (mechanism): the refutation, all recorded as L4 REQUIREMENTS:** (B1)
+`makeEngineProfile` force-fits the OKF index channel on every profile — **no channel role exists in
+lwspr** → L4 mints one (operation contract: channel→projection-output) + descriptors opt in; (B2)
+`engine.mjs` has no parser seam (unconditional gray-matter) + `RESERVED` hardcodes wiki channel
+artifacts → derive from `profile.channels[].target`, parser becomes a role/config; (B4/B5)
+`publish.mjs` must become **manifest-driven** (descriptor set from `defs/index.jsonld`, no
+llm-wiki special-case, defsLoader path-aware) — new families are currently un-onboardable and
+UNCHECKED; (B6) `discoverBinding` collapses plural conformsTo → plural API (joins the
+earned-conformsTo + defaultProfile-precedence L4 inputs); (B3) `lwsp.ttl` plane-mapping
+`skos:definition` says "knowledge bundles" — reword neutral (+ republish); (B9) live `skos:` +
+`implementedBy` defaults in `okf/links.mjs` (contradicts the Plan-1-#4-fixed claim; sole consumer =
+the superseded constrained-container proxy); (B7) identity-policy config vocabulary is
+document-shaped (one referent/doc) — L4 read-side input; (B8) `profile-select.mjs` dead → delete at
+L4. **Sharpest structural fact: the Plan-2 PROF chain has ZERO production callers** (only publish
+uses loadProfile) — the mechanism exists beside, not under, the running system; L4 is where it goes
+under. **Tier D (framing): FIXED this session** — CLAUDE.md identity statement, README lead +
+layer-cake ("L4 = profile-defined projection", not "OKF projection"); remaining wording nits
+(okf/-directory houses the neutral PROF machinery → consider `projection/prof/` split;
+`base-shape.ttl`'s "universal" comment vs its dcterms:title gate) → L4.
+
+**▶▶ NEXT: L4 — reframed by the coupling review: "the projection becomes PROFILE-DEFINED", not
+"the OKF projection rewritten".** Scope: the Tier-B requirements above (channel role + parser seam
++ manifest-driven publish + plural conformsTo) with the wiki-memory family as proof #1 (RED+fenced
+suite re-derived, not patched) and **a genuinely non-OKF profile binding (e.g. DCAT catalog or
+RO-Crate, shapes+context on a container, no markdown) as the anti-overfit acceptance gate**.
+Carry-in design inputs: earned-at-admission member conformsTo vs up-walk; defaultProfile
+precedence; membership steering wording; hint "every resource" vs suppressed root.
 
 **▶ PLAN 2 / PROFILE MECHANISM — DONE + MERGED (2026-07-04).** *(The "MCP correction then L4 NEXT"
 pointer this block used to carry is superseded by the block above.)* Spec

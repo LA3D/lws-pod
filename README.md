@@ -1,7 +1,9 @@
 # lws-pod
 
-The substrate for the **memory pods**, built on a containerized, pinned
-[JavaScriptSolidServer](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer) (JSS).
+An implementation of **W3C Linked Web Storage (LWS)** with **W3C PROF profiles**, built on a
+containerized, pinned [JavaScriptSolidServer](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer)
+(JSS). Structure is imposed by profiles, never baked in; the **memory pod** (wiki-memory profile
+family) is the first application built on it, not the substrate's identity.
 
 **Status:** JSS chosen over CSS; the L2 memory layer — OKF **projection engine** (`projection/`),
 **SHACL admission floor** (`constrained-container/`), **curation console** (`app/`) — is built on
@@ -15,7 +17,8 @@ structure is profile-imposed, the pod is the canonical home. Design of record:
 0.0.210** ([`LA3D/JavaScriptSolidServer`](https://github.com/LA3D/JavaScriptSolidServer) @ `la3d/main`)
 and adding LWS **in-process** — not a server-agnostic sidecar (the earlier framing), and not
 `lwsd`/`tudor` (evaluated, rejected). Layering: **L1 container → L2 linkset + storage description →
-L3 SHACL admission → L4 OKF projection (rewritten)**; **L1 + L2 are shipped** (the fork's PR #1 merged
+L3 SHACL admission → L4 profile-defined projection** (L1–L3 are substrate; L4 is where an
+application's profile family — OKF/wiki-memory first — plugs in); **L1 + L2 are shipped** (the fork's PR #1 merged
 into `la3d/lws`, PR #2 open) — L2 is container-validated, incl. the public-Caddy-rung scheme proof
 (`make up-fork-tls`). Design of
 record: [`docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`](docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md).

@@ -1,11 +1,15 @@
 # CLAUDE.md — lws-pod
 
-Containerized, version-pinned **JavaScriptSolidServer (JSS)** as the development substrate for a
-**Linked Web Storage (LWS)** memory pod: a general, standards-based memory store where *structure is
-imposed by a profile, not baked in*, and the pod is the canonical home (Obsidian and git are
-clients). On top of it we build the **L2 memory layer** — an OKF projection engine, a SHACL
-admission floor, and a curation console. Thesis under test: typed, progressively-disclosed memory
-helps agents more than flat retrieval.
+Containerized, version-pinned **JavaScriptSolidServer (JSS)** carrying an implementation of **W3C
+Linked Web Storage (LWS)** with **W3C PROF profiles**. *That is the substrate's whole identity*: a
+general linked-web-storage pod where structure is imposed by profiles, never baked in — nothing in
+the substrate or the profile mechanism may presuppose any particular application. The **first
+application** built on it is a memory pod (the wiki-memory profile family: OKF projection engine,
+SHACL admission floor, curation console; the pod is the canonical home, Obsidian and git are
+clients), under the thesis that typed, progressively-disclosed memory helps agents more than flat
+retrieval. Other applications = other profiles (data catalogs, RO-Crate, sensor data, …) on the
+same unmodified substrate — the 2026-07-06 coupling review (FOLLOWUP) is the standing gate on this
+separation.
 
 **Substrate (RESOLVED 2026-06-29).** The target is **LWS** — the W3C standardization successor to
 Solid (`.claude/skills/lws-protocol` grounds the spec). No server implements the LWS *storage* layer
