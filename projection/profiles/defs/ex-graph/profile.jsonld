@@ -1,0 +1,12 @@
+{
+  "@context": "../profiles-compact.context.jsonld",
+  "@id": "",
+  "@type": "Profile",
+  "hasToken": "ex-graph",
+  "isProfileOf": "../substrate-floor.jsonld",
+  "dct:title": "Generic graph family — arbitrary RDF, named-graph JSON-LD (L4b Phase A gate)",
+  "hasResource": [
+    { "@id": "#ctx",  "hasRole": "lwspr:context",      "hasArtifact": "context.jsonld",      "format": "application/ld+json" },
+    { "@id": "#view", "hasRole": "lwspr:derived-view", "hasArtifact": "derived-view.jsonld", "format": "application/ld+json" }
+  ]
+}
