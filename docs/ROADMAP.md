@@ -22,6 +22,14 @@
 > forward sequencing is the design doc's §12** (`…2026-06-29-lws-storage-layer-design.md`) + current state in
 > **`FOLLOWUP.md`** — read those, not the Phase-1/2/3 "sidecar" sequencing below, which is superseded history.
 
+> **L4 SPLIT (2026-07-06, coupling review):** the identity is **LWS + W3C PROF; memory is
+> application #1** (CLAUDE.md carries the statement; `docs/foundations/06-code-placement-audit.md`
+> is the standing gate). "L4 = OKF projection" below is superseded: **L4a (substrate neutrality —
+> DONE 2026-07-06)** proved zero-code onboarding with the dcat-catalog family; **L4b (next)**
+> re-derives wiki-memory on the decoupled floor and demotes the engine to application tooling.
+> Current state + L4b scope: **FOLLOWUP.md** (authoritative over this doc's sequencing).
+
+
 > **DIRECTION CHANGE (2026-06-28).** The project re-founded as a **general, standards-based memory
 > substrate** — structure is imposed by a profile, not baked in; the pod is the canonical home. The
 > current **design of record** is

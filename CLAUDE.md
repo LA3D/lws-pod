@@ -82,7 +82,11 @@ fork lives only in the `*.fork*` files + `caddy/`. Full rig notes: `README.md` "
 - **`Dockerfile` / `docker-compose*.yml`** — JSS pinned to `0.0.209`; enabled flags `--idp --mcp
   --conneg --mashlib-cdn --git --notifications --provision-keys` (Dockerfile comments explain each).
   Base+override compose: `docker-compose.yml` (env-neutral) + `docker-compose.local.yml`.
-- **`projection/`** — OKF projection engine. `okf/` = generic floor (identity, card→quads, channels);
+- **`projection/`** — two tiers awaiting the L4b split (coupling review 2026-07-06): the NEUTRAL
+  profile mechanism (`okf/{resolve,profile-loader,profile-doc,engine-profile,rdf,namespaces}.mjs` —
+  PROF walk, authority resolution; misleadingly housed under `okf/`) and the OKF-FAMILY app engine
+  (`engine.mjs`, `okf/{card,identity,frontmatter,index-channel}.mjs` — markdown cards, application
+  #1 tooling per P13, NOT substrate);
   `profiles/wiki-memory/` = the typed-edge profile; `profiles/defs/` = profile definition sources (PROF
   descriptors, pinned upstream mirrors); `publish/` = declaration-time checks + the publish/bind step;
   `triggers/` = CLI one-shot + WebSocket CDC watcher.
@@ -127,8 +131,11 @@ Never force-push to `main`, skip hooks, or `git add -A`. Stage specific files.
 
 - **`projection/profiles/wiki-memory/` test suite is RED by design.** Its `extract.mjs` still calls
   `cardToQuads` with three args (no identity policy), so `policy.mint` is undefined — the documented
-  Plan-1→Plan-2 ripple (see FOLLOWUP). The `okf/` floor is fully green. **Do not "fix" it by reverting
-  Plan 1**; it is resolved when Plan 2 threads the policy through the profile.
+  Plan-1 ripple (see FOLLOWUP). The `okf/` floor is fully green and fenced
+  (`okf/red-fence.test.mjs`). **Do not "fix" it by reverting Plan 1 or patching the old contract**;
+  it is resolved at **L4b**, where the suite is RE-DERIVED on the decoupled floor (Plan 2 and L4a
+  are DONE; L4b gets its own brainstorm → spec → plan round — the "don't re-brainstorm" rule covers
+  the substrate design, not L4b's scope).
 - **A fresh Docker Desktop often can't start any container** (`runc … can't get final child's PID
   from pipe: EOF`) — run `docker desktop restart`, wait, retry. `make doctor` checks for this.
 - **The RS256 owner bearer is replayable** (not DPoP-bound) — fine for a trusted local agent; an
