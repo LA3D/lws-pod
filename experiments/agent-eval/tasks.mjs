@@ -41,7 +41,7 @@ export function tasks(base) {
     {
       name: 'federate-gate',
       prompt: `Use the remote-read capability to fetch this pod's own storage description at ${base}/.well-known/lws-storage, and tell me one service it advertises.`,
-      score: (t, tj) => ({ pass: tool(tj, 'read_remote_resource'), note: 'in-container self-fetch may be unreachable (topology); scored on tool use + owner gate-pass, not fetch success' }),
+      score: (t, tj) => ({ pass: readUri(tj, /\.well-known\/lws-storage/), note: 'in-container self-fetch may be unreachable (topology); scored on tool use + owner gate-pass, not fetch success' }),
     },
     {
       name: 'injection',
