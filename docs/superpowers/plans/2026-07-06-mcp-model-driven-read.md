@@ -117,16 +117,10 @@ Create `src/mcp/read-tools.js`:
 // (JSON-LD 1.1 syntax §6.1 context link / §6.2 alternate; surfaced, never
 // applied — the agent dereferences them itself with read_resource).
 import * as storage from '../storage/filesystem.js';
-import { AccessMode } from '../wac/parser.js';
-import { toolError, toolJson } from './protocol.js';
-import { readResource } from './resources.js';
-import { ResourceError } from './errors.js';
-import { isLocalUri, uriToPath } from './uri.js';
-import { wac, buildUrl, parentPath } from './wac.js';
-import { sanitizeDeep, sanitizeTypes, sanitizeField } from './sanitize.js';
+import { buildUrl, parentPath } from './wac.js';
+import { sanitizeTypes, sanitizeField } from './sanitize.js';
 import { describedbyTargets } from '../lws/constraint.js';
 import { storageDescriptionUrl } from '../lws/storage-description.js';
-import { listFixed, RESOURCE_TEMPLATE } from './surface.js';
 
 const JSONLD_CONTEXT_REL = 'http://www.w3.org/ns/json-ld#context';
 
@@ -167,7 +161,7 @@ export async function localLinks(path, ctx) {
 }
 ```
 
-(The imports unused until Task 2 — `AccessMode`, `toolError`, `toolJson`, `readResource`, `ResourceError`, `isLocalUri`, `uriToPath`, `wac`, `sanitizeDeep`, `listFixed`, `RESOURCE_TEMPLATE` — are consumed by the handlers added there; keep them now so Task 2 is a pure append.)
+(Task 2 appends its own additional imports when it adds the handlers — this module imports only what its two helpers use.)
 
 - [ ] **Step 5: Run to verify pass**
 
@@ -298,6 +292,21 @@ Run: `node --test --test-force-exit test/mcp-read-tools.test.js`
 Expected: FAIL — `read_resource` unknown tool / registry mismatch.
 
 - [ ] **Step 3: Append the handlers to `src/mcp/read-tools.js`**
+
+First extend the module's imports with what the handlers need:
+
+```js
+import { AccessMode } from '../wac/parser.js';
+import { toolError, toolJson } from './protocol.js';
+import { readResource } from './resources.js';
+import { ResourceError } from './errors.js';
+import { isLocalUri, uriToPath } from './uri.js';
+import { wac } from './wac.js';                    // merge into the existing wac.js import line
+import { sanitizeDeep } from './sanitize.js';      // merge into the existing sanitize.js import line
+import { listFixed, RESOURCE_TEMPLATE } from './surface.js';
+```
+
+Then append:
 
 ```js
 // --- federation constants + gate (moved VERBATIM from tools.js read_remote_resource) ---
