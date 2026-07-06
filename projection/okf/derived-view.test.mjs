@@ -14,10 +14,15 @@ const memberB = { '@context': CTX, '@id': 'https://authority.example/kb/b', '@gr
 // collide blank-node labels across members (jsonld.toRDF restarts _:b0 per call).
 const memberBnA = { '@context': CTX, '@id': 'https://authority.example/kb/bn-a', '@graph': [{ '@id': 'https://authority.example/kb/bn-a#it', note: { label: 'A-note' } }] }
 const memberBnB = { '@context': CTX, '@id': 'https://authority.example/kb/bn-b', '@graph': [{ '@id': 'https://authority.example/kb/bn-b#it', note: { label: 'B-note' } }] }
+// Two members at distinct storage URLs that declare the SAME in-band @id (graph name collision).
+const memberDupA = { '@context': CTX, '@id': 'https://authority.example/kb/dup', '@graph': [{ '@id': 'https://authority.example/kb/dup#a', label: 'DupA' }] }
+const memberDupB = { '@context': CTX, '@id': 'https://authority.example/kb/dup', '@graph': [{ '@id': 'https://authority.example/kb/dup#b', label: 'DupB' }] }
 const listing = `@prefix ldp: <http://www.w3.org/ns/ldp#> .
 <${CONTAINER}> ldp:contains <${CONTAINER}a.jsonld>, <${CONTAINER}b.jsonld>, <${CONTAINER}view.jsonld> .`
 const bnListing = `@prefix ldp: <http://www.w3.org/ns/ldp#> .
 <${CONTAINER}> ldp:contains <${CONTAINER}bn-a.jsonld>, <${CONTAINER}bn-b.jsonld>, <${CONTAINER}view.jsonld> .`
+const dupListing = `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${CONTAINER}> ldp:contains <${CONTAINER}dup-a.jsonld>, <${CONTAINER}dup-b.jsonld>, <${CONTAINER}view.jsonld> .`
 
 function fakePod() {
   const puts = []
@@ -40,6 +45,19 @@ function fakePodWithBnodes() {
     if (u === CONTAINER) return { ok: true, text: async () => bnListing }
     if (u.endsWith('bn-a.jsonld')) return { ok: true, json: async () => memberBnA, text: async () => JSON.stringify(memberBnA) }
     if (u.endsWith('bn-b.jsonld')) return { ok: true, json: async () => memberBnB, text: async () => JSON.stringify(memberBnB) }
+    return { ok: false, status: 404 }
+  }
+  return { fetchFn, puts }
+}
+
+function fakePodWithDupNames() {
+  const puts = []
+  const fetchFn = async (url, opts = {}) => {
+    const u = String(url)
+    if (opts.method === 'PUT') { puts.push({ url: u, body: JSON.parse(opts.body) }); return { ok: true, status: 201 } }
+    if (u === CONTAINER) return { ok: true, text: async () => dupListing }
+    if (u.endsWith('dup-a.jsonld')) return { ok: true, json: async () => memberDupA, text: async () => JSON.stringify(memberDupA) }
+    if (u.endsWith('dup-b.jsonld')) return { ok: true, json: async () => memberDupB, text: async () => JSON.stringify(memberDupB) }
     return { ok: false, status: 404 }
   }
   return { fetchFn, puts }
@@ -83,5 +101,29 @@ describe('materializeDerivedView', () => {
     expect(labels).toEqual(['A-note', 'B-note'])          // both survive
     const labelNodeIds = body['@graph'].filter(n => n.label).map(n => n['@id'])
     expect(new Set(labelNodeIds).size).toBe(2)            // on two distinct nodes, not merged
+  })
+  it('dataset: two members declaring the SAME @id union into one named graph, neither dropped', async () => {
+    const { fetchFn, puts } = fakePodWithDupNames()
+    const decl = { named_graph: 'view.jsonld', push_mode: 'replace', mode: 'dataset' }
+    await materializeDerivedView(CONTAINER, 'tok', decl, { context: CTX, fetchFn })
+    const body = puts[0].body
+    // Same-named graphs must accumulate into a single @graph entry (was last-writer-wins drop).
+    const dupGraphs = body['@graph'].filter(g => g['@id'] === 'https://authority.example/kb/dup')
+    expect(dupGraphs.length).toBe(1)
+    const ids = dupGraphs[0]['@graph'].map(n => n['@id']).sort()
+    expect(ids).toEqual(['https://authority.example/kb/dup#a', 'https://authority.example/kb/dup#b'])
+  })
+  it('rejects an unknown mode (typo) instead of silently defaulting', async () => {
+    const { fetchFn } = fakePod()
+    const decl = { named_graph: 'view.jsonld', push_mode: 'replace', mode: 'datset' }
+    await expect(materializeDerivedView(CONTAINER, 'tok', decl, { context: CTX, fetchFn }))
+      .rejects.toThrow(/unknown mode/)
+  })
+  it('rejects an off-origin named_graph target before any PUT', async () => {
+    const { fetchFn, puts } = fakePod()
+    const decl = { named_graph: 'https://evil.example/x.jsonld', push_mode: 'replace', mode: 'union' }
+    await expect(materializeDerivedView(CONTAINER, 'tok', decl, { context: CTX, fetchFn }))
+      .rejects.toThrow(/off-origin/)
+    expect(puts.length).toBe(0)
   })
 })

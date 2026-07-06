@@ -14,7 +14,8 @@ async function readMembers(containerUrl, token, fetchFn) {
   return quads.filter(q => q.predicate.value === LDP_CONTAINS).map(q => q.object.value)
 }
 
-async function memberGraph(url, token, fetchFn) {
+async function memberGraph(url, token, fetchFn, origin) {
+  if (new URL(url).origin !== origin) throw new Error(`member off-origin: ${url}`)
   const r = await fetchFn(url, { headers: { accept: 'application/ld+json', ...authH(token) } })
   if (!r.ok) throw new Error(`member ${url} -> ${r.status}`)
   const doc = await r.json()
@@ -24,14 +25,20 @@ async function memberGraph(url, token, fetchFn) {
 }
 
 export async function materializeDerivedView(containerUrl, token, declaration, { context = {}, fetchFn = fetch } = {}) {
+  if (!['union', 'dataset'].includes(declaration.mode)) throw new Error(`derived-view: unknown mode ${declaration.mode}`)
+  // v1: 'merge' behaves as 'replace' (push_mode is not yet consumed elsewhere; documented plan stance).
+  if (declaration.push_mode && !['replace', 'merge'].includes(declaration.push_mode)) throw new Error(`derived-view: unknown push_mode ${declaration.push_mode}`)
+
+  const origin = new URL(containerUrl).origin
   const target = new URL(declaration.named_graph, containerUrl).href
+  if (new URL(target).origin !== origin) throw new Error(`derived-view target off-origin: ${target}`)
   const members = (await readMembers(containerUrl, token, fetchFn)).filter(u => u !== target)
-  const graphs = await Promise.all(members.map(u => memberGraph(u, token, fetchFn)))
+  const graphs = await Promise.all(members.map(u => memberGraph(u, token, fetchFn, origin)))
 
   let body
   if (declaration.mode === 'dataset') {
     const byGraph = {}
-    for (const g of graphs) byGraph[g.name] = g.quads
+    for (const g of graphs) byGraph[g.name] = (byGraph[g.name] || []).concat(g.quads)   // same-named graphs union, never drop
     body = await quadsToDataset(byGraph, { context })
   } else {
     body = await quadsToNamedGraph(graphs.flatMap(g => g.quads), { graphName: target, context })

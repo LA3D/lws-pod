@@ -3,7 +3,7 @@ import { describe, it, beforeAll, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
 import { materializeDerivedView } from '../projection/okf/derived-view.mjs'
-import { discoverBinding } from '../projection/okf/profile-loader.mjs'
+import { discoverBinding, loadProfile } from '../projection/okf/profile-loader.mjs'
 
 const PROF = '/alice/profiles/ex-graph/'
 const DATA = '/alice/graphs/'                                     // ungoverned: no describedby bound
@@ -15,6 +15,7 @@ const probe = await fetch(`${BASE}/.well-known/lws-storage`).catch(() => null)
 describe.skipIf(!probe?.ok)('generic graph-semantics gate (L4b Phase A)', () => {
   let token
   const H = () => ({ authorization: `Bearer ${token}` })
+  const authFetch = (u, o = {}) => fetch(u, { ...o, headers: { ...(o.headers || {}), authorization: `Bearer ${token}` } })
   const member = (slug) => ({ '@context': CTX, '@id': `${AUTHORITY}/${slug}`,
     '@graph': [{ '@id': `${AUTHORITY}/${slug}#it`, type: 'ex:Thing', label: slug }] })
 
@@ -46,8 +47,12 @@ describe.skipIf(!probe?.ok)('generic graph-semantics gate (L4b Phase A)', () => 
   })
 
   it('materializes a union derived view (JSON-LD named graph, named by the view URL)', async () => {
-    const r = await materializeDerivedView(`${BASE}${DATA}`, token,
-      { named_graph: 'view.jsonld', push_mode: 'replace', mode: 'union' }, { context: CTX })
+    // Data-declared path: load the published ex-graph profile and let its own derived-view
+    // artifact drive the materializer, instead of hand-writing the declaration inline.
+    const prof = await loadProfile(`${BASE}${PROF}profile.jsonld`, { fetchFn: authFetch })
+    expect(prof.derivedViews.length).toBeGreaterThan(0)
+    const decl = prof.derivedViews[0]   // the published {named_graph:'view.jsonld', push_mode:'replace', mode:'union'}
+    const r = await materializeDerivedView(`${BASE}${DATA}`, token, decl, { context: CTX })
     expect([200, 201, 204, 205]).toContain(r.status)
     const view = await (await fetch(r.target, { headers: { ...H(), accept: 'application/ld+json' } })).json()
     expect(view['@id']).toBe(`${BASE}${DATA}view.jsonld`)
@@ -74,7 +79,6 @@ describe.skipIf(!probe?.ok)('generic graph-semantics gate (L4b Phase A)', () => 
 
   it('read-side: an ungoverned container has no binding (discoverBinding -> [])', async () => {
     // Authenticate to disambiguate: [] means genuinely no conformsTo, not a 401 fold (conformsToFromMeta collapses all non-2xx to [])
-    const authFetch = (u, o = {}) => fetch(u, { ...o, headers: { ...(o.headers || {}), authorization: `Bearer ${token}` } })
     const bound = await discoverBinding(`${BASE}${DATA}a.jsonld`, { fetchFn: authFetch })  // /alice/graphs/ has no .meta conformsTo
     expect(Array.isArray(bound)).toBe(true)
     expect(bound).toEqual([])                                     // container-authority precedence: no local bind => empty

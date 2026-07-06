@@ -95,8 +95,8 @@ The name/dereference separation above is now realized **in-band** via JSON-LD 1.
 - **Serialization is JSON-LD 1.1 only** on the agent path. TriG is an optional conneg export; Turtle is
   an *unnamed union* export only (it cannot carry a graph name; the fork's Turtle conneg drops `@graph`).
 - **Containment:** a resource = one named graph; a **container = the dataset** (members are its named
-  graphs, name = member URL); an **aggregate derived view** may be a resource-as-dataset (multi-`@graph`)
-  when its declaration asks (`mode: dataset`).
+  graphs, name = the member's in-band `@id` (doc IRI), else its URL); an **aggregate derived view** may
+  be a resource-as-dataset (multi-`@graph`) when its declaration asks (`mode: dataset`).
 - **Read-side minimum:** a derived view's `named_graph` is its own pod resource URL, so the graph name is
   directly dereferenceable. For a card whose graph name is the authority doc IRI (≠ storage URL), the
   resolution is the plane mapping (`rel="up"`/`describedby`/type index) — the read half of §11 #4.

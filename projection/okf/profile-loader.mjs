@@ -13,7 +13,8 @@ async function fetchJson(url, fetchFn) {
 }
 
 // The role dispatch table — the ONLY place role IRIs are interpreted (P7).
-// context→parser input, identity-policy/plane-mapping→configs, validation/vocabulary→artifact URLs.
+// context→parser input, identity-policy/plane-mapping→configs, validation/vocabulary→artifact URLs,
+// derived-view→fetched artifact appended to the derivedViews list.
 async function dispatch(resources, acc, fetchFn) {
   for (const r of resources) {
     for (const role of r.roles) {
