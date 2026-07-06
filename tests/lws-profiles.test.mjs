@@ -62,6 +62,32 @@ describe.skipIf(!lws)('profile mechanism (live)', () => {
     expect(JSON.stringify(problem.violations)).toMatch(/title/i)     // the llm-wiki floor rule speaks
   })
 
+  it('acceptance #5b: a CONFORMANT member admits through the profile shape and stays observable', async () => {
+    // The positive path (never live-proven before the array-form sniff fix) +
+    // the observability seed: strict #5 rejects every bad member, so without
+    // this the bound container holds no RDF member a cold agent can sample.
+    // Pins the CURRENT handoff design: governance edges (describedby,
+    // conformsTo) live on the CONTAINER linkset; a member carries up/type and
+    // reaches its profile via `up`. Member-level inheritance (or an
+    // earned-at-admission conformsTo) is an explicit L4 brainstorm input —
+    // if L4 changes the design, flip these assertions deliberately.
+    const good = { '@context': { wm: 'https://la3d.github.io/llm-wiki-colab/ns#', dcterms: 'http://purl.org/dc/terms/' },
+      '@id': '#it', '@type': 'wm:Concept', 'dcterms:title': 'Conformant seed concept' }
+    const w = await fetch(`${BASE}/alice/concepts/good.jsonld`, { method: 'PUT',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/ld+json' }, body: JSON.stringify(good) })
+    expect([200, 201]).toContain(w.status)                            // admitted, not rejected
+    expect(JSON.stringify(await w.json())).toMatch(/advisories/)      // Info advisory channel intact
+    const member = (await (await fetch(`${BASE}/alice/concepts/good.jsonld`,
+      { headers: { accept: 'application/linkset+json', authorization: `Bearer ${token}` } })).json()).linkset[0]
+    expect(member.up[0].href).toBe(`${BASE}/alice/concepts/`)         // the handoff affordance
+    expect('describedby' in member).toBe(false)                       // current design: not on the member
+    expect(DCT_CONFORMS in member).toBe(false)
+    const container = (await (await fetch(`${BASE}/alice/concepts/`,
+      { headers: { accept: 'application/linkset+json', authorization: `Bearer ${token}` } })).json()).linkset[0]
+    expect('describedby' in container).toBe(true)                     // ...because it lives here
+    expect(DCT_CONFORMS in container).toBe(true)
+  })
+
   it('acceptance #9: an unbound container behaves exactly as today (negative control)', async () => {
     await fetch(`${BASE}/alice/plain/x.md`, { method: 'PUT',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'text/markdown' }, body: 'hi' })
