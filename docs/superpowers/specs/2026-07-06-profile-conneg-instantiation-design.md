@@ -133,9 +133,12 @@ surfaces. All `--lws`-gated + additive.
 - **`Accept-Profile: <uri|token>`** on GET/HEAD selects the representation conforming to a profile.
   Tokens map to URIs per PROF `prof:hasToken`; the mapping is surfaced per
   DX-PROF-CONNEG §8.2.1.2 (`Link: <…prof/Profile>; rel="type"; token="…"; anchor=<uri>`).
-- **Most-specific selection reuses the `isProfileOf` walk the pod already performs**: exact match, else
-  the next-most-specific profile the representation conforms to (transitively). Independent
-  (non-hierarchical) profiles → indicate each.
+- **Selection is exact-match in the fork.** The fork treats `conformsTo` as opaque (it resolves no
+  profile hierarchy — verified 2026-07-06; consistent with `constraint.js`'s "inheritance is
+  client-resolver semantics"), so it matches a requested profile URI exactly against a resource's
+  declared representations. **Hierarchy-aware most-specific selection (`isProfileOf`) is a client
+  concern** (the projection/agent layer that knows the profile chain) — keeping the fork P13-neutral.
+  Independent (non-hierarchical) profiles → indicate each.
 - **Response indicates the chosen profile:** `Link: rel="profile"` (+ `Content-Profile: <uri>` per the
   IETF draft). `HEAD` behaves as `GET` sans body.
 - **List profiles** = `GET`/`HEAD` returns the linkset alternate-representation set: `rel="canonical"`
