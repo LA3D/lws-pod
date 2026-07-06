@@ -7,11 +7,70 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-03 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface shipped, Plan 2 / L4 next
+## ▶▶ 2026-06-29/07-06 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read shipped; ld+json-500 micro-round then L4 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
-**▶ PLAN 2 / PROFILE MECHANISM — DONE + MERGED (2026-07-04) — MCP correction then L4 NEXT.** Spec
+**▶ MODEL-DRIVEN READ PATH (the MCP consumption correction) — DONE + MERGED (2026-07-06).** Spec
+`docs/superpowers/specs/2026-07-06-mcp-model-driven-read-design.md` (amends the 2026-07-03 affordance
+spec: §1's cold-agent invariant needs the read loop *model-controlled*, but §4 had put it in MCP
+**Resources** — application-driven per the `mcp-protocol` grounding; the agent-eval harness had to
+bridge). Plan `docs/superpowers/plans/2026-07-06-mcp-model-driven-read.md`. Built subagent-driven
+(per-task spec+quality reviews; fable whole-branch review: Ready to merge).
+
+**Shipped, fork (`la3d/lws` @ merge `94e1810`, branch `la3d/mcp-read-tools`, pushed):** registry is
+now **exactly 10 tools** — **`read_resource({uri})`** (one-Web: local URI → the SAME `readResource()`
+resolver as `resources/read`, WAC-before-exists no-oracle + trust-typed sanitization inherited; any
+other origin → the federation arm absorbed **verbatim** from the retired `read_remote_resource` —
+gate, depth cap, `sanitizeDeep`; local result = body block + `{uri, mimeType, links}` block) and
+**`list_resources({})`** (model-callable twin of `resources/list`, same `surface.js` table). The
+**`links` carrier** rides every read: local `up`/`describedby`/`storageDescription` from the same
+builders as the HTTP Link headers; remote passes through `json-ld#context`/`alternate`/`linkset`
+Link relations (JSON-LD 1.1 §6.1/§6.2; NGSI-LD precedent) — **surface-don't-apply**, the agent
+dereferences with the same tool. `describe_resource` accepts `uri` or `path`. **Probe defects
+fixed:** `GET /mcp` → **405 + `Allow: POST`** (spec-prescribed; was a misleading 404);
+`rel="linkset"` **suppressed on index.html-shadowed containers** (GET+HEAD — the falsely-advertised
+conneg from the cold probe). **RFC 9264 steering shipped** (the priming-ablation consequence): the
+storage description carries a top-level `linkset` member (mediaType + `conformsTo: rfc9264` + hint)
+via the one shared builder (HTTP+MCP), and the `pod-info` hint names RFC 9264 + `read_resource`.
+Resources primitive unchanged (host view). Fork suite on the merge commit: **1226 tests, 0 fail,
+1 pre-existing skip**; `docs/mcp.md` updated.
+
+**Live-verified** (pod repinned **`94e18103da…263`** full-SHA, image `fork-read-tools`):
+**`make test-mcp-v2` 16/16** (was 9 — v1's `read_remote_resource` test retired with the tool,
+replaced by tighter remote-arm cases; 429-burst test relocated last, byte-identical), `test-l3` 2/2,
+`test-typeindex` 7/7, `test-indexed-relation` 4/4, `test-lws` 6/6 — zero regression.
+**Harness is native:** `experiments/agent-eval` bridge **deleted** — the pod's own `tools/list`
+drives the Claude loop; dry battery passes bridge-less (read path present, RFC 9264 primed,
+Resources-primitive parity, no-oracle); `federate-gate` rescored onto `read_resource`.
+**The agent-operating-skills gate is now satisfied** (pod-served skills are model-driven-reachable
+via `read_resource`) — the skill layer itself still comes last, distilled from the harness.
+
+**Findings/deferred (recorded, none block):** (1) **HARDENING (named by the final review; both
+pre-existing and verbatim-carried by the byte-equivalence invariant):** the remote arm has **no
+response-size bound** (`await r.text()` from the least-trusted source; local reads are
+`readBounded`-capped) and **no SSRF guard** on the federation fetch (LAN/metadata endpoints
+fetchable by a federation-gated agent — may be a *feature* for the local rig; decide deliberately)
+— scope of a post-merge **federation-hardening round**. (2) Affordance-polish fold-ins (same file,
+same theme — fold into the next MCP round): origin-normalization dedup at the tool boundary;
+`localLinks` emits a 404ing `up` for fixed `.well-known` resources; bare-origin
+(`uri === ctx.origin`) untested; `describe_resource` lacks the bare-origin normalization +
+path-wins precedence undocumented. (3) `parseRemoteLinks` can mis-split a quoted `", <"` inside a
+Link param (fail mode: dropped link, sanitized either way). (4) **OPS:** back-to-back
+`make test-mcp-v2` runs within ~65s **self-skip** (429 on the initialize probe from the anon
+rate-limit) — wait, then re-run. (5) Emitting `json-ld#context` Link headers for the pod's own
+plain-JSON = profile/L4 (needs the which-context-applies source). (6) `resources/list` child
+enumeration page-bound — still deferred. (7) The federate-gate eval task now self-targets (a
+same-origin URL is a *local* read under one-Web) — a true remote-target task awaits the ablation
+rig's second pod.
+
+**▶▶ NEXT: the ld+json-500 L3 admission micro-round** (JSON-LD bodies hit a Turtle parse path in
+describedby-bound containers — `"Expected entity but got {"` — so SHACL never runs there; the
+acceptance-#5 silent-accept residual from Plan 2 closes with it), **then L4** (OKF projection
+rewritten to LWS shapes; the wiki-memory suite stays RED+fenced until then).
+
+**▶ PLAN 2 / PROFILE MECHANISM — DONE + MERGED (2026-07-04).** *(The "MCP correction then L4 NEXT"
+pointer this block used to carry is superseded by the block above.)* Spec
 `docs/superpowers/specs/2026-07-04-profile-mechanism-design.md` (governed by
 `docs/design-notes/layer-cake-principles.md`), plan `docs/superpowers/plans/2026-07-04-profile-mechanism.md`.
 Built subagent-driven (per-task spec+quality reviews, fix rounds, re-reviews).
@@ -103,7 +162,8 @@ authorized-resources conformsTo parity; minor debt: @vocab-in-prefixes smell (`n
 defsLoader flat-basename resolution, `checkContext` array-form `@context`, origin+path concat lint,
 `KNOWN_VOCAB_GAPS` lib extraction.
 
-**▶▶ NEXT SESSION (2026-07-04 decision, superseded — Plan 2 is now DONE).** Next up: the deferred **MCP
+**▶▶ NEXT SESSION (2026-07-04 decision, superseded — Plan 2 AND the MCP correction are now DONE; see
+the 2026-07-06 block at top).** Next up: the deferred **MCP
 affordance-spec correction** (the model-driven read/nav fix, the POST-AFFORDANCE block below), *then*
 **L4** (OKF projection rewritten to LWS shapes — the wiki-memory suite fenced RED above). The three base
 reference groundings this needed are **DONE**: `.claude/skills/{json-ld, profiles,
@@ -497,8 +557,8 @@ affordance surface merged, we tested it *with an agent* and grounded the gaps th
   of MCP Streamable HTTP (2025-03-26; no `Mcp-Session-Id`, JSON not SSE, no `GET`/`DELETE /mcp`). Empirically
   `claude mcp add` → `✔ Connected`, and a headless `claude -p` **called a pod tool end-to-end**. Claude Code
   subagents can use the pod tools (`mcp__<server>__*`, inherited or scoped in agent frontmatter).
-- **▶ OPEN: the Resources-vs-Tools consumption finding (the MCP correction thread — DEFERRED to after Plan
-  2).** The affordance spec makes autonomous cold-agent navigation THE invariant (§1) but puts the read/
+- **▶ RESOLVED 2026-07-06 (was: the Resources-vs-Tools consumption finding — the MCP correction
+  thread).** Shipped as the model-driven read path — see the block at top. The affordance spec makes autonomous cold-agent navigation THE invariant (§1) but puts the read/
   follow loop in the MCP **Resources** primitive — which the `mcp-protocol` skill now grounds as
   **application-driven** (host-staged), not **model-controlled** (Tools). So a stock client (Claude Code)
   and the API loop don't drive the affordance loop autonomously — the harness had to **bridge** Resources
