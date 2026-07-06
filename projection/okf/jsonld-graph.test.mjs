@@ -26,6 +26,25 @@ describe('quadsToNamedGraph', () => {
     expect(g['@id']).toBe('urn:g')
     expect(g['@graph'].find(n => n['@id'] === S)).toBeTruthy()
   })
+  it('handles multiple subjects in one graph', async () => {
+    const S1 = 'https://authority.example/kb/foo#it'
+    const S2 = 'https://authority.example/kb/bar#it'
+    const quads = [
+      quad(namedNode(S1), namedNode('http://www.w3.org/2000/01/rdf-schema#label'), literal('Foo')),
+      quad(namedNode(S2), namedNode('http://www.w3.org/2000/01/rdf-schema#label'), literal('Bar')),
+    ]
+    const g = await quadsToNamedGraph(quads, { graphName: 'urn:multi', context: CTX })
+    expect(g['@id']).toBe('urn:multi')
+    expect(Array.isArray(g['@graph'])).toBe(true)
+    expect(g['@graph'].length).toBe(2)
+    expect(g['@graph'].find(n => n['@id'] === S1)).toBeTruthy()
+    expect(g['@graph'].find(n => n['@id'] === S2)).toBeTruthy()
+  })
+  it('handles empty quads gracefully', async () => {
+    const g = await quadsToNamedGraph([], { graphName: 'urn:empty', context: CTX })
+    expect(g['@id']).toBe('urn:empty')
+    expect(g['@graph']).toEqual([])
+  })
 })
 
 describe('quadsToDataset', () => {
