@@ -82,6 +82,25 @@ of self-skipping; skip is reserved for a genuine non-v2 pod; verified both ways 
 16/16; an immediate re-run inside the rate window fails RED with the teaching message).
 lws-pod commit `94851f5`.
 
+**▶ Cold-agent probe re-run over the corrected surface — PASSED (2026-07-06, unprimed).** Same
+protocol as 2026-07-04 (fresh agent, pod URL + CA cert only, read-only, zero project context, NO
+RFC 9264 priming). **The steering substitutes for the prior:** the agent found the storage
+description's linkset hint, negotiated `application/linkset+json` unprompted, and made it its
+typed-relations mechanism + read-recipe step — the priming-ablation arc closes
+(unprimed-miss → primed-hit → **steered-surface-hit, no priming**). Root index-shadowing was
+reported as honest friction and routed around via `/types/search` (the suppressed rel no longer
+misleads). Profile mechanism reconstructed again (isProfileOf walk, roles, pins; quoted back the
+thesis "structure is imposed by a profile, not baked into the server"). **New friction (recorded
+carryovers):** (a) **MCP is invisible to an HTTP-cold agent** — nothing advertises `/mcp`; candidate:
+an agent-gateway service entry in the storage description; (b) **strict-#5 side effect: no bound
+member exists to observe** — `conformsTo`/`describedby` are advertised but the bound container's
+only candidate member is now (correctly) rejected; the seed should leave one CONFORMANT bound
+member so the handoff edge is observable; (c) `/types/search` CNF **filter syntax isn't advertised**
+(an affordance gap on the search service entry); (d) minor: phantom `X-Cost`/`X-Balance` CORS
+expose-headers (baseline JSS), bare-401 notification REST endpoint. **The full tool-use battery
+(`make test-agent-eval`) still pending an ANTHROPIC_API_KEY run** — the dry battery passes; the
+model-in-the-loop run over the pod's own tools is the remaining validation.
+
 **▶▶ NEXT: L4** (OKF projection rewritten to LWS shapes — the RED+fenced wiki-memory suite gets
 re-derived, not patched; profile-sourced SHACL admission is now proven end-to-end under it).
 
