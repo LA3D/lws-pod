@@ -2,7 +2,12 @@ import { describe, it, beforeAll, expect } from 'vitest'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
 
 // MCP affordance-surface live gate — real-URI Resource reads against the running
-// FORK pod (--lws). Self-skips unless initialize advertises the resources capability.
+// FORK pod (--lws). Self-skips ONLY when initialize answers 2xx without the
+// resources capability (a pod that genuinely doesn't speak the v2 surface).
+// A 429 or an unreachable pod FAILS LOUDLY instead — the burst test at the end
+// of this file spends the anonymous per-IP budget, so a re-run within ~60s
+// used to 429 the probe and silently skip the whole suite: a green run that
+// tested nothing (the false-green gotcha, FOLLOWUP 2026-07-06).
 
 async function rpc(method, params, token, id = 1) {
   const headers = { 'Content-Type': 'application/json' }
@@ -14,7 +19,12 @@ const text = (res) => res?.contents?.[0]?.text ?? ''
 const toolText = (res) => res?.content?.[0]?.text ?? ''
 const toolData = (res) => { try { return JSON.parse(toolText(res)) } catch { return {} } }
 
-const init = await rpc('initialize', {}).then(r => r.body).catch(() => null)
+const probe = await rpc('initialize', {}).catch(() => ({ status: 0, body: null }))
+if (probe.status === 429) throw new Error(
+  `mcp-v2 gate: the /mcp initialize probe was rate-limited (429) — that is not a capability answer. ` +
+  `The burst test spends the anonymous budget; wait ~60s after a previous run and re-run.`)
+if (probe.status === 0) throw new Error(`mcp-v2 gate: pod unreachable at ${BASE}`)
+const init = probe.body
 const hasResources = !!init?.result?.capabilities?.resources
 
 const PROBE = 'http://example.org/mcp/Probe'

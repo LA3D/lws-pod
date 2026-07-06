@@ -16,9 +16,9 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (model-driven read path rung); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-94e18103da7e97cc7ebae57f35eff830e188a263}"
-    image: lws-pod:fork-read-tools
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (ld+json-500 admission-fix rung); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-871204179982b929b3e184f968eb925b2857e152}"
+    image: lws-pod:fork-arrayform
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --lws-profile-index (opt-in,
     # per-deployment: advertises the ProfileIndexService at this pod path — spec §10).

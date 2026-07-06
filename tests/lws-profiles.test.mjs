@@ -47,26 +47,19 @@ describe.skipIf(!lws)('profile mechanism (live)', () => {
     expect(p.conformance.some((c) => c.iri.endsWith('substrate-floor.jsonld') && c.resolved)).toBe(true)
   })
 
-  it('acceptance #5: L3 rejects a non-conformant RDF write through the profile-sourced shape, teaching message intact', async () => {
-    // llm-wiki shapes constrain wm-typed subjects; a deliberately wrong typed node:
+  it('acceptance #5 (STRICT): L3 rejects a non-conformant RDF write through the profile-sourced shape, teaching message intact', async () => {
+    // llm-wiki shapes constrain wm-typed subjects; a deliberately wrong typed node.
+    // STRICT since the array-form-shape sniff fix (was three-armed while the
+    // ld+json-500 fork bug stood): the ONLY acceptable outcome is a SHACL
+    // rejection with the teaching channel — a 2xx here is the silent-accept
+    // this gate exists to catch, and any 5xx is a regression.
     const bad = { '@context': { wm: 'https://la3d.github.io/llm-wiki-colab/ns#' }, '@id': '#it', '@type': 'wm:Concept' }
     const r = await fetch(`${BASE}/alice/concepts/bad.jsonld`, { method: 'PUT',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/ld+json' }, body: JSON.stringify(bad) })
-    if (r.status === 400) {
-      const problem = await r.json()
-      expect(problem.violations?.length ?? 0).toBeGreaterThan(0)   // the teaching channel
-    } else if (r.status >= 500) {
-      // KNOWN fork bug (FOLLOWUP): L3 admission crashes parsing ld+json bodies in
-      // bound containers — pin the signature so any OTHER 5xx still fails the gate.
-      const body = await r.text()
-      expect(body).toContain('Expected entity')
-    } else {
-      // 2xx: shape didn't target the node — the wiring fallback keeps the
-      // container-binding claim honest (a silent-accept of a TARGETED node would
-      // land here too once the 500 bug is fixed; revisit with that fork round).
-      const meta = await fetch(`${BASE}/alice/concepts/.meta`, { headers: { authorization: `Bearer ${token}` } })
-      expect(await meta.text()).toContain('describedby')
-    }
+    expect(r.status).toBe(400)
+    const problem = await r.json()
+    expect(problem.violations?.length ?? 0).toBeGreaterThan(0)       // the teaching channel
+    expect(JSON.stringify(problem.violations)).toMatch(/title/i)     // the llm-wiki floor rule speaks
   })
 
   it('acceptance #9: an unbound container behaves exactly as today (negative control)', async () => {
