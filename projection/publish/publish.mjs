@@ -1,28 +1,28 @@
 // Publish the defs tree to the pod + bind containers. Checks run FIRST; any
 // failure exits 1 with nothing written (spec §9 — declaration-time, loud).
+// MANIFEST-DRIVEN (L4a, coupling B4/B5): the descriptor set comes from
+// defs/index.jsonld and each descriptor's own PROF roles drive its checks —
+// adding a profile family is a manifest entry + files, never a code edit.
 // Usage: node publish/publish.mjs --base https://pod.example [--container /alice/profiles/]
-//        [--bind /alice/concepts/=llm-wiki] [--token <bearer>]
+//        [--bind /alice/concepts/=llm-wiki] [--token <bearer>] [--check]
 import { readFile, readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
-import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext } from './checks.mjs'
+import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, makeDefsLoader } from './checks.mjs'
+import { descriptorToProfile } from '../okf/profile-doc.mjs'
 import { loadProfile } from '../okf/profile-loader.mjs'
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const TYPES = { '.jsonld': 'application/ld+json', '.ttl': 'text/turtle' }
-const DESCRIPTORS = ['substrate-floor.jsonld', 'okf-base.jsonld', 'llm-wiki/profile.jsonld']
-
-// Known upstream vocabulary gaps, verified against the recorded pin — the
-// completeness check CAUGHT these; we record rather than patch the verbatim
-// mirror. Flag-upstream list (see FOLLOWUP): mentions is declared in
-// context.jsonld but undefined in ontology.ttl at pin 2026-07-04/c91b7a1.
-export const KNOWN_VOCAB_GAPS = ['https://la3d.github.io/llm-wiki-colab/ontology#mentions']
+const LWSPR = 'https://w3id.org/lws-pod/profile/role/'
+const ROLE = 'http://www.w3.org/ns/dx/prof/role/'
 
 function arg(name, dflt = null) {
   const i = process.argv.indexOf(`--${name}`)
   return i > -1 ? process.argv[i + 1] : dflt
 }
 const binds = process.argv.flatMap((a, i) => (process.argv[i - 1] === '--bind' ? [a] : []))
+const checkOnly = process.argv.includes('--check')
 
 async function* files(dir) {
   for (const e of await readdir(dir, { withFileTypes: true })) {
@@ -36,23 +36,45 @@ const base = arg('base') ?? (() => { throw new Error('--base required') })()
 const container = arg('container', '/profiles/')
 const token = arg('token', process.env.POD_TOKEN)
 const root = new URL(container, base).href
+const loader = makeDefsLoader(root)
 
-// 1. Checks — all of them, before any write.
+// 0. The manifest is the single source of the profile set.
+const manifest = JSON.parse(await readFile(join(DEFS, 'index.jsonld'), 'utf8'))
+const DESCRIPTORS = manifest.profiles ?? []
+const KNOWN_VOCAB_GAPS = manifest.knownVocabGaps ?? []
+const localPath = (absUrl) => join(DEFS, ...absUrl.slice(root.length).split('/'))
+
+// 1. Checks — all of them, per descriptor, driven by its own roles.
 const failures = []
-const curatedBases = []   // filled from llm-wiki context prefixes below
-const wikiCtx = JSON.parse(await readFile(join(DEFS, 'llm-wiki/context.jsonld'), 'utf8'))['@context'] ?? {}
-for (const v of Object.values(wikiCtx)) if (typeof v === 'string' && /[#/]$/.test(v)) curatedBases.push(v)
-for (const d of DESCRIPTORS) failures.push(...await checkDescriptor(await readFile(join(DEFS, d), 'utf8'), new URL(d, root).href))
-for (const s of ['okf-base.shape.ttl', 'llm-wiki/shapes.ttl']) failures.push(...await checkShapes(await readFile(join(DEFS, s), 'utf8'), s))
-for (const c of ['okf-base.context.jsonld', 'llm-wiki/context.jsonld']) failures.push(...checkContext(await readFile(join(DEFS, c), 'utf8'), c, curatedBases))
-const used = usedTermsFromContext(wikiCtx)
-const ontologyTtl = await readFile(join(DEFS, 'llm-wiki/ontology.ttl'), 'utf8')
-const allVocabFindings = await checkVocabulary(ontologyTtl, used)
-const gatedVocabFindings = await checkVocabulary(ontologyTtl, used, KNOWN_VOCAB_GAPS)
-failures.push(...gatedVocabFindings)
-const filteredGaps = KNOWN_VOCAB_GAPS.filter((g) => allVocabFindings.some((f) => f.endsWith(g)))
-if (filteredGaps.length) console.log(`known upstream vocab gaps (recorded, not patched): ${filteredGaps.join(', ')}`)
+const profilesByToken = {}
+for (const d of DESCRIPTORS) {
+  const dUrl = new URL(d, root).href
+  const dText = await readFile(join(DEFS, ...d.split('/')), 'utf8')
+  failures.push(...await checkDescriptor(dText, dUrl, loader))
+  let prof
+  try { prof = await descriptorToProfile(dText, dUrl, { documentLoader: loader }) } catch (e) { failures.push(`descriptor ${d}: ${e.message}`); continue }
+  if (prof.token) profilesByToken[prof.token] = dUrl
+
+  const ctxRes = prof.resources.find((r) => r.roles.includes(LWSPR + 'context'))
+  const ctxObj = ctxRes ? (JSON.parse(await readFile(localPath(ctxRes.artifact), 'utf8'))['@context'] ?? {}) : {}
+  const curatedBases = Object.values(ctxObj).filter((v) => typeof v === 'string' && /[#/]$/.test(v))
+
+  for (const r of prof.resources) {
+    const art = () => readFile(localPath(r.artifact), 'utf8')
+    if (r.roles.includes(ROLE + 'validation')) failures.push(...await checkShapes(await art(), `${d}:${r.artifact.split('/').pop()}`))
+    if (r.roles.includes(LWSPR + 'context')) failures.push(...checkContext(await art(), `${d}:${r.artifact.split('/').pop()}`, curatedBases))
+    if (r.roles.includes(ROLE + 'vocabulary')) {
+      const used = usedTermsFromContext({ '@context': ctxObj })
+      const all = await checkVocabulary(await art(), used)
+      const gated = await checkVocabulary(await art(), used, KNOWN_VOCAB_GAPS)
+      failures.push(...gated)
+      const noted = KNOWN_VOCAB_GAPS.filter((g) => all.some((f) => f.endsWith(g)))
+      if (noted.length) console.log(`known upstream vocab gaps in ${d} (recorded, not patched): ${noted.join(', ')}`)
+    }
+  }
+}
 if (failures.length) { console.error('DECLARATION CHECKS FAILED:\n' + failures.map((f) => ' - ' + f).join('\n')); process.exit(1) }
+if (checkOnly) { console.log(`checks passed for ${DESCRIPTORS.length} profile(s)`); process.exit(0) }
 
 // 2. Publish the tree.
 const headers = token ? { authorization: `Bearer ${token}` } : {}
@@ -68,10 +90,11 @@ function sepEscape() { return process.platform === 'win32' ? '\\' : '/' }
 
 // 3. Bind containers: conformsTo (the index) + describedby (the enforcement
 // cache, materialized from the profile's validation artifacts). Read-merge-write.
+// Token → descriptor via the manifest (hasToken match) — no name special-cases.
 for (const b of binds) {
   const [path, tokenName] = b.split('=')
-  const descriptor = tokenName === 'llm-wiki' ? new URL('llm-wiki/profile.jsonld', root).href
-    : new URL(`${tokenName}.jsonld`, root).href
+  const descriptor = profilesByToken[tokenName]
+    ?? (() => { console.error(`--bind: no profile in the manifest has token '${tokenName}'`); process.exit(1) })()
   const loaded = await loadProfile(descriptor)
   const metaUrl = new URL(path + '.meta', base).href
   let meta = {}

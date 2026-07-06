@@ -25,6 +25,17 @@ async function defsLoader(url) {
   return { contextUrl: null, document: doc, documentUrl: url }
 }
 
+// Path-aware defs loader (B5): resolves a published URL back to its local defs
+// path by stripping the publish root, preserving subdirectories. Falls back to
+// basename for URLs outside the root (e.g. the shared compact context).
+export function makeDefsLoader(rootHref) {
+  return async function pathAwareDefsLoader(url) {
+    const rel = url.startsWith(rootHref) ? url.slice(rootHref.length) : new URL(url).pathname.split('/').pop()
+    const doc = JSON.parse(await readFile(join(DEFS, ...rel.split('/')), 'utf8'))
+    return { contextUrl: null, document: doc, documentUrl: url }
+  }
+}
+
 async function validate(dataQuads, shapesTtl) {
   const shapes = rdf.dataset(new Parser().parse(shapesTtl))
   const data = rdf.dataset(dataQuads.map((q) => rdf.quad(q.subject, q.predicate, q.object)))
@@ -32,9 +43,9 @@ async function validate(dataQuads, shapesTtl) {
   return report.conforms ? [] : report.results.map((r) => `${r.message?.[0]?.value ?? r.constraintComponent?.value ?? 'violation'}`)
 }
 
-export async function checkDescriptor(jsonText, url) {
+export async function checkDescriptor(jsonText, url, loader = defsLoader) {
   let quads
-  try { quads = await jsonldToQuads(jsonText, url, { documentLoader: defsLoader }) } catch (e) { return [`descriptor ${url}: unparseable (${e.message})`] }
+  try { quads = await jsonldToQuads(jsonText, url, { documentLoader: loader }) } catch (e) { return [`descriptor ${url}: unparseable (${e.message})`] }
   if (!quads.length) return [`descriptor ${url}: parses to an EMPTY graph (fail-open blocked)`]
   if (!quads.some((q) => q.predicate.value === RDF_TYPE && q.object.value === PROF + 'Profile'))
     return [`descriptor ${url}: no prof:Profile-typed subject`]

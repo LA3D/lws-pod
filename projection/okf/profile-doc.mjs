@@ -14,8 +14,8 @@ function objectsOf(quads, subject, predicate) {
 
 // Graph-level PROF read (P10). Roles stay opaque IRI strings here; the
 // loader (profile-loader.mjs) owns dispatch. Unknown roles pass through.
-export async function descriptorToProfile(doc, descriptorUrl) {
-  const quads = await jsonldToQuads(doc, descriptorUrl)
+export async function descriptorToProfile(doc, descriptorUrl, { documentLoader } = {}) {
+  const quads = await jsonldToQuads(doc, descriptorUrl, { documentLoader })
   const id = descriptorUrl
   const token = objectsOf(quads, id, P.hasToken)[0]?.value ?? null
   const parents = objectsOf(quads, id, P.isProfileOf).map((o) => o.value)
