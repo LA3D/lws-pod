@@ -1,4 +1,3 @@
-// projection/okf/derived-view.mjs
 // Neutral derived-view materializer. Reads a container's member RDF resources and PUTs an
 // aggregate named-graph JSON-LD view per a data declaration. No application vocabulary.
 import { Parser } from 'n3'
