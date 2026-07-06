@@ -57,11 +57,25 @@ non-wiki, non-DCAT raw-RDF store.
 
 **Hard constraint 2 — fork-light by construction.** In-band graph naming (§3) means the *agent* writes
 the graph name into the JSON-LD `@id`; the substrate stores and serves the bytes faithfully and does
-**not** compute graph names. So Phase A is expected to need **no fork change** — it rides the existing
-JSON-LD storage + conneg + L3 admission paths. Any genuine gap (read-path reserialization, or L3
-admission handling a multi-`@graph` document) is a **scoped, deliberate** fork touch decided during the
-plan, not an open-ended fork round; if one is needed it is minimal and additive, and the fork-queue
-(FOLLOWUP) stays otherwise untouched. The plan MUST assert the fork diff and justify any edit.
+**not** compute graph names.
+
+*Confirmed by source investigation of the fork (`la3d/lws` @ `8b86a87`, 2026-07-06):*
+- **Store + read-back is fork-empty.** JSON-LD bodies are stored as opaque bytes
+  (`src/storage/filesystem.js`) and served verbatim (extensionless / `octet-stream`) or via a pure
+  `JSON.parse`→`JSON.stringify` on the `application/ld+json` conneg path — `@id`+`@graph` survives.
+  **Steering constraint:** the agent path stays on `application/ld+json`; `Accept: text/turtle` for a
+  named-graph doc drops the `@graph` contents (`src/rdf/turtle.js:339` skips `@`-keys) — Turtle is an
+  *unnamed-union* export only, never the named-graph carrier.
+- **L3 admission is graph-blind** — a multi-`@graph` document parses to zero quads (`src/lws/admission-rdf.js`
+  `toDataset` → `jsonLdToTurtle` → `jsonLdToQuads`, which skips `@graph`), so SHACL finds no targets and
+  **silently admits**. This only affects *governed* named-graph writes.
+
+**Consequence (decided in this plan round): Phase A is fork-empty** — the generic gate proves store +
+read-back + derived-view materialization on an **ungoverned** container. The admission-inside-`@graph`
+gap is a **Phase-B decision** (it bites only governed wiki cards under the floor), fix pre-located:
+either teach `src/rdf/turtle.js` `jsonLdToQuads` to descend into `@graph`, or replace the JSON-LD→Turtle
+hop in `src/lws/admission-rdf.js` `toDataset` with a dataset-aware parser. The fork-queue (FOLLOWUP)
+stays otherwise untouched; Plan 1 asserts an empty fork diff.
 
 ---
 
