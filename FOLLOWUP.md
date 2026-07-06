@@ -116,6 +116,22 @@ input:** should a member carry an *earned-at-admission* `conformsTo` (validation
 inference — provenance-flavored), or does the `up`-walk stay the contract? Decide in L4's read-side
 design, not ad hoc; #5b's assertions flip deliberately if the design changes.
 
+**▶ Probe re-run over the corrected surface — PASSED, stronger (2026-07-06, unprimed, 13 reqs).**
+The reworded hint taught the correct model verbatim ("member linkset carries no governance edges —
+those live on the container") and the agent walked the FULL handoff cold: `good.jsonld` → linkset
+(up/type) → container linkset (BOTH shape graphs + conformsTo) → llm-wiki profile → `isProfileOf`
+inheritance + role-typed artifacts + pinned versions → SHACL shape w/ teaching messages — the whole
+contextual-linked-memory read loop, zero priors. Unprompted corollary in its recipe: "do not assume
+the pod-wide defaultProfile; read the container's own conformsTo." The suppressed root linkset-rel
+correctly redirected ("descend to a member first") instead of misleading. Old
+advertised-but-unobserved friction GONE. **New minor friction (recorded):** (a) hint still says
+"every resource serves a linkset" while the shadowed root (correctly) doesn't — one-word fix, next
+fork touch; (b) container linkset ≠ member listing — steering should name `ldp:contains`/`items`/
+TypeSearch for membership, else a linkset-only client thinks containers are empty; (c)
+**defaultProfile precedence** (index default vs container conformsTo) → L4 read-side design input;
+(d) phantom payment CORS headers (already recorded). Same-session loop closed twice: probe finding →
+surface fix → re-probe behavioral flip, both times.
+
 **▶▶ NEXT: L4** (OKF projection rewritten to LWS shapes — the RED+fenced wiki-memory suite gets
 re-derived, not patched; profile-sourced SHACL admission is now proven end-to-end under it).
 
