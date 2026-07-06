@@ -57,6 +57,11 @@ keeps reviews clean — and must precede L4.
    obligation, not documentation.
 7. **Harness goes native** (§7): the bridge is deleted; `experiments/agent-eval` drives the pod's own
    tools via `tools/call` only. The pod surface now *is* what the harness proved.
+8. **Header-borne affordances travel with the read** (§3a). MCP has no header slot, so the tool
+   result is the carrier: `read_resource` results include a compact structured `links` member —
+   locally derived from the same linkset machinery as the HTTP headers; remotely passed through for
+   the JSON-LD-relevant relations. **Surface, don't apply:** the pod never fetches/merges an
+   advertised context on the agent's behalf — the agent has `read_resource` to dereference it.
 
 ---
 
@@ -90,6 +95,40 @@ affordances.
 
 **Governance untouched:** `mcpCredentialPolicy` and the `/mcp` rate-limit sit at dispatch and cover
 the new tools automatically; no new authz path is introduced anywhere.
+
+### 3a. The `links` carrier — header-borne affordances travel with the read
+
+HTTP carries some affordances in `Link` headers, and MCP results have no header slot — a body-only
+tool result silently strips them. JSON-LD 1.1 makes two of them normative for interpretation
+(grounded, `.claude/skills/json-ld`, syntax §6.1/§6.2):
+
+- **`rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"`** — for *ordinary JSON*
+  (`application/json` / `+json`, NOT `application/ld+json`): the processor MUST use the referenced
+  document as the active context. The upgrade path that makes plain JSON linked data without touching
+  its bytes; at most one per response; **NGSI-LD is the deployed precedent**
+  (`docs/design-notes/contextual-linked-memory.md` — inline OR advertised are equals).
+- **`rel="alternate"; type="application/ld+json"`** — for non-JSON representations (e.g.
+  `text/html`): the processor MUST load the alternate JSON-LD document instead.
+
+So `read_resource` results include a compact structured **`links`** member:
+
+- **Local arm:** `up`, `describedby` (shape), `storageDescription` — derived from the **same
+  builders as the HTTP Link headers / linkset** (one source, no drift). This also un-blinds the
+  plain-read flow: the agent gets containment navigation and the write-shape pointer without having
+  to separately select `describe_resource` (which stays, as the one-shot orientation carrying the
+  full RFC 9264 linkset + types).
+- **Remote arm:** pass through the JSON-LD-relevant relations from the remote response —
+  `json-ld#context`, `alternate` (typed `ld+json`), `linkset` — plus the content-type, URL-values
+  sanitized (`sanitizeField`). The remote arm is the agent's *only* channel to a remote resource:
+  without pass-through, an NGSI-LD broker's (or any pod's) advertised context is invisible and its
+  plain-JSON payload stays unreadable as linked data.
+- **Surface, don't apply:** the pod never fetches or merges an advertised context into the body —
+  the agent dereferences it with `read_resource` itself. That is the affordance loop working, and it
+  avoids extra server-side fetches and trust questions.
+- **Emission is NOT this round:** the pod *advertising* `json-ld#context` on plain-JSON resources it
+  serves needs a which-context-applies source (profile/L4 territory; affordance spec §6 staged it) —
+  only read-side pass-through ships here.
+- The Resources primitive result shape (host view) is unchanged.
 
 ---
 
@@ -144,8 +183,10 @@ Tool names match (§2.4), so `tasks.mjs` scoring carries over nearly unchanged.
 **Acceptance:**
 1. **Dry battery passes bridge-less** (`make test-agent-eval-dry` against the repinned pod).
 2. **`make test-mcp-v2` extended:** `read_resource` local read returns JSON-LD with `@context`
-   intact; no-oracle denial (denied read indistinguishable from not-found); remote-arm federation
-   gate; `list_resources` entries; `GET /mcp` 405 + `Allow: POST`; shadowed-container linkset
+   intact **+ a `links` member carrying `up`/`describedby`**; no-oracle denial (denied read
+   indistinguishable from not-found); remote-arm federation gate **+ `json-ld#context` pass-through
+   (a stubbed remote serving plain JSON + the context Link header surfaces it in `links`)**;
+   `list_resources` entries; `GET /mcp` 405 + `Allow: POST`; shadowed-container linkset
    suppression; RFC 9264 named in the storage description.
 3. **Full live sweep no regression:** `test-lws` / `test-l3` / `test-typeindex` /
    `test-indexed-relation`.
@@ -165,6 +206,8 @@ per-task spec+quality reviews + a whole-branch review, then `git merge --no-ff` 
 - **Expressive query pillar** — the affordance spec §8 deferral stands.
 - **`resources/list` child enumeration page-bound** — still deferred.
 - **Baseline index-shadowing conneg** — only the misleading advertisement is fixed (§6.2).
+- **Emitting `json-ld#context` Link headers** for plain-JSON resources the pod serves — read-side
+  pass-through only this round (§3a); emission needs the which-context-applies source (profile/L4).
 
 ---
 
@@ -172,6 +215,9 @@ per-task spec+quality reviews + a whole-branch review, then `git merge --no-ff` 
 
 - `.claude/skills/mcp-protocol` — primitive control model (Tools model-controlled / Resources
   application-driven), Streamable HTTP GET → 405 for non-SSE servers; SEP-2640 status.
+- `.claude/skills/json-ld` — syntax §6.1 (context Link header for ordinary JSON: MUST-fetch, max
+  one, `type="application/ld+json"`) + §6.2 (alternate document location) — the §3a carrier;
+  `contextual-linked-memory.md` for the NGSI-LD advertised-context precedent.
 - `experiments/agent-eval` — the bridge shape + dry-battery pass; `tasks.mjs` `started_with_list`.
 - FOLLOWUP 2026-07-04 — cold-agent probe findings (a)/(b)/(c) + the priming ablation (RFC 9264
   salience is prior-dependent).
