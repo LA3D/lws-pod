@@ -34,4 +34,39 @@ mechanism/onboarding (code iff data-driven, zero app vocabulary) — **3** appli
 
 ## Zero-code onboarding recipe
 
-(Filled by Task 6 — the exact agentic request sequence that onboards a profile family.)
+Task 6 — the exact agentic request sequence that onboards a profile family and binds a container to
+it, using **plain authenticated HTTP + one MCP tool call**. No `publish.mjs`, no bespoke code — every
+step is a request an agent (or a curl script) can issue directly against the pod. Executed verbatim
+by `tests/lws-dcat.test.mjs` `beforeAll` — the gate IS the recipe.
+
+1. **`PUT /alice/profiles/dcat-catalog/profile.jsonld`** (`content-type: application/ld+json`) —
+   publish the PROF descriptor (`hasToken`, `isProfileOf: substrate-floor.jsonld`, `hasResource`
+   roles for context + validation). Pure data.
+2. **`PUT /alice/profiles/dcat-catalog/context.jsonld`** (`content-type: application/ld+json`) —
+   publish the JSON-LD `@context` the profile's `lwspr:context` role points at.
+3. **`PUT /alice/profiles/dcat-catalog/shapes.ttl`** (`content-type: text/turtle`) — publish the
+   SHACL shape the profile's `role:validation` role points at (this is what the L3 admission floor
+   enforces once the container below is bound to it).
+4. **`POST /mcp` → `tools/call write_acl`** on `path: /alice/profiles/dcat-catalog/` — grant
+   `foaf:Agent` `Read` (default, so children inherit) + the owner WebID `Read/Write/Control`
+   (default). Needed so an **unauthenticated** caller can resolve the profile chain (`loadProfile`
+   walks these three artifacts with no auth).
+5. **`POST /mcp` → `tools/call write_acl`** on `path: /alice/datasets/` (the container being bound,
+   not the profile dir) — same public-read + owner-control shape. **Adapt-on-contact finding:** the
+   brief's step 4 alone was not sufficient — `discoverBinding`/`loadProfile` are exercised
+   *unauthenticated* against the **bound container's** `.meta` (walking up from the member resource),
+   so the bound container needs its own public-read ACL too, exactly like the live
+   `/alice/concepts/.acl` already does for llm-wiki. This confirms the OPS finding recorded elsewhere
+   in this file ("bound containers need public-read ACLs before binding") — `/alice/profiles/**`
+   alone is not enough.
+6. **`GET /alice/datasets/.meta`** (authenticated, `accept: application/ld+json`) — read the
+   container's existing metadata graph (empty/404 on a fresh container) so the bind is a
+   **read-merge-write**, not a clobber.
+7. **`PUT /alice/datasets/.meta`** (`content-type: application/ld+json`) — merge in
+   `dct:conformsTo: { @id: .../dcat-catalog/profile.jsonld }` and
+   `powder:describedby: [{ @id: .../dcat-catalog/shapes.ttl }]`, write back. This is the bind: from
+   here on, writes under `/alice/datasets/` are SHACL-checked against the DCAT shape, and the
+   container's linkset surface advertises `describedby`/`conformsTo` to any client that asks.
+
+Every step above is a fixed path, so re-running the recipe is idempotent (PUT returns 200/201 the
+first time, 204 on an unchanged re-PUT — both accepted by the gate).
