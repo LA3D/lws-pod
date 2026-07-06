@@ -85,7 +85,10 @@ export async function discoverBinding(resourceUrl, { fetchFn = fetch, indexUrl =
     if (found.length) return found
   }
   if (indexUrl) {
-    try { return [(await readProfileIndex(indexUrl, { fetchFn })).defaultProfile] } catch { return [] }
+    try {
+      const d = (await readProfileIndex(indexUrl, { fetchFn })).defaultProfile
+      return d ? [d] : []
+    } catch { return [] }
   }
   return []
 }

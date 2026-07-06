@@ -113,7 +113,7 @@ const server = http.createServer(async (req, res) => {
         (req.__advisories ||= []).push(`Unknown: type "${fmType}" is new to the wiki-memory profile - admitted ungoverned; register a shape or pick an existing type`);
         console.log(`[warn]   ${method} ${url} type "${fmType}" not in profile (admitted ungoverned)`);
       }
-      req.__linkHeader = typeLinkHeaders(fm, NS);
+      req.__linkHeader = typeLinkHeaders(fm, NS, ['implementedBy', 'broader']);
     }
 
     const shapeUrl = await constrainedBy(containerOf(url, method), auth);

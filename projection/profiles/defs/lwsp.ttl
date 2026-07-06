@@ -20,5 +20,5 @@ lwspr:identity-policy a prof:ResourceRole, skos:Concept ;
 
 lwspr:plane-mapping a prof:ResourceRole, skos:Concept ;
   skos:prefLabel "Plane mapping"@en ;
-  skos:definition "Config consumed by the projection: how knowledge bundles map onto storage containers."@en ;
+  skos:definition "Config consumed by a projection client: how a profile's content units map onto storage containers."@en ;
   skos:inScheme lwsp: .

@@ -103,6 +103,13 @@ describe('discoverBinding', () => {
       .toEqual([`${B}/okf-base.jsonld`])
     expect(await discoverBinding('https://pod.example/alice/notes/x.md', { fetchFn: mockFetch({}) })).toEqual([])
   })
+  it('index fallback without a defaultProfile yields [], never [undefined]', async () => {
+    const fetchFn = async (url) => url.endsWith('index.jsonld')
+      ? ({ ok: true, text: async () => JSON.stringify({ profiles: ['a.jsonld'] }) })
+      : ({ ok: false })
+    const out = await discoverBinding('https://pod.example/c/x', { fetchFn, indexUrl: 'https://pod.example/p/index.jsonld' })
+    expect(out).toEqual([])
+  })
   it('discoverBinding returns EVERY conformsTo target at the winning level (plural, B6)', async () => {
     const meta = JSON.stringify({
       '@context': { dct: 'http://purl.org/dc/terms/' },
