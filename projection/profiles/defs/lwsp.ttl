@@ -22,3 +22,8 @@ lwspr:plane-mapping a prof:ResourceRole, skos:Concept ;
   skos:prefLabel "Plane mapping"@en ;
   skos:definition "Config consumed by a projection client: how a profile's content units map onto storage containers."@en ;
   skos:inScheme lwsp: .
+
+lwspr:derived-view a prof:ResourceRole, skos:Concept ;
+  skos:prefLabel "Derived view"@en ;
+  skos:definition "Config consumed by a derived-view projector: the named_graph (a pod resource IRI whose URL is the graph name), the push_mode (replace|merge), and the mode (union|dataset). Declares — as data — an aggregate view a projector materializes into the container; it carries no application vocabulary."@en ;
+  skos:inScheme lwsp: .

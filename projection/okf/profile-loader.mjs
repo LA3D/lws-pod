@@ -22,6 +22,7 @@ async function dispatch(resources, acc, fetchFn) {
       else if (role === LWSP_ROLE + 'context') acc.contexts.push(await fetchJson(r.artifact, fetchFn))
       else if (role === LWSP_ROLE + 'identity-policy') acc.identityPolicy = await fetchJson(r.artifact, fetchFn)
       else if (role === LWSP_ROLE + 'plane-mapping') acc.planeMapping = await fetchJson(r.artifact, fetchFn)
+      else if (role === LWSP_ROLE + 'derived-view') acc.derivedViews.push(await fetchJson(r.artifact, fetchFn))
       else acc.unknownRoles.push({ role, artifact: r.artifact })
     }
   }
@@ -49,7 +50,7 @@ async function walk(url, acc, visited, fetchFn) {
 
 export async function loadProfile(descriptorUrl, { fetchFn = fetch } = {}) {
   const acc = { conformance: [], validation: [], vocabulary: [], contexts: [],
-    identityPolicy: null, planeMapping: null, unknownRoles: [] }
+    identityPolicy: null, planeMapping: null, derivedViews: [], unknownRoles: [] }
   // The root descriptor must resolve — loud (P8 declaration side of the loader).
   const root = await descriptorToProfile(await fetchJson(descriptorUrl, fetchFn), descriptorUrl)
   const visited = new Set([descriptorUrl])
