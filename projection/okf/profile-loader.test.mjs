@@ -90,17 +90,29 @@ describe('discoverBinding', () => {
   it('own .meta wins', async () => {
     const f = mockFetch({ 'https://pod.example/alice/notes/x.md.meta': { body: META } })
     expect(await discoverBinding('https://pod.example/alice/notes/x.md', { fetchFn: f }))
-      .toBe(`${B}/llm-wiki/profile.jsonld`)
+      .toEqual([`${B}/llm-wiki/profile.jsonld`])
   })
   it('falls back to the container .meta via URL up-walk', async () => {
     const f = mockFetch({ 'https://pod.example/alice/notes/.meta': { body: META } })
     expect(await discoverBinding('https://pod.example/alice/notes/x.md', { fetchFn: f }))
-      .toBe(`${B}/llm-wiki/profile.jsonld`)
+      .toEqual([`${B}/llm-wiki/profile.jsonld`])
   })
-  it('falls back to the index default, else null', async () => {
+  it('falls back to the index default, else empty array', async () => {
     const f = mockFetch({ 'https://pod.example/profiles/index.jsonld': { body: { profiles: [], defaultProfile: `${B}/okf-base.jsonld` } } })
     expect(await discoverBinding('https://pod.example/alice/notes/x.md', { fetchFn: f, indexUrl: 'https://pod.example/profiles/index.jsonld' }))
-      .toBe(`${B}/okf-base.jsonld`)
-    expect(await discoverBinding('https://pod.example/alice/notes/x.md', { fetchFn: mockFetch({}) })).toBeNull()
+      .toEqual([`${B}/okf-base.jsonld`])
+    expect(await discoverBinding('https://pod.example/alice/notes/x.md', { fetchFn: mockFetch({}) })).toEqual([])
+  })
+  it('discoverBinding returns EVERY conformsTo target at the winning level (plural, B6)', async () => {
+    const meta = JSON.stringify({
+      '@context': { dct: 'http://purl.org/dc/terms/' },
+      '@id': '',
+      'dct:conformsTo': [{ '@id': 'https://pod.example/p/a.jsonld' }, { '@id': 'https://pod.example/p/b.jsonld' }],
+    })
+    const fetchFn = async (url) => url.endsWith('/x.meta')
+      ? { ok: true, text: async () => meta, headers: {} }
+      : { ok: false, headers: {} }
+    const out = await discoverBinding('https://pod.example/c/x', { fetchFn })
+    expect(out.sort()).toEqual(['https://pod.example/p/a.jsonld', 'https://pod.example/p/b.jsonld'])
   })
 })

@@ -38,9 +38,9 @@ describe.skipIf(!lws)('profile mechanism (live)', () => {
   })
 
   it('loader resolves the published llm-wiki profile end-to-end (walk + merge live)', async () => {
-    const descriptor = await discoverBinding(`${BASE}/alice/concepts/anything.md`)
-    expect(descriptor).toBe(`${BASE}/alice/profiles/llm-wiki/profile.jsonld`)
-    const p = await loadProfile(descriptor)
+    const bindings = await discoverBinding(`${BASE}/alice/concepts/anything.md`)
+    expect(bindings).toEqual([`${BASE}/alice/profiles/llm-wiki/profile.jsonld`])
+    const p = await loadProfile(bindings[0])
     expect(p.token).toBe('llm-wiki')
     expect(p.validation.some((v) => v.endsWith('llm-wiki/shapes.ttl'))).toBe(true)
     expect(p.identityPolicy).toEqual({ pathPrefix: 'id/', fragment: '#it' })

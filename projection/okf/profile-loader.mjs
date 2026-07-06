@@ -61,27 +61,31 @@ export async function loadProfile(descriptorUrl, { fetchFn = fetch } = {}) {
 
 async function conformsToFromMeta(metaUrl, fetchFn) {
   let r
-  try { r = await fetchFn(metaUrl, { headers: { accept: 'application/ld+json, application/json' } }) } catch { return null }
-  if (!r.ok) return null
+  try { r = await fetchFn(metaUrl, { headers: { accept: 'application/ld+json, application/json' } }) } catch { return [] }
+  if (!r.ok) return []
   let quads
-  try { quads = await jsonldToQuads(await r.text(), metaUrl) } catch { return null }
-  return quads.find((q) => q.predicate.value === DCT_CONFORMS)?.object.value ?? null
+  try { quads = await jsonldToQuads(await r.text(), metaUrl) } catch { return [] }
+  // Plural on purpose (B6): a resource may conform to several profiles; the
+  // substrate's linkset layer is plural (conformsToTargets) and this API must
+  // not collapse it. Which profile GOVERNS a read is an L4b read-side question.
+  return quads.filter((q) => q.predicate.value === DCT_CONFORMS).map((q) => q.object.value)
 }
 
-// Binding discovery (spec §4/§6): own .meta → container .meta up-walk (URL
-// path; linkset rel=up equivalence documented) → index default → null.
+// Binding discovery (spec §4/§6): every dct:conformsTo target at the FIRST level
+// that has any (own .meta → container .meta up-walk via URL path → index default
+// → []). Never null; empty array = unbound.
 export async function discoverBinding(resourceUrl, { fetchFn = fetch, indexUrl = null } = {}) {
   const u = new URL(resourceUrl)
   const own = await conformsToFromMeta(resourceUrl.replace(/\/$/, '') + (resourceUrl.endsWith('/') ? '/.meta' : '.meta'), fetchFn)
-  if (own) return own
+  if (own.length) return own
   const segs = u.pathname.split('/').filter(Boolean)
   for (let i = segs.length - 1; i >= 0; i--) {
     const containerMeta = `${u.origin}/${segs.slice(0, i).join('/')}${i ? '/' : ''}.meta`
     const found = await conformsToFromMeta(containerMeta, fetchFn)
-    if (found) return found
+    if (found.length) return found
   }
   if (indexUrl) {
-    try { return (await readProfileIndex(indexUrl, { fetchFn })).defaultProfile } catch { return null }
+    try { return [(await readProfileIndex(indexUrl, { fetchFn })).defaultProfile] } catch { return [] }
   }
-  return null
+  return []
 }
