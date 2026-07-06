@@ -73,7 +73,9 @@ describe.skipIf(!probe?.ok)('generic graph-semantics gate (L4b Phase A)', () => 
   })
 
   it('read-side: an ungoverned container has no binding (discoverBinding -> [])', async () => {
-    const bound = await discoverBinding(`${BASE}${DATA}a.jsonld`)  // /alice/graphs/ has no .meta conformsTo
+    // Authenticate to disambiguate: [] means genuinely no conformsTo, not a 401 fold (conformsToFromMeta collapses all non-2xx to [])
+    const authFetch = (u, o = {}) => fetch(u, { ...o, headers: { ...(o.headers || {}), authorization: `Bearer ${token}` } })
+    const bound = await discoverBinding(`${BASE}${DATA}a.jsonld`, { fetchFn: authFetch })  // /alice/graphs/ has no .meta conformsTo
     expect(Array.isArray(bound)).toBe(true)
     expect(bound).toEqual([])                                     // container-authority precedence: no local bind => empty
   })
