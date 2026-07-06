@@ -154,7 +154,8 @@ publish-profiles:
 	@[ -d projection/node_modules ] || ( cd projection && npm ci )
 	cd projection && NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem \
 	  node publish/publish.mjs --base https://pod.vardeman.me --container /alice/profiles/ \
-	  --bind /alice/concepts/=llm-wiki --token $${POD_TOKEN}
+	  --bind /alice/concepts/=llm-wiki \
+	  --bind /alice/datasets/=dcat-catalog --token $${POD_TOKEN}
 
 # Wiki-memory app gate — unit tests (jsdom/node), e2e excluded (Task 10).
 test-app:
