@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-06 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read shipped; ld+json-500 micro-round then L4 next
+## ▶▶ 2026-06-29/07-06 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix shipped; L4 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -64,10 +64,26 @@ enumeration page-bound — still deferred. (7) The federate-gate eval task now s
 same-origin URL is a *local* read under one-Web) — a true remote-target task awaits the ablation
 rig's second pod.
 
-**▶▶ NEXT: the ld+json-500 L3 admission micro-round** (JSON-LD bodies hit a Turtle parse path in
-describedby-bound containers — `"Expected entity but got {"` — so SHACL never runs there; the
-acceptance-#5 silent-accept residual from Plan 2 closes with it), **then L4** (OKF projection
-rewritten to LWS shapes; the wiki-memory suite stays RED+fenced until then).
+**▶ ld+json-500 MICRO-ROUND — DONE + MERGED (2026-07-06, same day).** Root-caused via
+systematic-debugging (live signature reproduced, then isolated locally): NOT the body — the
+**stored SHAPE**. A `text/turtle` shapes doc published through the conneg write path is stored as
+JSON-LD, and a multi-subject doc (any realistic SHACL file) serializes as a **top-level ARRAY**;
+admission's `'{'`-only media sniff (`src/lws/admission.js`) sent those JSON bytes to the n3 Turtle
+parser → `"Expected entity but got { on line 2"` → every RDF write into the bound container 500'd
+and **SHACL never ran**. (FOLLOWUP's old framing blamed the body arm — wrong arm, same bug.) Fix:
+the sniff accepts `'['` as JSON-LD (fork `la3d/lws` @ merge **`8712041`**, TDD, full suite
+**1227/0-fail/1-skip**, pushed; pod repinned full-SHA, image `fork-arrayform`). With the shape
+parsing, the llm-wiki floor rule fires end-to-end: **acceptance #5 is now STRICT** (400 +
+violations + the `dcterms:title` teaching message REQUIRED; the pinned-500/wiring arms retired —
+**the Plan-2 silent-accept residual is closed**). Also shipped: the **mcp-v2 false-green fix** —
+the gate's anonymous initialize probe now **fails loudly on 429/unreachable** ("wait ~60s") instead
+of self-skipping; skip is reserved for a genuine non-v2 pod; verified both ways live
+(sweep green: profiles 5/5 strict, l3 2/2, typeindex 7/7, indexed-relation 4/4, lws 6/6, mcp-v2
+16/16; an immediate re-run inside the rate window fails RED with the teaching message).
+lws-pod commit `94851f5`.
+
+**▶▶ NEXT: L4** (OKF projection rewritten to LWS shapes — the RED+fenced wiki-memory suite gets
+re-derived, not patched; profile-sourced SHACL admission is now proven end-to-end under it).
 
 **▶ PLAN 2 / PROFILE MECHANISM — DONE + MERGED (2026-07-04).** *(The "MCP correction then L4 NEXT"
 pointer this block used to carry is superseded by the block above.)* Spec
