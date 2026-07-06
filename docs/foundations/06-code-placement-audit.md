@@ -56,9 +56,13 @@ by `tests/lws-dcat.test.mjs` `beforeAll` — the gate IS the recipe.
    brief's step 4 alone was not sufficient — `discoverBinding`/`loadProfile` are exercised
    *unauthenticated* against the **bound container's** `.meta` (walking up from the member resource),
    so the bound container needs its own public-read ACL too, exactly like the live
-   `/alice/concepts/.acl` already does for llm-wiki. This confirms the OPS finding recorded elsewhere
-   in this file ("bound containers need public-read ACLs before binding") — `/alice/profiles/**`
-   alone is not enough.
+   `/alice/concepts/.acl` already does for llm-wiki. This confirms the Plan-2 OPS finding recorded in
+   `FOLLOWUP.md` ("bound containers need public-read ACLs before binding") — `/alice/profiles/**`
+   alone is not enough. **Recipe preconditions:** a pod where the floor artifacts
+   (`substrate-floor.jsonld`, `profiles-compact.context.jsonld`, `floor-identity.jsonld`) are
+   already published under `/alice/profiles/` with public-read (Plan-2 state, or one prior
+   `make publish-profiles`); on a truly fresh pod, publish the floor files by the same PUT
+   pattern first or the `isProfileOf` walk fails.
 6. **`GET /alice/datasets/.meta`** (authenticated, `accept: application/ld+json`) — read the
    container's existing metadata graph (empty/404 on a fresh container) so the bind is a
    **read-merge-write**, not a clobber.

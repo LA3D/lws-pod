@@ -7,8 +7,8 @@ import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsF
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const read = (f) => readFile(join(DEFS, f), 'utf8')
 // publish.mjs is a top-level script (no main() guard) — importing it runs the
-// whole publish flow and throws '--base required'. Redeclared here, single
-// source of truth stays the KNOWN_VOCAB_GAPS export in publish.mjs.
+// whole publish flow and throws '--base required'. Redeclared here; since L4a
+// the single source of truth is MANIFEST DATA: defs/index.jsonld `knownVocabGaps`.
 const KNOWN_VOCAB_GAPS = ['https://la3d.github.io/llm-wiki-colab/ontology#mentions']
 
 describe('declaration-time checks (spec §9 — fail loud at publish)', () => {

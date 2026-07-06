@@ -259,8 +259,9 @@ owner-only ACLs mean `/alice/profiles/**` + bound containers need **public-read 
 for unauthenticated profile resolution (reproducible sequence in `.superpowers/sdd/task-10-report.md`);
 `publish.mjs` should learn ACL provisioning. (3) **FLAG UPSTREAM (llm-wiki-colab):** `mentions` is
 declared in `context.jsonld` but undefined in `ontology.ttl` @ pin `c91b7a1` — caught by the
-vocabulary gate, carried as `KNOWN_VOCAB_GAPS` in `publish.mjs` (the mirror is NOT patched — verbatim
-discipline held). (4) Fork `test/mcp-lws-read.test.js` has a pre-existing open-handle hang (node
+vocabulary gate, carried as `KNOWN_VOCAB_GAPS` in `publish.mjs` *(since L4a: the gap list is
+manifest DATA — `defs/index.jsonld` `knownVocabGaps`; the export is gone)* (the mirror is NOT
+patched — verbatim discipline held). (4) Fork `test/mcp-lws-read.test.js` has a pre-existing open-handle hang (node
 v26.4.0) — suites run with `--test-force-exit`.
 
 **▶ Cold-agent probe over the profile mechanism — PASSED (2026-07-04).** A fresh agent (zero project
@@ -293,10 +294,11 @@ conneg won't honor it. This A/B = the first knowledge-priming ablation for the a
 **Deferred carryover (recorded, none block):** conformsTo as a second indexed relation +
 fork-native conformsTo admission (post-L4); w3id registration (public rung); edge-target cross-card
 `id:` resolution, trigger runtime adoption of `loadProfile`, typing-channel materialization rule,
-`profile-select.mjs` legacy-baseProfile retirement (all L4); plane-mapping parsed-not-consumed;
-authorized-resources conformsTo parity; minor debt: @vocab-in-prefixes smell (`namespaces.mjs`),
-defsLoader flat-basename resolution, `checkContext` array-form `@context`, origin+path concat lint,
-`KNOWN_VOCAB_GAPS` lib extraction.
+`profile-select.mjs` legacy-baseProfile retirement *(DONE in L4a — deleted)* (all L4);
+plane-mapping parsed-not-consumed; authorized-resources conformsTo parity; minor debt:
+@vocab-in-prefixes smell (`namespaces.mjs`), defsLoader flat-basename resolution *(DONE in L4a —
+`makeDefsLoader` path-aware)*, `checkContext` array-form `@context`, origin+path concat lint,
+`KNOWN_VOCAB_GAPS` lib extraction *(SUPERSEDED in L4a — the gap list is manifest data)*.
 
 **▶▶ NEXT SESSION (2026-07-04 decision, superseded — Plan 2 AND the MCP correction are now DONE; see
 the 2026-07-06 block at top).** Next up: the deferred **MCP
