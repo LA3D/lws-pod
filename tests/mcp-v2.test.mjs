@@ -81,17 +81,83 @@ describe.skipIf(!hasResources)('MCP affordance surface (real-URI reads)', () => 
     expect(obj.types).toContain(PROBE)
   })
 
-  it('read_remote_resource is gated (owner passes the federation gate; anon denied)', async () => {
-    // The gate is the security-relevant, live-verifiable property. The happy-path
-    // remote fetch is covered by the fork unit test — here the pod cannot fetch
-    // its own external https URL from inside the container (no in-container
-    // DNS/CA), so we assert gate behavior, not fetch success.
-    const anon = (await rpc('tools/call', { name: 'read_remote_resource', arguments: { url: `${BASE}/.well-known/lws-storage` } })).body.result
-    expect(String(toolText(anon)).toLowerCase()).toContain('access denied')   // anon/foreign denied by the gate
-    const owner = (await rpc('tools/call', { name: 'read_remote_resource', arguments: { url: `${BASE}/.well-known/lws-storage` } }, token)).body.result
-    expect(String(toolText(owner)).toLowerCase()).not.toContain('access denied') // owner passes the gate
+  // 'read_remote_resource is gated' removed 2026-07-06: the tool itself is retired
+  // (absorbed into read_resource's remote arm, verified below in `tools.js` at
+  // MERGE_SHA) — calling it now returns a plain "unknown tool" error, not a
+  // federation-gate error, so the old assertion no longer tests anything real.
+  // Equivalent coverage lives in the new describe block's 'read_resource remote
+  // arm' test. The rate-limit burst test that used to close out this block is
+  // moved to the very end of the file (after the model-driven block) — it trips
+  // the anonymous per-IP 429 budget, and if it runs before the new block's
+  // anonymous read_resource/GET calls it starves them of budget too.
+})
+
+describe.skipIf(!hasResources)('model-driven read tools (spec 2026-07-06)', () => {
+  let token
+  beforeAll(async () => { await ensurePod(); ({ token } = await getToken()) })
+
+  it('tools/list: read_resource + list_resources present, read_remote_resource retired', async () => {
+    const names = (await rpc('tools/list', {}, token)).body.result.tools.map(t => t.name)
+    expect(names).toContain('read_resource')
+    expect(names).toContain('list_resources')
+    expect(names).not.toContain('read_remote_resource')
+    expect(names.length).toBe(10)
   })
 
+  it('read_resource local: body block keeps @context; links block carries up + storageDescription', async () => {
+    const res = (await rpc('tools/call', { name: 'read_resource', arguments: { uri: `${BASE}${PROBE_PATH}` } }, token)).body.result
+    expect(res.isError ?? false).toBe(false)
+    expect(JSON.parse(res.content[0].text)['@context']).toBeTruthy()
+    const meta = JSON.parse(res.content[1].text)
+    expect(meta.links.up).toBe(`${BASE}/alice/`)
+    expect(meta.links.storageDescription).toBe(`${BASE}/.well-known/lws-storage`)
+  })
+
+  it('read_resource no-oracle: anonymous read of the owner-private probe is a teaching error', async () => {
+    const res = (await rpc('tools/call', { name: 'read_resource', arguments: { uri: `${BASE}${PROBE_PATH}` } })).body.result
+    expect(res.isError).toBe(true)
+    expect(toolText(res)).toMatch(/access denied|not found/i)
+  })
+
+  it('read_resource remote arm: anonymous is federation-gated; owner takes the remote path', async () => {
+    const anon = (await rpc('tools/call', { name: 'read_resource', arguments: { uri: 'https://nonexistent.invalid/x' } })).body.result
+    expect(toolText(anon)).toMatch(/federation requires a local WebID/)
+    const owner = (await rpc('tools/call', { name: 'read_resource', arguments: { uri: 'https://nonexistent.invalid/x' } }, token)).body.result
+    expect(toolText(owner)).toMatch(/remote unreachable/)   // gate passed -> remote arm, DNS-dead host
+  })
+
+  it('list_resources returns the entry resources + real-URI template', async () => {
+    const out = toolData((await rpc('tools/call', { name: 'list_resources', arguments: {} }, token)).body.result)
+    expect(out.resources.map(r => r.uri)).toContain(`${BASE}/.well-known/lws-storage`)
+    expect(out.templates[0].uriTemplate.startsWith('https://')).toBe(true)
+  })
+
+  it('GET /mcp answers 405 + Allow: POST', async () => {
+    const r = await fetch(`${BASE}/mcp`)
+    expect(r.status).toBe(405)
+    expect(r.headers.get('allow')).toMatch(/POST/)
+  })
+
+  it('storage description names RFC 9264', async () => {
+    const sd = await (await fetch(`${BASE}/.well-known/lws-storage`)).json()
+    expect(sd.linkset.conformsTo).toBe('https://www.rfc-editor.org/rfc/rfc9264')
+  })
+
+  it('index-shadowed container omits rel="linkset"; plain container keeps it', async () => {
+    await rpc('tools/call', { name: 'create_resource', arguments: { container: '/alice/', slug: 'shadow-probe', isContainer: true } }, token)
+    await rpc('tools/call', { name: 'write_resource', arguments: { path: '/alice/shadow-probe/index.html', content: '<html></html>', contentType: 'text/html' } }, token)
+    await rpc('tools/call', { name: 'create_resource', arguments: { container: '/alice/', slug: 'plain-probe', isContainer: true } }, token)
+    const shadowed = await fetch(`${BASE}/alice/shadow-probe/`, { headers: { Authorization: `Bearer ${token}` } })
+    expect(shadowed.headers.get('link') || '').not.toMatch(/rel="linkset"/)
+    const plain = await fetch(`${BASE}/alice/plain-probe/`, { headers: { Authorization: `Bearer ${token}` } })
+    expect(plain.headers.get('link') || '').toMatch(/rel="linkset"/)
+  })
+})
+
+// Relocated from the end of 'MCP affordance surface' (see comment there) so it
+// runs dead last — it deliberately exhausts the anonymous per-IP /mcp budget,
+// which would otherwise starve the anonymous calls in the block above.
+describe.skipIf(!hasResources)('rate limiting (run last — exhausts anon budget)', () => {
   it('/mcp is rate-limited: a burst of anonymous calls eventually returns 429', async () => {
     // Anonymous per-IP cap is 60/min; drive past it. Tolerant: SOME 429 within 75 calls.
     let saw429 = false
