@@ -194,16 +194,77 @@ carried to L4b/final-triage: defs.test.mjs hardcodes per-family file lists (B4-a
 enumerate from the manifest); stale `KNOWN_VOCAB_GAPS` comment in checks.test.mjs:11; double
 `jsonldToQuads` per descriptor (perf nit); gate-3 member-`type` assertion.
 
-**▶▶ NEXT: L4b — "wiki-memory re-derived on the decoupled floor."** Scope (spec §6 + carried):
-engine demotion executed (split `projection/` → neutral PROF mechanism vs wiki projector as
-app-#1 tooling; naming decided then), the RED+fenced wiki-memory suite re-derived (not patched),
-derived-view-declaration vocabulary minted when wiki needs it, B7 identity-config vocabulary,
-read-side semantics (earned-at-admission member conformsTo vs up-walk; defaultProfile precedence;
-plural-binding governance), constrained-container retirement decision, membership steering wording,
-`base-shape.ttl` universality comment. Fork-queue (first fork round after): container-listing
-WAC-filtering (probe-#3 finding a — spec-weight), sidecar mediaTypes, hint "every resource" wording,
-MCP gateway advertisement in the storage description, GET-405 Content-Type, admission fixture
-diversity, npm-test `--test-force-exit`.
+**▶ L4b PHASE A — GENERIC GRAPH SEMANTICS — DONE + probe #4 PASSED (2026-07-06).** The L4b design
+split into one spec (`docs/superpowers/specs/2026-07-06-l4b-graph-semantics-design.md`), two phases;
+**Phase A** = the application-neutral graph layer (plan
+`docs/superpowers/plans/2026-07-06-l4b-graph-phase-a.md`, subagent-driven, per-task spec+quality
+reviews). **FORK UNTOUCHED — Phase A is fork-empty** (source-verified: store+read-back of named-graph
+JSON-LD is byte-faithful on the `application/ld+json` path — opaque-byte storage + `JSON.parse`→
+`JSON.stringify` conneg; L3 admission is graph-blind — silently admits multi-`@graph` — but that only
+bites *governed* named-graph writes = a Phase-B decision, fix pre-located at `src/rdf/turtle.js`
+`jsonLdToQuads` / `src/lws/admission-rdf.js` `toDataset`).
+
+**Shipped, lws-pod `main` (commits `aa60026..07ce103`):** the outbound writer the tree lacked —
+`projection/okf/jsonld-graph.mjs` (`quadsToNamedGraph`/`quadsToDataset`, graph name supplied **in-band**
+by the caller, quad graph-components ignored); the **`lwspr:derived-view` PROF role** + one loader
+dispatch branch (`profile-loader.mjs` → `acc.derivedViews`, artifact fetched, auto-surfaces via
+`...acc`); the neutral **derived-view materializer** `projection/okf/derived-view.mjs`
+(`materializeDerivedView` — reads a container's members as JSON-LD, aggregates, PUTs a named-graph view;
+**union** = flattened, named by the view URL; **dataset** = per-member named graphs); the **`ex-graph`**
+neutral data-only family (`profiles/defs/ex-graph/`, `isProfileOf substrate-floor`, declares the view);
+the live gate `tests/lws-graph.test.mjs` + **`make test-graph`**; and the `iri-minting.md` Plane-1
+graph-semantics section (graph name = doc `@id` ≠ storage path; subject = `#it`; JSON-LD 1.1 only on the
+agent path; container = dataset; read-side plane-mapping minimum). **Live-verified: `make test-graph`
+6/6 (real, not skipped)** + full sweep zero-regression (profiles 6/6, dcat 5/5, l3 2/2, lws 6/6,
+typeindex 7/7, indexed-relation 4/4, mcp-v2 16/16).
+
+**Probe #4 (cold, unprimed, anonymous) — PASSED decisively.** A fresh agent (pod URL + CA only, told to
+ignore all project context, HTTP-only) reconstructed the whole model: the **three-way identity split**
+(storage URL vs document/graph `@id = authority.example/kb/a` — "the pod is custody, not naming
+authority" — vs the thing `…/a#it`); **union vs dataset** read straight from the byte structure
+(`view.jsonld` one `@graph` sources-indistinguishable; `view-ds.jsonld` nested `@graph`-of-`@graph`s,
+named graphs preserved); and the governance trail (storage-desc → linkset → concluded `ex-graph` is
+**schema-free by design**, understood PROF/`isProfileOf`/the `#it` floor convention). **The generic
+graph layer is cold-agent-reconstructable — the Phase-A invariant.**
+
+**Probe #4 findings (recorded):** (a) **FORK-QUEUE, spec-weight — Turtle conneg silently drops
+custom-context JSON-LD triples**: `GET …/a.jsonld` with `Accept: text/turtle` → 200 + empty
+`@prefix` preamble, **no triples, no error** (`jsonLdToQuads` skips `@`-keys — confirms the fork survey;
+Turtle = unnamed-union only). Silent triple-loss is misleading; a Turtle-only cold client would read the
+container as empty. Harden: correct serialization OR error. `Accept: application/n-quads` ignored (raw
+JSON-LD returned). (b) **FORK-QUEUE — storage-desc hint over-promises**: it says governance edges live on
+the container linkset, but an *ungoverned* container correctly has none → the agent hit a documented-path
+dead end (ties to the existing "every resource" hint-wording fork item). (c) **Phase-B — ungoverned data
+has no asserted profile link**: the agent matched `ex-graph` by dir-name+content, not a `conformsTo` edge
+(`ex-graph` isn't in `profiles/index.jsonld`; `/alice/graphs/` is unbound). A *governed* container (Phase
+B) asserts it via `.meta conformsTo`. (d) **Design signpost** — two identity conventions coexist
+unexplained: members use portable `authority.example/kb` IRIs (in-band), derived views use their own pod
+URL (pod-materialized aggregate). Intentional but unsignposted → Phase-B steering/design-note. (e) Minor:
+container `stat:size` (raw 260) ≠ served `Content-Length` (350, pretty-printed) — could read as tampering.
+(f) **SEED/OPS re-confirmed** — `/alice/graphs/` (ungoverned, gate writes authenticated) needed a
+public-read ACL grant before the cold probe could read it (the L4a OPS finding again; the gate itself
+reads authenticated — only cold discovery needs public-read). **Task-review roll-up minors (for Phase B):**
+the materializer skips only its OWN target, not sibling derived views (`view.jsonld` leaks into
+`view-ds`) → **Phase-B RESERVED-as-data** (skip-set from all declared views); `mode` typo falls through to
+`union` silently; the dispatch-table header comment omits `derived-view`; `skipIf` style drift vs
+`lws-dcat`. (Full task-by-task record: `.superpowers/sdd/progress.md`, round "L4b Phase A".)
+
+**▶▶ NEXT: L4b PHASE B — "wiki-memory re-derived on the decoupled floor."** Scope (spec §6 + carried):
+engine demotion executed (split `projection/` → neutral PROF mechanism, e.g. `projection/prof/`, vs wiki
+projector as app-#1 tooling, e.g. `apps/wiki-projector/`; naming decided then), the RED+fenced
+wiki-memory suite re-derived (not patched — project cards to JSON-LD **named graphs** per Phase A, declare
+the wiki channels as **`lwspr:derived-view` data** — the vocabulary now EXISTS), B7 identity-config
+vocabulary, read-side semantics (spec §5 leanings: keep the `up`-walk contract + optional
+earned-at-admission member conformsTo; container conformsTo beats pod-wide defaultProfile; plural-binding
+= AND-compose validation, most-specific for context), constrained-container retirement decision,
+membership steering wording, `base-shape.ttl` universality comment. **Phase-A carryovers into Phase B:**
+RESERVED-as-data (materializer skip-set from ALL declared views, not just its own target); the
+**admission-inside-`@graph`** fork decision (governed named-graph writes silently pass today — fix
+pre-located); the two-identity-convention signpost. **Probe #5** (over the re-derived wiki family) closes
+Phase B. Fork-queue (first fork round after): **Turtle/n-quads conneg on custom-context JSON-LD (probe-#4,
+spec-weight)**, container-listing WAC-filtering (probe-#3 finding a — spec-weight), sidecar mediaTypes,
+hint "every resource"/ungoverned wording, MCP gateway advertisement in the storage description,
+GET-405 Content-Type, admission fixture diversity, npm-test `--test-force-exit`.
 
 **▶ PLAN 2 / PROFILE MECHANISM — DONE + MERGED (2026-07-04).** *(The "MCP correction then L4 NEXT"
 pointer this block used to carry is superseded by the block above.)* Spec
