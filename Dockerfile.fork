@@ -13,7 +13,7 @@ RUN apt-get update \
 # (read_resource/list_resources, links carrier, RFC 9264 storage description), la3d/lws HEAD.
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=8b86a870c6fccaa6be0e3c52217db164ccd81857
+ARG JSS_GIT_REF=d75a4dd6e807805bd6a16ff6cf04b3fad8ecb123
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
