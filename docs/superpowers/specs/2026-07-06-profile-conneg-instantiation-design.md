@@ -321,3 +321,24 @@ separate; (d) `describedby` overloading resolved (shape vs profile split), not w
   (the indexed-relation seam), `2026-07-04-profile-mechanism-design.md` (PROF governance already shipped).
 - `docs/design-notes/{iri-minting,contextual-linked-memory,layer-cake-principles}.md` — identity planes,
   card-vs-referent, P13.
+
+---
+
+## 13. Phase-1 implementation notes (2026-07-07 — shipped, fork merge `d75a4dd`)
+
+- **Selection is exact-match in the fork** (§4's amendment held): `conformsTo` opaque, hierarchy
+  client-side.
+- **list-profiles as Link headers** (`rel="canonical"/"alternate"`, `type=`media, `formats=`profile)
+  ride every response where the negotiation block ran (`Accept-Profile` present — the DX Example-19
+  discovery pattern) and the 406 (authz-filtered). Bare GETs stay zero-I/O; cold discovery = the
+  linkset + the `capability[]` hint. This is the §8.2.1.1 published-mapping stance that keeps the
+  `cnpr:http` claim honest without a hot-path `.meta` read.
+- **Grounding remarks (do not "fix"):** the `formats=` attribute follows every worked example in both
+  pinned specs; DX-PROF-CONNEG Figure-3 *prose* saying `profile` contradicts the spec's own examples.
+  `Content-Profile` comes from a post-pin IETF draft — emitted alongside the required
+  `Link: rel="profile"`.
+- **The JSON-LD substrate fix landed with Phase 1** (not originally in scope, Chuck-directed): the
+  fork's governance-input parsing (`toDataset`: admission bodies/shapes + `.meta` reads) now uses
+  `@rdfjs/parser-jsonld` with a no-network documentLoader (LWS v1 preloaded). This also closed the
+  `@graph`-blind-admission decision this spec had deferred to Phase B. The serving-path hand-rolled
+  serializer/parser pair (`toJsonLd`/`jsonLdToQuads`) is fork-queued for its own retirement round.

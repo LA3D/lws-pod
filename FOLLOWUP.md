@@ -7,9 +7,73 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-06 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality shipped; L4b next
+## ▶▶ 2026-06-29/07-07 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 shipped; conneg Phase 2 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
+
+**▶ CONNEG-BY-PROFILE PHASE 1 (fork pillar) — DONE + MERGED + LIVE (2026-07-07).** Design of record
+`docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md` (**supersedes L4b Phase B's
+read-side scope**; grounded by the new `.claude/skills/prof-conneg` — DX-PROF-CONNEG WD 2026-07-03 +
+IETF draft-svensson-profiled-representations-01). The frame: content = what agents consume (markdown),
+links = the RDF that connects memories; lossy both ways, so selection rides the PROFILE dimension (LWS
+itself mandates media conneg be lossless; the floor governs the LINKS, content is not SHACL's business).
+Plan `2026-07-06-profile-conneg-phase-1.md`, built subagent-driven (9 tasks, per-task reviews) **then
+hardened by a Chuck-directed "fix it properly" round** (2 opus adversarial hunts — spec-conformance vs
+the pins + test-honesty [verdict: tests real, delete-the-feature-fails verified] — plus controller
+JSON-LD probes and controller-inline fixes, opus-reviewed SOUND).
+
+**Shipped, fork (`la3d/lws` @ merge `d75a4dd`, branch `la3d/lws-conneg`, pushed; 20 commits):**
+`Accept-Profile` → exact-match self(200 + `Content-Profile` + list-profiles Link)/303/406 (fork resolves
+NO hierarchy — opaque conformsTo, P13; most-specific-via-isProfileOf is client-side); alternates
+declared in client `.meta` (`altr:` model — hasDefaultRepresentation/hasRepresentation with
+dct:format/dct:conformsTo); advertised via the RFC 9264 linkset `canonical`/`alternate` (`type`=media,
+`formats`=profile) + `rel="canonical"/"alternate"` Link headers on negotiated responses and the 406
+(authz-filtered); `conformsTo` = 2nd Type-Search indexed relation (**resolves the describedby
+overloading**: describedby→shape, conformsTo→profile); storage-description `capability[]` `cnpr:http`
+(MCP↔HTTP parity test); no-oracle authz filter on advertised alternates (per-client checkAccess,
+--public fails-closed short-circuit, off-origin dropped); GET/HEAD parity; 304 beats profile-303;
+bare GET zero-I/O byte-identical. Gated `--lws` + `--lws-profile-conneg` (default on, `--no-` off).
+
+**THE JSON-LD LAYER FIX (Chuck's catch — the deep one).** The fork's hand-rolled `jsonLdToQuads`
+context merge (`{...obj, ...array}`) parsed array/remote-`@context` and `@graph` docs to **ZERO quads
+silently** → SHACL under-validation + silently-inert conneg for idiomatic JSON-LD (incl. our own card
+convention `["…lws/v1",{…}]`); AND JSS's own `toJsonLd` emits **non-self-describing arrays** (`@context`
+on element 0 only) — reader/writer were bug-compatible, stored artifacts invalid JSON-LD for conformant
+consumers. Fix (`a9f690e`): the `toDataset` seam → **`@rdfjs/parser-jsonld` + `rdf.dataset()`** (rdf-ext
+was ALREADY a declared dep via the SHACL seam — the "no new JSON-LD dep" rationale was obsolete;
+Chuck's call); **no-network IDocumentLoader** (SSRF discipline; sole preload = LWS v1 from
+`src/lws/context.js`'s mirror, everything else fails LOUD); admission: unparseable governed body →
+teaching 400 (never 500/silent-admit), corrupt declared shape → pass (missing-shape precedent); legacy
+store-array shim (fills element-0 context into context-less elements) until the serializer round.
+**Side effect: `@graph`-blind admission is FIXED** — the L4b Phase-B pre-located fork decision closed
+early; governed named-graph writes now actually validate.
+
+**Live-verified** (pod repinned `d75a4dd6e8…123` full-SHA, image `fork-conneg`): **`make test-conneg`
+7/7** — incl. the array-`@context` `.meta` case, the parser fix proven against the running pod — plus
+full sweep **52/52** (lws 6, l3 2, typeindex 7, indexed-relation 4, profiles 6, dcat 5, graph 6,
+mcp-v2 16) zero regression. Fork suite serial: fail 0 / 1 pre-existing skip.
+
+**Grounding notes (spec-vs-pin, don't "fix" these):** `formats=` as the profile-carrying Link attribute
+is deliberate — every worked example in BOTH pinned specs uses `formats`; DX-PROF-CONNEG Figure-3
+*prose* saying `profile` contradicts the spec's own examples. `Content-Profile` is absent from both
+pins (it's from a post-pin IETF draft) — emitted alongside the REQUIRED `Link: rel="profile"`.
+
+**FORK-QUEUE adds (this round):** (1) **serving-path round, spec-weight** — retire the hand-rolled
+`jsonLdToQuads`/`toJsonLd` pair on the CONNEG-SERVING path: emit `{@context,@graph}` store form + real
+parser on serving (fixes the probe-#4 Turtle-drop family + the non-self-describing stored arrays), then
+remove `toDataset`'s legacy shim; also covers `@id`-less nested-node drops. (2) `urlToStoragePath` is
+path-mode-only — under `--subdomains` it omits the pod-name prefix; now reused in the conneg authz
+filter (over-filter/deny, not a leak) — guard before enabling `--subdomains`+conneg. Perf/DRY
+follow-ups: double `.meta` read on Accept-Profile+linkset; negotiation-block ×3 + checkAccess-loop ×3
+shared helpers; INDEXED_RELATIONS↔RELATION_READERS hand-sync.
+
+**▶▶ NEXT: conneg spec PHASE 2 — instantiation + wiki-memory re-derived** (spec §5–§6: profile
+**representation roles** as data; **instantiate** an application = bind + ACLs + materialize each
+declared representation + advertise `altr:` (reuses the Phase-A derived-view materializer); onboarding/
+publish learns the step; the `projection/` split (engine demotion → `projection/prof/` +
+`apps/wiki-projector/`); the RED+fenced wiki suite re-derived as content-rep + links-rep; B7
+identity-config; probe #5 closes it. **What remained of "L4b Phase B" lives there now** — the
+admission-inside-`@graph` fork decision is already closed (above).
 
 **▶ MODEL-DRIVEN READ PATH (the MCP consumption correction) — DONE + MERGED (2026-07-06).** Spec
 `docs/superpowers/specs/2026-07-06-mcp-model-driven-read-design.md` (amends the 2026-07-03 affordance
@@ -249,7 +313,10 @@ the materializer skips only its OWN target, not sibling derived views (`view.jso
 `union` silently; the dispatch-table header comment omits `derived-view`; `skipIf` style drift vs
 `lws-dcat`. (Full task-by-task record: `.superpowers/sdd/progress.md`, round "L4b Phase A".)
 
-**▶▶ NEXT: L4b PHASE B — "wiki-memory re-derived on the decoupled floor."** Scope (spec §6 + carried):
+**▶▶ ~~NEXT: L4b PHASE B~~ — SUPERSEDED (2026-07-07): the read-side scope moved to the conneg-by-profile
+spec (see the CONNEG PHASE 1 block at top; Phase 2 there = instantiation + the wiki re-derivation); the
+admission-inside-`@graph` fork decision is CLOSED by the toDataset parser swap.** Original scope kept
+for reference (spec §6 + carried):
 engine demotion executed (split `projection/` → neutral PROF mechanism, e.g. `projection/prof/`, vs wiki
 projector as app-#1 tooling, e.g. `apps/wiki-projector/`; naming decided then), the RED+fenced
 wiki-memory suite re-derived (not patched — project cards to JSON-LD **named graphs** per Phase A, declare
