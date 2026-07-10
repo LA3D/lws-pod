@@ -2,11 +2,10 @@
 // re-project on change. One socket, debounced (the protocol does no dedup, so bursts
 // coalesce). Decouples projection from the write path; catches all writes, not only proxied.
 import WebSocket from 'ws'
-import { project } from '../engine.mjs'
-import { wikiMemoryProfile } from '../profiles/wiki-memory/index.mjs'
+import { runOnce } from './run.mjs'
 
 export function watch(containerUrl, opts = {}) {
-  const { token = null, debounceMs = 300, profile = wikiMemoryProfile, onProject, onReady } = opts
+  const { token = null, debounceMs = 300, onProject, onReady } = opts
   const wsUrl = opts.wsUrl || `ws://${new URL(containerUrl).host}/.notifications`
   const wsOpts = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
   const ws = new WebSocket(wsUrl, wsOpts)
@@ -15,7 +14,7 @@ export function watch(containerUrl, opts = {}) {
   const schedule = () => {
     clearTimeout(timer)
     timer = setTimeout(async () => {
-      try { onProject?.(await project(containerUrl, token, profile)) }
+      try { onProject?.(await runOnce(containerUrl, token)) }
       catch (e) { console.error('[project]', e.message) }
     }, debounceMs)
   }
