@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { Parser } from 'n3'
 import rdf from 'rdf-ext'
 import { Validator } from 'shacl-engine'
-import { jsonldToQuads } from '../okf/rdf.mjs'
+import { jsonldToQuads } from '../prof/rdf.mjs'
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const SH = 'http://www.w3.org/ns/shacl#'

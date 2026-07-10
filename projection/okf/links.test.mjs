@@ -1,7 +1,7 @@
 // projection/okf/links.test.mjs
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { loadNamespaces } from './namespaces.mjs'
+import { loadNamespaces } from '../prof/namespaces.mjs'
 import { typeLinkHeaders } from './links.mjs'
 const ns = loadNamespaces(JSON.parse(readFileSync(new URL('../profiles/wiki-memory/context.jsonld', import.meta.url))))
 

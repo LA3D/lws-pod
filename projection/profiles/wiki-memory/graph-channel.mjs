@@ -2,7 +2,7 @@
 // Turtle resource — the single Comunica source + the surface the SHACL floor reasons over.
 import { readFileSync } from 'node:fs'
 import { extractCard, quadsToTurtle } from './extract.mjs'
-import { materializeInverses } from '../../okf/materialize.mjs'
+import { materializeInverses } from '../../prof/materialize.mjs'
 
 const EDGES = readFileSync(new URL('./edges.ttl', import.meta.url), 'utf8')
 

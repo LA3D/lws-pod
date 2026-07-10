@@ -1,6 +1,6 @@
 import { describe, it, beforeAll, expect } from 'vitest'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
-import { discoverBinding, loadProfile } from '../projection/okf/profile-loader.mjs'
+import { discoverBinding, loadProfile } from '../projection/prof/profile-loader.mjs'
 
 // The zero-code DCAT gate (spec L4a §5): application #2 onboards as PURE DATA
 // through agentic requests — this beforeAll IS the onboarding recipe (also

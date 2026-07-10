@@ -1,7 +1,7 @@
 // Semantic-Markdown → RDF extractor for wiki-memory concept cards. Pure.
 import { readFileSync } from 'node:fs'
 import { Writer } from 'n3'
-import { loadNamespaces } from '../../okf/namespaces.mjs'
+import { loadNamespaces } from '../../prof/namespaces.mjs'
 import { cardToQuads } from '../../okf/card.mjs'
 
 const context = JSON.parse(readFileSync(new URL('./context.jsonld', import.meta.url)))

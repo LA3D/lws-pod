@@ -2,8 +2,8 @@
 import { describe, it, beforeAll, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
-import { materializeDerivedView } from '../projection/okf/derived-view.mjs'
-import { discoverBinding, loadProfile } from '../projection/okf/profile-loader.mjs'
+import { materializeDerivedView } from '../projection/prof/derived-view.mjs'
+import { discoverBinding, loadProfile } from '../projection/prof/profile-loader.mjs'
 
 const PROF = '/alice/profiles/ex-graph/'
 const DATA = '/alice/graphs/'                                     // ungoverned: no describedby bound
@@ -86,7 +86,7 @@ describe.skipIf(!probe?.ok)('generic graph-semantics gate (L4b Phase A)', () => 
 
   it('exercises no application vocabulary (generic proof)', async () => {
     // The modules the gate drives must be free of wiki/okf/card terms.
-    for (const f of ['../projection/okf/jsonld-graph.mjs', '../projection/okf/derived-view.mjs']) {
+    for (const f of ['../projection/prof/jsonld-graph.mjs', '../projection/prof/derived-view.mjs']) {
       const src = readFileSync(new URL(f, import.meta.url), 'utf8')
       expect(src).not.toMatch(/\b(wiki|card|okf|concept|implementation)\b/i)
     }

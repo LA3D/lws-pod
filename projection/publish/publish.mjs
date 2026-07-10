@@ -9,8 +9,8 @@ import { readFile, readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
 import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, makeDefsLoader } from './checks.mjs'
-import { descriptorToProfile } from '../okf/profile-doc.mjs'
-import { loadProfile } from '../okf/profile-loader.mjs'
+import { descriptorToProfile } from '../prof/profile-doc.mjs'
+import { loadProfile } from '../prof/profile-loader.mjs'
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const TYPES = { '.jsonld': 'application/ld+json', '.ttl': 'text/turtle' }

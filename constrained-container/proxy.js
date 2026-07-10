@@ -12,7 +12,7 @@ import rdf from 'rdf-ext';
 import { Validator } from 'shacl-engine';
 import matter from 'gray-matter';
 import { extractCard, quadsToTurtle } from '../projection/profiles/wiki-memory/extract.mjs';
-import { loadNamespaces } from '../projection/okf/namespaces.mjs';
+import { loadNamespaces } from '../projection/prof/namespaces.mjs';
 import { typeLinkHeaders } from '../projection/okf/links.mjs';
 const NS = loadNamespaces(JSON.parse(readFileSync(new URL('../projection/profiles/wiki-memory/context.jsonld', import.meta.url))));
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeEngineProfile } from './engine-profile.mjs'
 import { cardToQuads } from './card.mjs'
-import { loadNamespaces } from './namespaces.mjs'
+import { loadNamespaces } from '../prof/namespaces.mjs'
 
 const AUTH = 'https://pod-a.example/'
 const loaded = {

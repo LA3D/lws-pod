@@ -1,4 +1,4 @@
-// projection/okf/derived-view.test.mjs
+// projection/prof/derived-view.test.mjs
 import { describe, it, expect } from 'vitest'
 import { materializeDerivedView } from './derived-view.mjs'
 

@@ -1,7 +1,7 @@
 // projection/okf/card.test.mjs
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { loadNamespaces } from './namespaces.mjs'
+import { loadNamespaces } from '../prof/namespaces.mjs'
 import { makeIdentityPolicy } from './identity.mjs'
 import { cardToQuads } from './card.mjs'
 

@@ -1,7 +1,7 @@
 // projection/okf/base-profile.test.mjs
 import { describe, it, expect } from 'vitest'
 import { baseProfile, makeBaseProfile } from './base-profile.mjs'
-import { loadNamespaces } from './namespaces.mjs'
+import { loadNamespaces } from '../prof/namespaces.mjs'
 import { cardToQuads } from './card.mjs'
 
 describe('baseProfile (legacy urn: fixture, test-only — not reachable from any running path)', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
-import { resolveStorageAuthority, readProfileIndex } from '../projection/okf/resolve.mjs'
-import { loadProfile, discoverBinding } from '../projection/okf/profile-loader.mjs'
+import { resolveStorageAuthority, readProfileIndex } from '../projection/prof/resolve.mjs'
+import { loadProfile, discoverBinding } from '../projection/prof/profile-loader.mjs'
 
 // Live-pod profile-mechanism gate (spec §10). Needs the fork --lws TLS pod
 // (make up-fork-tls, NODE_EXTRA_CA_CERTS=certs/rootCA.pem) + make publish-profiles run.
