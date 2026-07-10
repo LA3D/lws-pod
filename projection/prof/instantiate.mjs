@@ -85,6 +85,8 @@ export async function instantiate(containerUrl, token, profile, { renderers = {}
   }
 
   // Container-level representations: neutral aggregates + renderer-backed artifacts.
+  // Aggregates re-read the container AFTER member artifacts are written — a profile declaring
+  // member reps should give its aggregates a members: filter, or they absorb the artifacts.
   const containerAlts = []
   for (const rep of containerReps) {
     if (rep.mode) {

@@ -72,6 +72,23 @@ describe('instantiate', () => {
     expect(cmeta['altr:hasRepresentation'][0]['@id']).toBe(`${C}index.md`)
   })
 
+  it('named_graph container rep: neutral aggregate materializes with no renderer; container .meta gets alternate, never a default', async () => {
+    const listing = `<${C}> <http://www.w3.org/ns/ldp#contains> <${C}a.md>, <${C}x.links.jsonld> .`
+    const flat = JSON.stringify({ '@context': {}, '@id': 'https://authority.example/kb/x#it', 'https://schema.org/name': 'X' })
+    const { store, fetchFn } = podMock({
+      [C]: { body: listing, ct: 'text/turtle' },
+      [`${C}x.links.jsonld`]: { body: flat, ct: 'application/ld+json' },
+    })
+    const GRAPH = { id: 'graph', named_graph: 'g.jsonld', push_mode: 'replace', mode: 'dataset', members: '.links.jsonld', format: 'application/ld+json', conformsTo: 'https://p.example/fam' }
+    const res = await instantiate(C, 't', { representations: [SELF, GRAPH], context: {} }, { fetchFn })
+    const body = JSON.parse(store.get(`${C}g.jsonld`).body)
+    expect(body['@graph']).toBeDefined()
+    const cmeta = JSON.parse(store.get(`${C}.meta`).body)
+    expect(cmeta['altr:hasRepresentation'].some((e) => e['@id'] === `${C}g.jsonld`)).toBe(true)
+    expect(cmeta['altr:hasDefaultRepresentation']).toBeUndefined()
+    expect(res.some((r) => r.rep === 'graph' && r.target === `${C}g.jsonld`)).toBe(true)
+  })
+
   it('missing renderer: throws by default, skips + reports when onMissingRenderer=skip', async () => {
     const { fetchFn } = podMock()
     await expect(instantiate(C, 't', { representations: [LINKS], context: {} }, { fetchFn })).rejects.toThrow(/links/)
