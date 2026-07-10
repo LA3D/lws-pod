@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { Writer } from 'n3'
 import { loadNamespaces } from '../../prof/namespaces.mjs'
-import { cardToQuads } from '../../okf/card.mjs'
+import { cardToQuads } from '../../../apps/wiki-projector/card.mjs'
 
 const context = JSON.parse(readFileSync(new URL('./context.jsonld', import.meta.url)))
 const ns = loadNamespaces(context)

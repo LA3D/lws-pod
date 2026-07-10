@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { indexChannel } from '../../okf/index-channel.mjs'
+import { indexChannel } from '../../../apps/wiki-projector/index-channel.mjs'
 import { graphChannel } from './graph-channel.mjs'
 import { wmConceptWiringShape } from './shape.mjs'
 

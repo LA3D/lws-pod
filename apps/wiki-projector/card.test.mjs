@@ -1,11 +1,11 @@
 // projection/okf/card.test.mjs
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { loadNamespaces } from '../prof/namespaces.mjs'
+import { loadNamespaces } from '../../projection/prof/namespaces.mjs'
 import { makeIdentityPolicy } from './identity.mjs'
 import { cardToQuads } from './card.mjs'
 
-const ns = loadNamespaces(JSON.parse(readFileSync(new URL('../profiles/wiki-memory/context.jsonld', import.meta.url))))
+const ns = loadNamespaces(JSON.parse(readFileSync(new URL('../../projection/profiles/wiki-memory/context.jsonld', import.meta.url))))
 const policy = makeIdentityPolicy({ base: 'https://pod.example/kb/' })
 const URL_C = 'http://pod/c/progressive-disclosure.md'
 

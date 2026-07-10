@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeEngineProfile } from './engine-profile.mjs'
 import { cardToQuads } from './card.mjs'
-import { loadNamespaces } from '../prof/namespaces.mjs'
+import { loadNamespaces } from '../../projection/prof/namespaces.mjs'
 
 const AUTH = 'https://pod-a.example/'
 const loaded = {
@@ -14,9 +14,17 @@ const loaded = {
   ],
   identityPolicy: { pathPrefix: 'id/', fragment: '#it' },
   planeMapping: null,
+  representations: [{ id: 'links', suffix: '.links.jsonld', format: 'application/ld+json',
+    conformsTo: 'https://pod-a.example/profiles/llm-wiki/profile.jsonld' }],
 }
 
 describe('makeEngineProfile', () => {
+  it('B1 fixed: no channel is force-fit — representations are the profile\'s own declared data', () => {
+    const p = makeEngineProfile(loaded, AUTH)
+    expect(p.channels).toBeUndefined()
+    expect(p.representations).toEqual(loaded.representations)
+  })
+
   it('mints under the resolved authority — same card, two pods, two IRIs; declared id still wins', () => {
     const pA = makeEngineProfile(loaded, 'https://pod-a.example/')
     const pB = makeEngineProfile(loaded, 'https://pod-b.example/')
