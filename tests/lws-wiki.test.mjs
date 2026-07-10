@@ -1,5 +1,4 @@
 import { describe, it, beforeAll, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
 import { runOnce } from '../apps/wiki-projector/triggers/run.mjs'
 

@@ -1,4 +1,4 @@
-// projection/okf/card.mjs
+// apps/wiki-projector/card.mjs
 import matter from 'gray-matter'
 import { DataFactory } from 'n3'
 import { subjectIri as mintSubject, slugFromUrl } from './identity.mjs'

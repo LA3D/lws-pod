@@ -72,7 +72,11 @@ Accept incl. linkset (already fork-queued); no `ldp:constrainedBy` co-emission (
 `/types/index` lists type IRIs without instances (use `/types/search`); phantom `X-Cost`/`X-Balance`
 CORS headers (recorded); (c) seed hygiene: the gate artifact `good.links.jsonld` is dangling (no
 content sibling) and `conneg-mem` is 401 to cold readers; `plain-probe-*`/`shadow-probe-*` residue
-still pollutes `/alice/` (the probe-#3 finding re-confirmed).
+still pollutes `/alice/` (the probe-#3 finding re-confirmed). Contract seam (recorded, final review):
+publish's ≤1-`default` check and instantiate's `altr:hasDefaultRepresentation` key off different
+fields (`default` vs `self`) — coincide in all curated data; a rep with `default:true` but no
+`self:true` would check clean yet never advertise as default. Harden: `self ⟺ default` cross-check in
+checkRepresentation, or key instantiate off `default`.
 
 **▶▶ NEXT: the fork-queue serving-path round.** Retire the hand-rolled `jsonLdToQuads`/`toJsonLd`
 pair on the **conneg-serving path** (spec-weight, named at Phase 1 — fixes the probe-#4 Turtle-drop

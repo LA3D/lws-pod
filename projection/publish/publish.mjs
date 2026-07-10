@@ -4,7 +4,7 @@
 // defs/index.jsonld and each descriptor's own PROF roles drive its checks —
 // adding a profile family is a manifest entry + files, never a code edit.
 // Usage: node publish/publish.mjs --base https://pod.example [--container /alice/profiles/]
-//        [--bind /alice/concepts/=llm-wiki] [--token <bearer>] [--check]
+//        [--bind /alice/concepts/=llm-wiki] [--instantiate <path>=<token>] [--token <bearer>] [--check]
 import { readFile, readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
