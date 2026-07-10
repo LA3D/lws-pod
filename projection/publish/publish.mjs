@@ -11,6 +11,7 @@ import { dirname, join, relative } from 'node:path'
 import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation, makeDefsLoader } from './checks.mjs'
 import { descriptorToProfile } from '../prof/profile-doc.mjs'
 import { loadProfile } from '../prof/profile-loader.mjs'
+import { instantiate, mergeContexts } from '../prof/instantiate.mjs'
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const TYPES = { '.jsonld': 'application/ld+json', '.ttl': 'text/turtle' }
@@ -22,6 +23,7 @@ function arg(name, dflt = null) {
   return i > -1 ? process.argv[i + 1] : dflt
 }
 const binds = process.argv.flatMap((a, i) => (process.argv[i - 1] === '--bind' ? [a] : []))
+const insts = process.argv.flatMap((a, i) => (process.argv[i - 1] === '--instantiate' ? [a] : []))
 const checkOnly = process.argv.includes('--check')
 
 async function* files(dir) {
@@ -115,5 +117,30 @@ for (const b of binds) {
   const r = await fetch(metaUrl, { method: 'PUT', headers: { ...headers, 'content-type': 'application/ld+json' }, body: JSON.stringify(meta, null, 2) })
   if (!r.ok && r.status !== 201 && r.status !== 205) { console.error(`BIND ${metaUrl} -> ${r.status}`); process.exit(1) }
   console.log(`BIND ${path} conformsTo ${descriptor} (+${loaded.validation.length} describedby) -> ${r.status}`)
+}
+
+// 4. Instantiate (spec §5, renderer-free arm): materialize self/aggregate
+// representations + advertise altr: for the container's current members.
+// Renderer-backed representations are the application CLI's job — reported, skipped.
+for (const s of insts) {
+  const [path, tokenName] = s.split('=')
+  const descriptor = profilesByToken[tokenName]
+    ?? (() => { console.error(`--instantiate: no profile in the manifest has token '${tokenName}'`); process.exit(1) })()
+  const loaded = await loadProfile(descriptor)
+  let res
+  try {
+    res = await instantiate(new URL(path, base).href, token,
+      { representations: loaded.representations, context: mergeContexts(loaded.contexts) },
+      { onMissingRenderer: 'skip' })
+  } catch (e) {
+    // A profile can be published before its first container exists (fresh pod).
+    if (/-> 404/.test(e.message)) { console.log(`INSTANTIATE ${path}: container absent (404) — skipped`); continue }
+    throw e
+  }
+  const skipped = res.filter((r) => r.rep.startsWith('skipped:')).map((r) => r.rep.slice(8))
+  if (skipped.length) console.log(`INSTANTIATE ${path}: skipped renderer-backed reps [${[...new Set(skipped)].join(', ')}] — app tooling owns them`)
+  const bad = res.filter((r) => r.status && ![200, 201, 204, 205].includes(r.status))
+  if (bad.length) { console.error(`INSTANTIATE ${path} failures: ${JSON.stringify(bad)}`); process.exit(1) }
+  console.log(`INSTANTIATE ${path} ${tokenName} -> ${res.length} writes`)
 }
 console.log('publish complete')
