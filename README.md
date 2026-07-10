@@ -83,8 +83,9 @@ If a build dies at the first `RUN` with `runc … can't get final child's PID fr
 freshly installed/updated Docker Desktop can't start containers yet — run `docker desktop restart`,
 wait, and retry. `make doctor` checks for exactly this.
 
-L2 component gates: `make test-projection` and `make test-app` (unit, no pod needed);
-`make test-app-e2e` runs the curation-console e2e against a running, seeded pod + proxy.
+L2 component gates: `make test-projection` and `make test-app` (unit, no pod needed). The
+curation-console e2e is retired with the `constrained-container/` proxy; it returns when the
+console targets the fork pod (FOLLOWUP carryover).
 
 **LWS storage-discovery gate** (`make test-lws`): the live-pod harness for the L2 surfaces — storage
 description, `rel=storageDescription`/`rel=linkset` headers, per-resource linkset + `lws+json` conneg —
