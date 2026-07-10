@@ -33,7 +33,7 @@ export async function quadsToDataset(quadsByGraph, { context }) {
   return { '@context': context, '@graph': graphs }
 }
 
-// Flat node form (spec §3): the memory's links representation — subject-first,
+// Flat node form (spec §3): a per-resource links representation — subject-first,
 // no top-level @graph when the quads describe one subject. Multi-subject falls
 // back to @graph (the fork admission parser handles both since the toDataset swap).
 export async function quadsToFlat(quads, context) {
