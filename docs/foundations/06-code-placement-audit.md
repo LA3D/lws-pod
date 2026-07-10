@@ -21,14 +21,16 @@ mechanism/onboarding (code iff data-driven, zero app vocabulary) — **3** appli
 | `defs/lwsp.ttl` `plane-mapping` definition says "knowledge bundles" (B3) | 2 | fix — reword neutral + republish | done (L4a) |
 | `projection/okf/profile-select.mjs` (B8) | 3 | delete — dead, superseded by `discoverBinding` | done (L4a) |
 | `projection/okf/links.mjs` `skos:` fallback + `implementedBy`/`broader` defaults (B9) | 3→2 | fix — no engine vocabulary; rels become caller parameters | done (L4a) |
-| `projection/engine.mjs` (markdown-shaped core, wiki RESERVED list — B2) | 3 | app-tooling — application #1's client projector; move at L4b | L4b |
-| `projection/okf/engine-profile.mjs` (force-fits index channel — B1) | 3 | app-tooling — channel wiring moves with the engine at L4b | L4b |
-| `projection/okf/{card,identity,frontmatter,index-channel,base-profile}.mjs` + gray-matter | 3 | app-tooling — OKF family engine; move at L4b | L4b |
-| `projection/profiles/wiki-memory/*` (channels, shapes, RED suite) | 3 | app profile + tooling; re-derived at L4b | L4b |
-| `constrained-container/` proxy (legacy L2 floor) | 3 | app-tooling, superseded by L3 — retire decision at L4b | L4b |
-| `projection/okf/base-shape.ttl` "universal" comment vs dcterms:title gate | 3 | comment fix rides L4b re-derivation | L4b |
-| Identity-policy config vocabulary is document-shaped (one referent/doc — B7) | 2 | design input — L4b read-side | L4b |
-| Derived-view declaration vocabulary (fixes RESERVED as data) | 2 | mint at L4b when wiki needs it (YAGNI — DCAT needs none) | L4b |
+| `apps/wiki-projector/engine.mjs` (was `projection/engine.mjs`, markdown-shaped core — B2) | 3 | app-tooling — moved to `apps/wiki-projector/` (application #1's client projector); RESERVED list now derives from declared representations | done (conneg-P2) |
+| `apps/wiki-projector/engine-profile.mjs` (was `projection/okf/engine-profile.mjs` — B1) | 3 | app-tooling — channel wiring moved with the engine; B1 fixed (no more index-channel force-fit, opt-in via profile roles) | done (conneg-P2) |
+| `apps/wiki-projector/{card,identity,frontmatter,index-channel}.mjs` + gray-matter (was `projection/okf/{...,base-profile}.mjs`) | 3 | app-tooling — OKF family engine, moved; `base-profile.mjs`/backcompat retired (`instantiate()` replaces the channel engine) | done (conneg-P2) |
+| llm-wiki family channels/shapes (was `projection/profiles/wiki-memory/*`, RED suite) | 3 | app profile + tooling, re-derived on the decoupled floor: links = flat `#it` JSON-LD (SHACL-governed), index = OKF nav channel, graph = dataset aggregate | done — re-derived (renderers as app tooling, representations as data) |
+| `constrained-container/` proxy (legacy L2 floor) | 3 | app-tooling, superseded by L3 — retired (Chuck-approved; `test-app-e2e` removed with it) | done — retired |
+| `projection/okf/base-shape.ttl` "universal" comment vs dcterms:title gate | 3 | comment fix rides re-derivation — file deleted with the legacy `projection/okf/` floor | done — deleted with the legacy floor |
+| Identity-policy config vocabulary is document-shaped (one referent/doc — B7) | 2 | design input, resolved: `lwsp.ttl` identity-policy role reworded graph-shaped | done — vocabulary reworded graph-shaped |
+| Derived-view declaration vocabulary (fixes RESERVED as data) | 2 | minted — `lwspr:representation` PROF role (self/suffix/target/named_graph kinds) + 5 rep artifacts (llm-wiki content/links/index/graph, dcat content) | done — lwspr:representation minted |
+| `projection/prof/instantiate.mjs` (neutral instantiate: bind + ACLs + materialize declared representations + advertise `altr:`) | 2 | keep — data-driven, renderer seam (renderers are caller-supplied, no application vocabulary in the mechanism) | keep |
+| `apps/wiki-projector/renderers.mjs` (the wiki family's content/links/index/graph renderer functions) | 3 | keep — application tooling, correctly outside the substrate mechanism | keep |
 | `app/` curation console | 3 | app client, correctly outside the machinery | keep |
 | `experiments/agent-eval/` | 3 | eval harness (R&D for operating skills) | keep |
 

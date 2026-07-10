@@ -101,6 +101,38 @@ The name/dereference separation above is now realized **in-band** via JSON-LD 1.
   directly dereferenceable. For a card whose graph name is the authority doc IRI (≠ storage URL), the
   resolution is the plane mapping (`rel="up"`/`describedby`/type index) — the read half of §11 #4.
 
+### Plane 1 — read-side plane mapping (RESOLVED, conneg-by-profile)
+
+§11 #4 (subject-IRI → dereferenceable stored representation) is now **[resolved]**, closed by
+conneg-by-profile Phase 1+2 (`docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md`,
+shipped through 2026-07-10). Three findings:
+
+- **(a) Realized in-band.** A client resolves a memory by **GETting its canonical URL and negotiating
+  the profile**: `Accept-Profile` on the canonical URL returns **200 self** when the canonical
+  representation already matches (llm-wiki: `content`, markdown, `self: true`/`default: true`), or
+  **303** to the materialized representation that does (e.g. `.links.jsonld` for the RDF-consuming
+  case). No separate plane-mapping header walk is needed for this hop — the conneg *is* the
+  dereference. `rel="up"`/`describedby`/type index remain the walk for discovering the profile and
+  its shapes in the first place; conneg is the walk for landing on the right *representation* of a
+  given resource once the profile is known.
+- **(b) Membership steering.** A linkset-only agent must **never** read container membership off the
+  linkset (a container's linkset carries governance edges — `describedby`/`conformsTo` — not a member
+  list). Members are enumerated via **`items[]`** (the L1 `lws+json` container representation) or
+  **TypeSearch** (`/types/search`, authz-filtered). This is steering, not new machinery — recorded
+  here because §11 #4 used to conflate "how do I find the container's profile" with "how do I find
+  the container's members," and conneg-by-profile forced the two apart.
+- **(c) Read-side leanings — now design of record**, not a leaning under debate:
+  - The **`up`-walk contract stands**: governance edges (`describedby`, `conformsTo`) live on the
+    **container's** linkset, not the member's; a member reaches its profile via `rel="up"`.
+  - **Container `conformsTo` beats the pod-wide `defaultProfile`** — a bound container's own
+    declaration always wins over any pod-level default.
+  - **Plural bindings AND-compose for validation** (a member must satisfy every bound shape); **which
+    binding is most-specific for *content negotiation*** (which representation/context to prefer) is
+    a **client/conneg concern**, not something the substrate arbitrates server-side.
+  - **Earned-at-admission member `conformsTo`** (stamping a validated member with its own
+    `conformsTo` as a provenance fact, rather than only inferring it via the `up`-walk) **stays an
+    open option, not asserted** — recorded as a live design input, not shipped.
+
 ---
 
 ## Plane 2 — vocabulary minting (reuse-first)
@@ -170,7 +202,9 @@ authority resolved at runtime:
 
 ## Deferred (named)
 
-- Subject-IRI → storage-location dereference (plane mapping) — **§11 #4**.
+- ~~Subject-IRI → storage-location dereference (plane mapping) — **§11 #4**.~~ **RESOLVED** —
+  see "Plane 1 — read-side plane mapping (RESOLVED, conneg-by-profile)" above +
+  `docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md`.
 - Provenance granularity (per-card vs per-quad), pre-positioning signing — **§11 #5**.
 - Real w3id registration — when federation is real.
 

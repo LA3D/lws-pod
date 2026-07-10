@@ -7,9 +7,54 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-07 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 shipped; conneg Phase 2 next
+## ▶▶ 2026-06-29/07-10 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 shipped; fork serving-path round next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
+
+**▶ CONNEG-BY-PROFILE PHASE 2 (instantiation + wiki-memory re-derivation) — DONE + LIVE-VERIFIED
+(2026-07-10).** Executed 2026-07-10, lws-pod `main` commits `c6cc876..55724ca` (11 tasks; NO fork
+touch — Phase 2 is entirely fork-empty, `la3d/lws` stays pinned at the Phase-1 merge `d75a4dd`).
+Design of record `docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md` §5–§6
+(this closes what remained of "L4b Phase B" — see the Phase 1 block below).
+
+**Shipped:** `lwspr:representation` PROF role (`self`/`suffix`/`target`/`named_graph` kinds) + five
+representation artifacts (llm-wiki content/links/index/graph, dcat content) — profile roles as data
+(T1 `c6cc876`, T2 `8e959f9`+`cb09d1a`, T3 `b7f668c`); `loadProfile` surfaces `representations[]` (T4
+`9ce70c7`+`7a2ddd6`); the neutral **`instantiate()`** + `mergeContexts`
+(`projection/prof/instantiate.mjs`, T5 `863d651`+`c5568ed`) — binds an application (ACLs + materialize
+each declared representation + advertise `altr:`), reusing the Phase-A derived-view materializer;
+`publish --instantiate`, the renderer-free arm with 404-skip (T6 `6290f60`); the **`projection/`
+split** — `projection/prof/` (neutral PROF mechanism) vs `apps/wiki-projector/` (application #1's
+tooling: card/identity/frontmatter/index-channel/engine-profile/renderers/triggers) — the engine
+demotion (T7 `6412907`; T8 `6c84c6e`+`c34e525` retires `engine.mjs`/base-profile/backcompat, since
+`instantiate()` replaces the channel engine); **B1 fixed** (no more index-channel force-fit); **B7**
+identity-policy reworded graph-shaped in `lwsp.ttl`; `quadsToFlat` + derived-view members/skip/
+fragment-strip; **wiki-memory RE-DERIVED** (T9 `73ebca7`) — links = flat `#it` JSON-LD per card
+(SHACL-floor-governed), index = OKF nav channel, aggregate `graph.jsonld` = dataset representation —
+the old `projection/profiles/wiki-memory/` + the RED fence **DELETED** (suite green: projection
+85/85 + apps 28/28); triggers re-derived on `discoverBinding` + `loadProfile` +
+`resolveStorageAuthority` + `instantiate` (T10 `cf20242` — the PROF chain's **first production
+callers**, closing the coupling-review finding "ZERO production callers"); `constrained-container/`
+**RETIRED** (Chuck-approved; `test-app-e2e` removed with it).
+
+**Live-verified (2026-07-10, T11 `55724ca`):** new gate **`make test-wiki` 9/9** (bind → instantiate
+→ content-ungoverned/links-governed 400-teaching → Accept-Profile 200+303 → linksets → dataset
+aggregate → `index.md` → TypeSearch `conformsTo`); full regression zero-loss: conneg 7/7, profiles
+6/6, dcat 5/5, graph 6/6. **Fork asserted UNTOUCHED at `la3d/lws@d75a4dd`** — Phase 2 is entirely
+fork-empty.
+
+**Carryovers (recorded, none block):** console-on-fork rewire — `app/seed/seed.mjs`'s `putViaProxy`
++ the stale `projection/triggers` path are dangling against the split; console e2e returns once the
+console targets the fork pod. Pre-existing `make test-app` ECONNREFUSED exit-1 flake
+(`wm-app.test.mjs`) — predates this round, not introduced by it. Fork-queue is otherwise unchanged by
+this round (still queued, see the Phase-1 block below).
+
+**▶▶ NEXT: the fork-queue serving-path round.** Retire the hand-rolled `jsonLdToQuads`/`toJsonLd`
+pair on the **conneg-serving path** (spec-weight, named at Phase 1 — fixes the probe-#4 Turtle-drop
+family + non-self-describing stored arrays), plus the rest of the queued items: container-listing WAC
+filtering, sidecar mediaTypes, hint wording, MCP gateway advertisement, `urlToStoragePath` subdomains
+guard. **Probe #5** (cold-agent, over the re-derived wiki family) runs as this round's final step
+(T13) — *pending, appended here on completion.*
 
 **▶ CONNEG-BY-PROFILE PHASE 1 (fork pillar) — DONE + MERGED + LIVE (2026-07-07).** Design of record
 `docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md` (**supersedes L4b Phase B's
@@ -67,13 +112,11 @@ filter (over-filter/deny, not a leak) — guard before enabling `--subdomains`+c
 follow-ups: double `.meta` read on Accept-Profile+linkset; negotiation-block ×3 + checkAccess-loop ×3
 shared helpers; INDEXED_RELATIONS↔RELATION_READERS hand-sync.
 
-**▶▶ NEXT: conneg spec PHASE 2 — instantiation + wiki-memory re-derived** (spec §5–§6: profile
-**representation roles** as data; **instantiate** an application = bind + ACLs + materialize each
-declared representation + advertise `altr:` (reuses the Phase-A derived-view materializer); onboarding/
-publish learns the step; the `projection/` split (engine demotion → `projection/prof/` +
-`apps/wiki-projector/`); the RED+fenced wiki suite re-derived as content-rep + links-rep; B7
-identity-config; probe #5 closes it. **What remained of "L4b Phase B" lives there now** — the
-admission-inside-`@graph` fork decision is already closed (above).
+**~~▶▶ NEXT: conneg spec PHASE 2~~ — DONE (2026-07-10; see the block at the very top of this
+file).** Instantiation + the wiki-memory re-derivation shipped as described there — representation
+roles as data, `instantiate()`, the `projection/prof/` + `apps/wiki-projector/` split, the RED fence
+deleted, `constrained-container/` retired. **NEXT = the fork-queue serving-path round** (same
+top block); probe #5 pending.
 
 **▶ MODEL-DRIVEN READ PATH (the MCP consumption correction) — DONE + MERGED (2026-07-06).** Spec
 `docs/superpowers/specs/2026-07-06-mcp-model-driven-read-design.md` (amends the 2026-07-03 affordance

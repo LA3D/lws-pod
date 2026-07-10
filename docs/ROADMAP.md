@@ -25,9 +25,13 @@
 > **L4 SPLIT (2026-07-06, coupling review):** the identity is **LWS + W3C PROF; memory is
 > application #1** (CLAUDE.md carries the statement; `docs/foundations/06-code-placement-audit.md`
 > is the standing gate). "L4 = OKF projection" below is superseded: **L4a (substrate neutrality —
-> DONE 2026-07-06)** proved zero-code onboarding with the dcat-catalog family; **L4b (next)**
-> re-derives wiki-memory on the decoupled floor and demotes the engine to application tooling.
-> Current state + L4b scope: **FOLLOWUP.md** (authoritative over this doc's sequencing).
+> DONE 2026-07-06)** proved zero-code onboarding with the dcat-catalog family; **L4b Phase A (graph
+> semantics) DONE 2026-07-06**; L4b Phase B's read-side scope was absorbed into the
+> **conneg-by-profile** spec, whose **Phase 1 (fork pillar, DONE 2026-07-07)** and **Phase 2
+> (instantiation + wiki-memory re-derivation, DONE 2026-07-10)** shipped the engine demotion
+> (`projection/prof/` vs `apps/wiki-projector/`), the re-derived wiki-memory family, and the
+> `constrained-container/` retirement. **NEXT = the fork-queue serving-path round.** Current state:
+> **FOLLOWUP.md** (authoritative over this doc's sequencing).
 
 
 > **DIRECTION CHANGE (2026-06-28).** The project re-founded as a **general, standards-based memory

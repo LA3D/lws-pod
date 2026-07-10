@@ -59,7 +59,7 @@ make reset              # wipe ./data, rebuild, restart (deletes the local pod b
 make test               # substrate e2e (needs the pod up): create -> bearer -> write/read -> MCP -> git
 make test-projection    # projection unit + e2e (see "known state" below)
 make test-app           # curation-console unit tests (no pod needed)
-make test-app-e2e       # console e2e — needs pod :3838 + proxy :8080, seeded
+make test-wiki          # live gate — re-derived wiki family (needs make up-fork-tls; see README)
 ```
 
 `make up` and `make test*` self-heal a missing `.env.local` and `node_modules`, so they work even if
@@ -82,17 +82,18 @@ fork lives only in the `*.fork*` files + `caddy/`. Full rig notes: `README.md` "
 - **`Dockerfile` / `docker-compose*.yml`** — JSS pinned to `0.0.209`; enabled flags `--idp --mcp
   --conneg --mashlib-cdn --git --notifications --provision-keys` (Dockerfile comments explain each).
   Base+override compose: `docker-compose.yml` (env-neutral) + `docker-compose.local.yml`.
-- **`projection/`** — two tiers awaiting the L4b split (coupling review 2026-07-06): the NEUTRAL
-  profile mechanism (`okf/{resolve,profile-loader,profile-doc,engine-profile,rdf,namespaces}.mjs` —
-  PROF walk, authority resolution; misleadingly housed under `okf/`) and the OKF-FAMILY app engine
-  (`engine.mjs`, `okf/{card,identity,frontmatter,index-channel}.mjs` — markdown cards, application
-  #1 tooling per P13, NOT substrate);
-  `profiles/wiki-memory/` = the typed-edge profile; `profiles/defs/` = profile definition sources (PROF
-  descriptors, pinned upstream mirrors); `publish/` = declaration-time checks + the publish/bind step;
-  `triggers/` = CLI one-shot + WebSocket CDC watcher.
-- **`constrained-container/`** — standalone SHACL admission proxy (the L2 governance floor): a write
-  is validated against a base shape + per-container `ldp:constrainedBy`; a violation returns `422`
-  plus the teaching `sh:message`. (`constrained-container/README.md`)
+- **`projection/`** — the NEUTRAL PROF mechanism (split executed, conneg-by-profile Phase 2,
+  2026-07-10): `prof/{resolve,profile-loader,profile-doc,instantiate,derived-view,jsonld-graph,
+  materialize,rdf,namespaces}.mjs` — PROF walk, authority resolution, `instantiate()` (bind + ACLs +
+  materialize every declared representation + advertise `altr:`); `publish/` = declaration-time
+  checks + the publish/bind/`--instantiate` step; `profiles/defs/` = profile definition sources (PROF
+  descriptors, `lwspr:representation` roles, pinned upstream mirrors — `llm-wiki/` and
+  `dcat-catalog/` each declare their own `*.rep.jsonld` artifacts).
+- **`apps/wiki-projector/`** — application #1's tooling (demoted out of `projection/` per P13):
+  `card.mjs`/`identity.mjs`/`frontmatter.mjs`/`index-channel.mjs`/`engine-profile.mjs` (markdown
+  cards, OKF nav channel) + `renderers.mjs` (the wiki family's representation renderers: content =
+  the card itself, `links` = flat `#it` JSON-LD, `index` = the OKF channel, `graph` = the dataset
+  aggregate) + `triggers/` (CLI one-shot + WebSocket CDC watcher, now driven by `instantiate()`).
 - **`app/`** — wiki-memory curation console: static Solid/LWS app, vanilla custom elements, no build
   step, vendored deps. (`app/README.md`)
 - **`experiments/`** — spikes (`headless-cid/` LWS-CID auth probe, `keycloak-jss/` authz spike).
@@ -129,13 +130,9 @@ Never force-push to `main`, skip hooks, or `git add -A`. Stage specific files.
 
 ## Known state & gotchas
 
-- **`projection/profiles/wiki-memory/` test suite is RED by design.** Its `extract.mjs` still calls
-  `cardToQuads` with three args (no identity policy), so `policy.mint` is undefined — the documented
-  Plan-1 ripple (see FOLLOWUP). The `okf/` floor is fully green and fenced
-  (`okf/red-fence.test.mjs`). **Do not "fix" it by reverting Plan 1 or patching the old contract**;
-  it is resolved at **L4b**, where the suite is RE-DERIVED on the decoupled floor (Plan 2 and L4a
-  are DONE; L4b gets its own brainstorm → spec → plan round — the "don't re-brainstorm" rule covers
-  the substrate design, not L4b's scope).
+- **`apps/wiki-projector/` suite is RE-DERIVED GREEN** (conneg-by-profile Phase 2, 2026-07-10) — the
+  old RED fence (`okf/red-fence.test.mjs`) is deleted with the legacy `projection/okf/` floor it
+  guarded; see `FOLLOWUP.md` for the round detail.
 - **A fresh Docker Desktop often can't start any container** (`runc … can't get final child's PID
   from pipe: EOF`) — run `docker desktop restart`, wait, retry. `make doctor` checks for this.
 - **The RS256 owner bearer is replayable** (not DPoP-bound) — fine for a trusted local agent; an

@@ -5,9 +5,11 @@ containerized, pinned [JavaScriptSolidServer](https://github.com/JavaScriptSolid
 (JSS). Structure is imposed by profiles, never baked in; the **memory pod** (wiki-memory profile
 family) is the first application built on it, not the substrate's identity.
 
-**Status:** JSS chosen over CSS; the L2 memory layer — OKF **projection engine** (`projection/`),
-**SHACL admission floor** (`constrained-container/`), **curation console** (`app/`) — is built on
-the local rung (`make up` / `make test`). Public dev/prod rungs (CRC/SAI VM) are deferred.
+**Status:** JSS chosen over CSS; the memory layer — the neutral **PROF mechanism** (`projection/`),
+application #1's tooling (`apps/wiki-projector/`), **curation console** (`app/`) — is built on
+the local rung (`make up` / `make test`). Public dev/prod rungs (CRC/SAI VM) are deferred. The
+standalone `constrained-container/` SHACL proxy is retired (conneg-by-profile Phase 2, 2026-07-10) —
+the fork's own L3 admission is the governance floor now.
 
 **Direction change (2026-06-28):** re-founded as a *general, standards-based memory substrate* —
 structure is profile-imposed, the pod is the canonical home. Design of record:
@@ -83,9 +85,10 @@ If a build dies at the first `RUN` with `runc … can't get final child's PID fr
 freshly installed/updated Docker Desktop can't start containers yet — run `docker desktop restart`,
 wait, and retry. `make doctor` checks for exactly this.
 
-L2 component gates: `make test-projection` and `make test-app` (unit, no pod needed). The
-curation-console e2e is retired with the `constrained-container/` proxy; it returns when the
-console targets the fork pod (FOLLOWUP carryover).
+L2 component gates: `make test-projection` and `make test-app` (unit, no pod needed); `make
+test-wiki` is the live gate over the re-derived wiki family (needs `make up-fork-tls` + `make cert`
++ `make publish-profiles`). The curation-console e2e is retired with the `constrained-container/`
+proxy; it returns when the console targets the fork pod (FOLLOWUP carryover).
 
 **LWS storage-discovery gate** (`make test-lws`): the live-pod harness for the L2 surfaces — storage
 description, `rel=storageDescription`/`rel=linkset` headers, per-resource linkset + `lws+json` conneg —
@@ -128,10 +131,15 @@ Port `3838` (host) → `3000` (container), leaving `3000` free for a side-by-sid
   canon + the **spec-vs-JSS conformance map** (`05-…`); `docs/design-notes/` = active design
   deliberation (**exploratory, not canon**); `docs/superpowers/` = build history (archive);
   `docs/archive/` = superseded docs.
-- `projection/` — the OKF **projection engine**: derives each container's `index.md` + `graph.ttl`
-  from its cards (generic OKF base + a `wiki-memory` profile with typed edges and inverse
-  materialization). `triggers/` runs it via a manual CLI or a WebSocket CDC watcher. The
-  governed-projection / write-contract piece of L2.
+- `projection/` — the neutral **PROF mechanism**: `prof/` (PROF walk, authority resolution,
+  `instantiate()` — bind + ACLs + materialize every declared representation + advertise `altr:`),
+  `publish/` (onboarding: declaration-time checks, publish/bind/`--instantiate`), `profiles/defs/`
+  (profile data: descriptors, representation roles, pinned upstream mirrors). Substrate-neutral —
+  P13's standing gate (`docs/foundations/06-code-placement-audit.md`).
+- `apps/wiki-projector/` — application #1's tooling (demoted out of `projection/`, conneg-by-profile
+  Phase 2): markdown cards, identity, the OKF nav channel, plus `renderers.mjs` (the wiki family's
+  content/links/index/graph representations) and `triggers/` (CLI one-shot + WebSocket CDC watcher,
+  now driven by `instantiate()`).
 - `app/` — the **wiki-memory curation console**: a static Solid/LWS app (vanilla custom elements, no
   build, vendored deps) to browse agent-written cards, traverse their typed graph across containers,
   and correct them through the floor. Also renders any OKF bundle. See `app/README.md`.
