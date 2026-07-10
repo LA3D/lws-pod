@@ -4,9 +4,9 @@ ENVFILE = .env.$(ENV)
 COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-compose.$(ENV).yml
 
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
-NPM_DIRS = . projection app constrained-container experiments/headless-cid
+NPM_DIRS = . projection app apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-projection publish-profiles test-app test-app-e2e shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-projection publish-profiles test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -172,10 +172,6 @@ publish-profiles:
 # Wiki-memory app gate — unit tests (jsdom/node), e2e excluded (Task 10).
 test-app:
 	cd app && npm install --silent && npx vitest run --exclude '**/e2e.test.mjs'
-
-# Wiki-memory app e2e gate — requires pod :3838 + proxy :8080 + seeded (Task 10).
-test-app-e2e:
-	cd app && POD=http://localhost:3838 PROXY=http://localhost:8080 npx vitest run test/e2e.test.mjs
 
 shell:
 	$(COMPOSE) exec jss bash

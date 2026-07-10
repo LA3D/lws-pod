@@ -36,32 +36,28 @@ See the design (`docs/superpowers/specs/2026-06-22-wiki-memory-app-design.md`) a
 
 ## Run it (dev)
 
-The app is plain static files; serve `app/` with any static server and point it at a running pod +
-SHACL proxy.
+The app is plain static files; serve `app/` with any static server and point it at a running pod.
+The SHACL admission floor is fork-native (L3) since 2026-06-30 — the standalone `constrained-container/`
+proxy is retired; console e2e returns once the console targets the fork pod (FOLLOWUP carryover).
 
 ```bash
 # 1. Pod (JSS, must run with --idp --conneg — the repo's `make up` does):
 make up                                    # http://localhost:3838
 
-# 2. SHACL admission proxy with CORS (the browser write path):
-cd constrained-container && PORT=8080 UPSTREAM=http://localhost:3838 node proxy.js
-
-# 3. Seed demo content (creates /alice/concepts/ + /alice/implementations/, projects them):
+# 2. Seed demo content (creates /alice/concepts/ + /alice/implementations/, projects them):
 node app/seed/seed.mjs
 
-# 4. Serve the app:
+# 3. Serve the app:
 cd app && python3 -m http.server 5173      # http://localhost:5173
 ```
 
-Open `http://localhost:5173/`, log in (pod `http://localhost:3838`, proxy `http://localhost:8080`,
-`alice@example.com` / `alicepassword123`).
+Open `http://localhost:5173/`, log in (pod `http://localhost:3838`, `alice@example.com` /
+`alicepassword123`).
 
 - Deps (`marked`, `js-yaml`, `n3`, `cytoscape`) are **vendored** in `vendor/` and served as static
   files via the import map in `index.html` — no bundler, and no runtime dependency on any CDN. See
   `vendor/README.md` for provenance and the re-vendor recipe.
 - The pod must run with `--idp` (headless `POST /idp/credentials` bearer) and `--conneg`.
-- The proxy sends CORS and exposes `link`/`warning`, so the browser can read the 422 `constrainedBy`
-  Link and advisory Warning.
 
 ## Content lives in the user's pod space
 
@@ -99,8 +95,10 @@ metrics lineage).
 
 ```bash
 make test-app        # unit (jsdom/node), e2e excluded — no pod needed
-make test-app-e2e    # e2e against a running, seeded pod + proxy
 ```
+
+`make test-app-e2e` is retired with the proxy; console e2e returns once the console targets the
+fork pod (FOLLOWUP carryover).
 
 `test/browser-safe.test.mjs` guards two browser-only hazards the node suite can't see: no top-level
 `node:` imports in browser modules, and no N3 `Store.match()` in `graph.js` (it throws in the

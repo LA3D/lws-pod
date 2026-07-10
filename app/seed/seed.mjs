@@ -77,7 +77,7 @@ console.log(`[seed] /alice/.acl -> ${aclR.status} ${aclR.statusText}`)
 console.log('[seed] constraining /alice/concepts/...')
 
 // Read the ConceptWiringShape from the projection profile
-const shapePath = new URL('../../projection/profiles/wiki-memory/shapes.ttl', import.meta.url)
+const shapePath = new URL('../../projection/profiles/defs/llm-wiki/shapes.ttl', import.meta.url)
 const shapeTtl = readFileSync(shapePath, 'utf8')
 
 // PUT shape.ttl to the pod

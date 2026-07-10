@@ -127,9 +127,6 @@ Port `3838` (host) → `3000` (container), leaving `3000` free for a side-by-sid
   canon + the **spec-vs-JSS conformance map** (`05-…`); `docs/design-notes/` = active design
   deliberation (**exploratory, not canon**); `docs/superpowers/` = build history (archive);
   `docs/archive/` = superseded docs.
-- `constrained-container/` — the standalone SHACL admission proxy (the L2 governance floor): writes
-  through it are validated against an always-on base shape plus a per-container `ldp:constrainedBy`
-  shape; a violation returns `422` + the teaching `sh:message`.
 - `projection/` — the OKF **projection engine**: derives each container's `index.md` + `graph.ttl`
   from its cards (generic OKF base + a `wiki-memory` profile with typed edges and inverse
   materialization). `triggers/` runs it via a manual CLI or a WebSocket CDC watcher. The
