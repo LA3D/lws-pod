@@ -10,6 +10,7 @@ const ALTR = 'http://www.w3.org/ns/dx/connegp/altr#'
 const authH = (token) => (token ? { authorization: `Bearer ${token}` } : {})
 const lastSeg = (url) => { const u = url.endsWith('/') ? url.slice(0, -1) : url; return u.slice(u.lastIndexOf('/') + 1) }
 const metaUrlOf = (url) => url + '.meta'                            // JSS convention: file -> <url>.meta, container -> <url>/.meta
+const SIDECAR_SUFFIXES = ['.meta', '.acl', '.lwstypes']             // substrate sidecars are members in ldp:contains — never sources
 
 export const mergeContexts = (contexts) => contexts.reduce((m, c) => Object.assign(m, c['@context'] ?? {}), {})
 
@@ -57,7 +58,8 @@ export async function instantiate(containerUrl, token, profile, { renderers = {}
   const members = await readMembers(containerUrl, token, fetchFn)
   const containerTargets = containerReps.map((r) => new URL(r.target ?? r.named_graph, containerUrl).href)
   const isTarget = (url) => containerTargets.includes(url) || memberReps.some((r) => url.endsWith(r.suffix))
-  const sourceMembers = members.filter((m) => !m.isContainer && !isTarget(m.url) && !lastSeg(m.url).startsWith('.'))
+  const sourceMembers = members.filter((m) => !m.isContainer && !isTarget(m.url) && !lastSeg(m.url).startsWith('.')
+    && !SIDECAR_SUFFIXES.some((s) => m.url.endsWith(s)))
 
   // Fetch each source once; renderers parse what they understand.
   const sources = []

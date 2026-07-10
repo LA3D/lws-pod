@@ -89,6 +89,20 @@ describe('instantiate', () => {
     expect(res.some((r) => r.rep === 'graph' && r.target === `${C}g.jsonld`)).toBe(true)
   })
 
+  it('substrate sidecars listed in ldp:contains are never sources: no recursive .meta.meta', async () => {
+    const listing = `<${C}> <http://www.w3.org/ns/ldp#contains> <${C}a.md>, <${C}b.md>, <${C}a.md.meta>, <${C}x.jsonld.lwstypes> .`
+    const { store, fetchFn } = podMock({
+      [C]: { body: listing, ct: 'text/turtle' },
+      [`${C}a.md.meta`]: { body: '{}', ct: 'application/ld+json' },
+      [`${C}x.jsonld.lwstypes`]: { body: '{}', ct: 'application/ld+json' },
+    })
+    const res = await instantiate(C, 't', { representations: [SELF], context: {} }, { fetchFn })
+    expect(store.has(`${C}a.md.meta.meta`)).toBe(false)
+    expect(store.has(`${C}x.jsonld.lwstypes.meta`)).toBe(false)
+    const advertised = res.filter((r) => r.rep === 'altr').map((r) => r.target).sort()
+    expect(advertised).toEqual([`${C}a.md.meta`, `${C}b.md.meta`])
+  })
+
   it('missing renderer: throws by default, skips + reports when onMissingRenderer=skip', async () => {
     const { fetchFn } = podMock()
     await expect(instantiate(C, 't', { representations: [LINKS], context: {} }, { fetchFn })).rejects.toThrow(/links/)
