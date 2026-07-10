@@ -1,0 +1,1 @@
+{ "id": "links", "suffix": ".links.jsonld", "format": "application/ld+json", "conformsTo": "profile.jsonld" }

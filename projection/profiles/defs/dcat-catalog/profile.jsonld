@@ -7,6 +7,7 @@
   "dct:title": "DCAT catalog family — datasets as pure JSON-LD data (application #2; W3C DCAT reused, nothing minted)",
   "hasResource": [
     { "@id": "#ctx", "hasRole": "lwspr:context", "hasArtifact": "context.jsonld", "format": "application/ld+json" },
-    { "@id": "#shape", "hasRole": "role:validation", "hasArtifact": "shapes.ttl", "format": "text/turtle" }
+    { "@id": "#shape", "hasRole": "role:validation", "hasArtifact": "shapes.ttl", "format": "text/turtle" },
+    { "@id": "#rep-content", "hasRole": "lwspr:representation", "hasArtifact": "content.rep.jsonld", "format": "application/ld+json" }
   ]
 }

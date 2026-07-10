@@ -8,7 +8,7 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
-import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, makeDefsLoader } from './checks.mjs'
+import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation, makeDefsLoader } from './checks.mjs'
 import { descriptorToProfile } from '../prof/profile-doc.mjs'
 import { loadProfile } from '../prof/profile-loader.mjs'
 
@@ -59,6 +59,7 @@ for (const d of DESCRIPTORS) {
   const ctxObj = ctxRes ? (JSON.parse(await readFile(localPath(ctxRes.artifact), 'utf8'))['@context'] ?? {}) : {}
   const curatedBases = Object.values(ctxObj).filter((v) => typeof v === 'string' && /[#/]$/.test(v))
 
+  const repsSeen = []
   for (const r of prof.resources) {
     const art = () => readFile(localPath(r.artifact), 'utf8')
     if (r.roles.includes(ROLE + 'validation')) failures.push(...await checkShapes(await art(), `${d}:${r.artifact.split('/').pop()}`))
@@ -71,7 +72,13 @@ for (const d of DESCRIPTORS) {
       const noted = KNOWN_VOCAB_GAPS.filter((g) => all.some((f) => f.endsWith(g)))
       if (noted.length) console.log(`known upstream vocab gaps in ${d} (recorded, not patched): ${noted.join(', ')}`)
     }
+    if (r.roles.includes(LWSPR + 'representation')) {
+      const txt = await art()
+      failures.push(...checkRepresentation(txt, `${d}:${r.artifact.split('/').pop()}`))
+      try { repsSeen.push(JSON.parse(txt)) } catch { /* already failed above */ }
+    }
   }
+  if (repsSeen.filter((x) => x.default).length > 1) failures.push(`${d}: more than one default representation`)
 }
 if (failures.length) { console.error('DECLARATION CHECKS FAILED:\n' + failures.map((f) => ' - ' + f).join('\n')); process.exit(1) }
 if (checkOnly) { console.log(`checks passed for ${DESCRIPTORS.length} profile(s)`); process.exit(0) }

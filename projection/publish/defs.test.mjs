@@ -14,7 +14,10 @@ describe('profile definition sources', () => {
     }
   })
   it('every .jsonld parses as JSON and no llm-wiki pin is left unfilled', async () => {
-    for (const f of ['profiles-compact.context.jsonld', 'substrate-floor.jsonld', 'floor-identity.jsonld', 'okf-base.jsonld', 'okf-base.context.jsonld', 'index.jsonld', 'llm-wiki/profile.jsonld', 'llm-wiki/identity.jsonld', 'llm-wiki/context.jsonld']) {
+    for (const f of ['profiles-compact.context.jsonld', 'substrate-floor.jsonld', 'floor-identity.jsonld', 'okf-base.jsonld', 'okf-base.context.jsonld', 'index.jsonld',
+      'llm-wiki/profile.jsonld', 'llm-wiki/identity.jsonld', 'llm-wiki/context.jsonld',
+      'llm-wiki/content.rep.jsonld', 'llm-wiki/links.rep.jsonld', 'llm-wiki/index.rep.jsonld', 'llm-wiki/graph.rep.jsonld',
+      'dcat-catalog/content.rep.jsonld']) {
       const text = await readFile(join(DEFS, f), 'utf8')
       expect(() => JSON.parse(text), f).not.toThrow()
       expect(text.includes('<PIN>'), `${f} has an unfilled pin`).toBe(false)

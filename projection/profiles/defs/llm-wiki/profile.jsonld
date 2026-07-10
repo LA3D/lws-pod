@@ -12,6 +12,10 @@
       "source": "https://la3d.github.io/llm-wiki-colab/context.jsonld", "version": "2026-07-04/c91b7a1" },
     { "@id": "#shape", "hasRole": "role:validation", "hasArtifact": "shapes.ttl", "format": "text/turtle",
       "source": "https://la3d.github.io/llm-wiki-colab/shapes.ttl", "version": "2026-07-04/c91b7a1" },
-    { "@id": "#identity", "hasRole": "lwspr:identity-policy", "hasArtifact": "identity.jsonld", "format": "application/ld+json" }
+    { "@id": "#identity", "hasRole": "lwspr:identity-policy", "hasArtifact": "identity.jsonld", "format": "application/ld+json" },
+    { "@id": "#rep-content", "hasRole": "lwspr:representation", "hasArtifact": "content.rep.jsonld", "format": "application/ld+json" },
+    { "@id": "#rep-links",   "hasRole": "lwspr:representation", "hasArtifact": "links.rep.jsonld",   "format": "application/ld+json" },
+    { "@id": "#rep-index",   "hasRole": "lwspr:representation", "hasArtifact": "index.rep.jsonld",   "format": "application/ld+json" },
+    { "@id": "#rep-graph",   "hasRole": "lwspr:representation", "hasArtifact": "graph.rep.jsonld",   "format": "application/ld+json" }
   ]
 }

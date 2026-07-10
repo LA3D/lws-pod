@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext } from './checks.mjs'
+import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation } from './checks.mjs'
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const read = (f) => readFile(join(DEFS, f), 'utf8')
@@ -80,4 +80,18 @@ describe('declaration-time checks (spec §9 — fail loud at publish)', () => {
     const report = await checkVocabulary(await read('llm-wiki/ontology.ttl'), used, KNOWN_VOCAB_GAPS)
     expect(report).toEqual(['vocabulary: used term not defined: https://la3d.github.io/llm-wiki-colab/ontology#doesNotExist'])
   })
+})
+
+describe('checkRepresentation', () => {
+  const ok = { id: 'links', suffix: '.links.jsonld', format: 'application/ld+json', conformsTo: 'profile.jsonld' }
+  it('passes a well-formed member rep', () => expect(checkRepresentation(JSON.stringify(ok), 'x')).toEqual([]))
+  it('fails on missing id/format/conformsTo', () =>
+    expect(checkRepresentation(JSON.stringify({ suffix: '.x' }), 'x').length).toBeGreaterThanOrEqual(3))
+  it('fails when zero or two kinds are declared', () => {
+    expect(checkRepresentation(JSON.stringify({ id: 'a', format: 'f', conformsTo: 'c' }), 'x')).not.toEqual([])
+    expect(checkRepresentation(JSON.stringify({ ...ok, self: true }), 'x')).not.toEqual([])
+  })
+  it('fails named_graph without a valid mode', () =>
+    expect(checkRepresentation(JSON.stringify({ id: 'g', format: 'f', conformsTo: 'c', named_graph: 'g.jsonld' }), 'x')).not.toEqual([]))
+  it('fails on non-JSON', () => expect(checkRepresentation('nope', 'x')).not.toEqual([]))
 })

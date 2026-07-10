@@ -121,3 +121,16 @@ export async function checkVocabulary(ttlText, usedTerms, knownGaps = []) {
     .filter((t) => !knownGaps.includes(t))
     .map((t) => `vocabulary: used term not defined: ${t}`)
 }
+
+const REP_KINDS = ['self', 'suffix', 'target', 'named_graph']
+// Declaration-time check for lwspr:representation artifacts (spec §5) — loud, pre-write.
+export function checkRepresentation(jsonText, name) {
+  let rep
+  try { rep = JSON.parse(jsonText) } catch (e) { return [`${name}: not JSON (${e.message})`] }
+  const out = []
+  for (const k of ['id', 'format', 'conformsTo']) if (typeof rep[k] !== 'string' || !rep[k]) out.push(`${name}: missing '${k}'`)
+  const kinds = REP_KINDS.filter((k) => rep[k] !== undefined)
+  if (kinds.length !== 1) out.push(`${name}: exactly one of ${REP_KINDS.join('/')} required (got ${kinds.join(',') || 'none'})`)
+  if (rep.named_graph !== undefined && !['union', 'dataset'].includes(rep.mode)) out.push(`${name}: named_graph requires mode union|dataset`)
+  return out
+}

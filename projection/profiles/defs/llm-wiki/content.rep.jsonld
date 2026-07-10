@@ -1,0 +1,1 @@
+{ "id": "content", "self": true, "default": true, "format": "text/markdown", "conformsTo": "../okf-base.jsonld" }

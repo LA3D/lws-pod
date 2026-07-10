@@ -15,7 +15,7 @@ lwspr:context a prof:ResourceRole, skos:Concept ;
 
 lwspr:identity-policy a prof:ResourceRole, skos:Concept ;
   skos:prefLabel "Identity policy"@en ;
-  skos:definition "Config consumed by the identity minter: slug strategy, path prefix, fragment, versioning, DID-anchoring. Combined at runtime with the pod's resolved storage authority; never carries an authority literal."@en ;
+  skos:definition "Config consumed by the identity minter: slug strategy, path prefix, fragment, versioning, DID-anchoring. Combined at runtime with the pod's resolved storage authority; never carries an authority literal. Graph-shaped: a stored document carries one named graph whose name is the document IRI ({authority}{pathPrefix}{slug}); the primary subject is the declared fragment (default #it) within it, and the document's graph may carry further subjects."@en ;
   skos:inScheme lwsp: .
 
 lwspr:plane-mapping a prof:ResourceRole, skos:Concept ;
@@ -26,4 +26,9 @@ lwspr:plane-mapping a prof:ResourceRole, skos:Concept ;
 lwspr:derived-view a prof:ResourceRole, skos:Concept ;
   skos:prefLabel "Derived view"@en ;
   skos:definition "Config consumed by a derived-view projector: the named_graph (a pod resource IRI whose URL is the graph name), the push_mode (replace|merge), and the mode (union|dataset). Declares — as data — an aggregate view a projector materializes into the container; it carries no application vocabulary."@en ;
+  skos:inScheme lwsp: .
+
+lwspr:representation a prof:ResourceRole, skos:Concept ;
+  skos:prefLabel "Profile representation"@en ;
+  skos:definition "Config consumed by the instantiation step: one representation the application offers for content negotiation by profile (DX-PROF-CONNEG). Fields: conformsTo (the representation's profile IRI, resolved against the artifact URL) and format (media type), plus exactly one of — self (the canonical resource itself), suffix (a per-member materialized artifact at member URL + suffix), target (a container-level artifact an application renderer materializes), or named_graph/push_mode/mode with optional members (a container-level aggregate the neutral derived-view materializer builds). Instantiation materializes each declared representation and writes the altr: facts the server advertises and selects on. It carries no application vocabulary."@en ;
   skos:inScheme lwsp: .
