@@ -277,3 +277,30 @@ Run `make test` (Vitest suite) and `bash experiments/smoke.sh` (the archived pro
    forward the requester's auth on constraint reads. Build detail, not a blocker.
 3. **In-process L2 hooks** (axis 7) — no plugin API (docs-confirmed); the proxy stays the landing
    point for projection + auto-commit unless JSS adds a `storage.write()` hook.
+
+---
+
+## Appendix — the README evaluation checklist (moved here 2026-07-10)
+
+The repo README carried this dated checklist until the 2026-07-10 README rewrite; preserved
+verbatim as the evaluation-era record (its last row describes the since-retired
+`constrained-container/` proxy in its own era's terms).
+
+**Verdict (2026-06-21): JSS is a good replacement for CSS — proceed to build the L2 memory layer
+on it.** Evidence per axis above; live probes in `experiments/smoke.sh` and `experiments/headless-cid/`.
+
+- [x] Boots clean in a container; survives a restart with the volume (`make down && make up`;
+      `make reset` wipes by design).
+- [x] **Headless agent auth**: `POST /idp/credentials` returns a usable bearer (RS256 JWT; *not*
+      DPoP-bound — replayable). The main draw works; the bearer-replay caveat is real.
+- [x] **Agent surface**: `/mcp` lists tools; CRUD + ACL are WAC-gated (agent identity = WAC subject).
+- [x] **Conneg**: resources round-trip `application/ld+json` ↔ `text/turtle`; containers expose
+      `ldp:contains` with conneg-able RDF members (Comunica-traversable, per `docs/foundations/04`).
+- [x] **Git**: a push materializes a first-class `ldp:contains` container member (queryable).
+- [x] **LWS-CID identity**: profile is CID-shaped; key provisioning works **headless** (no browser
+      doctor). Self-signed-JWT *auth* requires a public-IP WebID (JSS SSRF guard) — unverified locally.
+- [x] **L2 port lands** (built in that era): JSS served `.meta` + stored `ldp:constrainedBy`, so the
+      `constrained-container/` SHACL-admission proxy ported; git push gave QuitStore-style
+      versioning into the queryable graph. That proxy was superseded by the fork's in-process L3
+      admission (2026-06-30) and retired 2026-07-10; projection runs out-of-process via
+      `apps/wiki-projector/triggers/`.

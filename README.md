@@ -1,192 +1,156 @@
 # lws-pod
 
 An implementation of **W3C Linked Web Storage (LWS)** with **W3C PROF profiles**, built on a
-containerized, pinned [JavaScriptSolidServer](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer)
-(JSS). Structure is imposed by profiles, never baked in; the **memory pod** (wiki-memory profile
-family) is the first application built on it, not the substrate's identity.
+containerized, version-pinned fork of
+[JavaScriptSolidServer](https://github.com/o-development/JavaScriptSolidServer) (JSS).
+Structure is imposed by profiles, never baked in — the substrate presupposes no application.
+The **memory pod** (wiki-memory profile family) is the first application built on it; a DCAT
+data catalog is the second, onboarded as pure data on the same unmodified substrate.
 
-**Status:** JSS chosen over CSS; the memory layer — the neutral **PROF mechanism** (`projection/`),
-application #1's tooling (`apps/wiki-projector/`), **curation console** (`app/`) — is built on
-the local rung (`make up` / `make test`). Public dev/prod rungs (CRC/SAI VM) are deferred. The
-standalone `constrained-container/` SHACL proxy is retired (conneg-by-profile Phase 2, 2026-07-10) —
-the fork's own L3 admission is the governance floor now.
+**Experimental rig, not production.** The committed image pins `javascript-solid-server@0.0.209`
+from npm (a single-maintainer v0.0.x — we bump deliberately); the fork rigs build
+[`LA3D/JavaScriptSolidServer`](https://github.com/LA3D/JavaScriptSolidServer) from a pinned git ref.
 
-**Direction change (2026-06-28):** re-founded as a *general, standards-based memory substrate* —
-structure is profile-imposed, the pod is the canonical home. Design of record:
-[`docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md`](docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md).
+## Why this is useful for agents
 
-**Substrate resolved (2026-06-29):** the LWS *storage* layer is built by **forking production JSS
-0.0.210** ([`LA3D/JavaScriptSolidServer`](https://github.com/LA3D/JavaScriptSolidServer) @ `la3d/main`)
-and adding LWS **in-process** — not a server-agnostic sidecar (the earlier framing), and not
-`lwsd`/`tudor` (evaluated, rejected). Layering: **L1 container → L2 linkset + storage description →
-L3 SHACL admission → L4 profile-defined projection** (L1–L3 are substrate; L4 is where an
-application's profile family — OKF/wiki-memory first — plugs in); **L1 + L2 are shipped** (the fork's PR #1 merged
-into `la3d/lws`, PR #2 open) — L2 is container-validated, incl. the public-Caddy-rung scheme proof
-(`make up-fork-tls`). Design of
-record: [`docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md`](docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md).
-**[`FOLLOWUP.md`](FOLLOWUP.md) is the single source of current state — read it first when resuming.**
+The working thesis: **typed, progressively-disclosed memory helps agents more than flat
+retrieval.** The pod is the rig that tests it.
 
-JSS gives us what CSS does *not*: a self-issued agent-identity stack (LWS-CID / did:nostr),
-headless agent auth, an MCP agent surface, and git-backed versioning. The L2/L3/L4 machinery in this
-repo (governed projection, write contract, SHACL admission, curation) is the memory-layer IP that
-rides on top of the LWS-mode JSS fork.
+- **A memory is one URL with two negotiable faces.** The canonical resource is markdown
+  **content** — what an agent (or Obsidian, or git) reads. Its typed edges live in a separate
+  **links** representation (flat JSON-LD, `…/id/{slug}#it` subjects) that connects memories into
+  a navigable graph. Conversion between prose and graph is lossy both ways, so the two are
+  representations *by profile*, selected with `Accept-Profile` — never conflated by media type.
+- **The floor governs the links, not the prose.** Writes into a bound container are
+  SHACL-validated against the profile's shapes; a violation returns a teaching `400` whose
+  `sh:message` tells the agent how to fix its write. Content quality stays an agent/application
+  concern; graph navigability is enforced.
+- **Everything is self-describing over HTTP.** The pod advertises its own services,
+  capabilities, profiles, and per-resource affordances. Five cold-agent probes (fresh agent,
+  pod URL + CA cert only, zero project context) reconstructed the whole model — profile
+  inheritance, write rules, identity policy, content-vs-links — from the pod's affordances alone.
+- **Applications are data.** A new application = a PROF descriptor + shapes + context +
+  representation declarations, published and bound with no substrate code change. The wiki
+  family and the DCAT family prove the point in both directions.
 
-## Run
+## What the pod speaks
+
+LWS storage (`items[]` containers, storage description with `capability[]`), RFC 9264 linksets,
+**content negotiation by profile** (W3C DX-PROF-CONNEG `cnpr:http`), Type Index/Search
+(`?type=`, `?conformsTo=`), SHACL admission, Solid-OIDC with **headless** agent credentials, an
+MCP agent surface (`/mcp`, model-driven `read_resource`/`list_resources`), git-backed
+versioning, and WebSocket change notifications.
+
+The probe-proven cold read recipe:
+
+1. `GET /.well-known/lws-storage` — services + capabilities.
+2. Follow `ProfileIndexService` — the profile families and the default.
+3. `GET <resource>` with `Accept: application/linkset+json` — a member's linkset carries
+   `up`/`type`; the **container's** carries `describedby` (shapes) + `conformsTo` (profile); a
+   multi-representation resource lists `canonical`/`alternate` with `type=` (media) and
+   `formats=` (profile).
+4. Select with `Accept-Profile: <profile-uri>` — `200` the canonical representation, or
+   `303 See Other` to the alternate.
+5. Find members across containers with `/types/search?type=…` or `?conformsTo=…`.
+
+## Quick start
 
 ```bash
 make setup     # first time only — creates .env.local + `npm ci` in every subproject
-make doctor    # preflight: confirms Docker can actually start containers (see note below)
-make up        # build + start  (http://localhost:3838)
+make doctor    # preflight: confirms Docker can actually start containers
+make up        # build + start the base npm pod  (http://localhost:3838)
 make logs      # tail
-make test      # Vitest e2e: pod create -> headless token -> write/read -> MCP -> git
-make reset     # wipe ./data, rebuild, restart  (deletes the local pod by design)
-make down      # stop, keep ./data (persistence check: down && up preserves the bind-mount)
+make test      # e2e: pod create -> headless bearer -> write/read -> MCP -> git
+make down      # stop, keep ./data
+make reset     # wipe ./data, rebuild, restart (deletes the local pod by design)
 ```
 
-### Host prerequisites (a fresh clone does NOT carry these)
+Host port `3838` → container `3000`. If a build dies with `runc … can't get final child's PID
+from pipe: EOF`, a freshly installed/updated Docker Desktop can't start containers yet — run
+`docker desktop restart`, wait, retry (`make doctor` checks for exactly this).
 
-The base `make up` / `make test` path needs only **Docker Desktop running** (`make doctor` checks
-it). The **TLS rigs** below additionally need host-level setup that lives outside the repo — run
-**`make doctor-tls`** first; it checks each and prints the exact fix. The three it can't auto-install:
+## TLS rigs (the fork)
 
-1. **mkcert** (locally-trusted certs): `brew install mkcert nss` (then optionally `mkcert -install`
-   to trust the CA system-wide; the rigs pass `--cacert certs/rootCA.pem` so it isn't required).
-2. **`pod.vardeman.me` in `/etc/hosts`** → `echo '127.0.0.1 pod.vardeman.me' | sudo tee -a /etc/hosts`
-   (host-specific, never committed; both TLS rigs use this hostname).
-3. **Docker** + a free host port (`:443` for the fork rig, `:8443` for the LWS-CID pod).
-
-### TLS rigs
+The LWS features live in the fork, which runs behind TLS. Host prerequisites (outside the repo —
+`make doctor-tls` checks each and prints the fix): `mkcert` (`brew install mkcert nss`),
+`pod.vardeman.me` in `/etc/hosts` (`echo '127.0.0.1 pod.vardeman.me' | sudo tee -a /etc/hosts`),
+and a free host port (`:443` fork rig, `:8443` CID pod).
 
 ```bash
-make doctor-tls                                  # preflight the host setup above
-make cert                                        # mkcert ./certs for pod.vardeman.me (gitignored)
+make cert            # mkcert ./certs for pod.vardeman.me (gitignored)
+make up-fork-tls     # the fork (--lws) behind a TLS-terminating Caddy at https://pod.vardeman.me
+make down-fork-tls   # -v cleans the throwaway pod volume
 
-# (a) Scheme-fix / public-Caddy-rung rehearsal — the FORK (L1+L2, --lws) behind a TLS-terminating
-#     Caddy proxy. Proves request.protocol / X-Forwarded-Proto: a plain-http JSS behind TLS
-#     emits https in the storage description id + Link rels (an in-JSS-TLS pod can't show this).
-make up-fork-tls
-curl --cacert certs/rootCA.pem https://pod.vardeman.me/.well-known/lws-storage   # id MUST be https://
-make down-fork-tls                               # -v cleans the throwaway pod volume
-
-# (b) LWS-CID auth experiment — in-JSS-TLS pod (TLS terminated inside JSS) on :8443.
-make up-tls && make cid-tls
+make up-tls && make cid-tls   # LWS-CID auth experiment — in-JSS-TLS pod on :8443
 ```
 
-The fork rigs build the **fork** (`LA3D/JavaScriptSolidServer`, L1+L2) from a pinned **git ref** via
-`Dockerfile.fork` (`npm install -g git+…#<SHA>`, default = L2 HEAD; override `JSS_GIT_REF`), with
-`--lws` enabled — separate from the committed image, which still installs the published npm package
-(below). The fork-TLS rig runs under its own compose project (`lws-pod-forktls`) so it never disturbs
-`lws-pod-local`.
+`Dockerfile.fork` builds the fork from a pinned git ref (override `JSS_GIT_REF`) with `--lws`
+(+ `--lws-profile-conneg`, `--lws-profile-index`) enabled. The rig runs under its own compose
+project (`lws-pod-forktls`), so it never disturbs the base `lws-pod-local` pod.
 
-**Clean checkout / new machine:** `node_modules/` and `.env.local` are gitignored, so a fresh clone
-has neither — `make setup` is the one-shot bootstrap that creates both (the compose and test targets
-also self-heal the env file and root/projection deps, so `make up` / `make test` work without it).
-If a build dies at the first `RUN` with `runc … can't get final child's PID from pipe: EOF`, a
-freshly installed/updated Docker Desktop can't start containers yet — run `docker desktop restart`,
-wait, and retry. `make doctor` checks for exactly this.
+## Verification (the gates)
 
-L2 component gates: `make test-projection` and `make test-app` (unit, no pod needed); `make
-test-wiki` is the live gate over the re-derived wiki family (needs `make up-fork-tls` + `make cert`
-+ `make publish-profiles`). The curation-console e2e is retired with the `constrained-container/`
-proxy; it returns when the console targets the fork pod (FOLLOWUP carryover).
+Unit gates need no pod; live gates run against the fork TLS rig (`make cert && make up-fork-tls`).
 
-**LWS storage-discovery gate** (`make test-lws`): the live-pod harness for the L2 surfaces — storage
-description, `rel=storageDescription`/`rel=linkset` headers, per-resource linkset + `lws+json` conneg —
-run against the **fork** `--lws` pod at `https://pod.vardeman.me` (needs `make up-fork-tls` + `make
-cert`). `tests/lws-discovery.test.mjs` self-skips on a non-`--lws` pod, so plain `make test` against the
-base pod stays green (it reports the L2 suite as skipped).
+| Target | Proves | Needs |
+|---|---|---|
+| `make test-projection` | neutral PROF mechanism + publish checks; wiki renderers/triggers | — |
+| `make test-app` | curation-console unit suite | — |
+| `make test` | base-pod e2e: lifecycle, headless auth, MCP, git | `make up` |
+| `make test-lws` | storage description + per-resource linksets | fork rig |
+| `make test-l3` | SHACL admission floor (teaching 400s) | fork rig |
+| `make test-typeindex`, `make test-indexed-relation` | Type Index/Search, indexed relations | fork rig |
+| `make test-graph` | named-graph JSON-LD storage + derived views | fork rig |
+| `make test-conneg` | content negotiation by profile (`cnpr:http`) | fork rig |
+| `make test-profiles` | the PROF walk + profile-index advertisement | fork rig + `make publish-profiles` |
+| `make test-dcat` | zero-code application onboarding (its setup IS the recipe) | fork rig |
+| `make test-wiki` | the wiki family end-to-end: bind → instantiate → negotiate | fork rig + `make publish-profiles` |
+| `make test-mcp-v2` | the 10-tool MCP agent surface (wait ~70s between runs — anon rate limit) | fork rig |
 
-### Profiles
+## Profiles
 
-`/profiles/` on the pod is the **profile-authority layer** (Plan 2, `docs/superpowers/specs/2026-07-04-profile-mechanism-design.md`,
-governed by `docs/design-notes/layer-cake-principles.md`): W3C PROF descriptors (`prof:Profile`,
-`prof:isProfileOf`, `prof:hasRole`) for the substrate floor, the OKF base, and the llm-wiki adoption
-profile, plus pinned byte-identical mirrors of upstream vocab/shapes and an `index.jsonld` the pod
-advertises via `ProfileIndexService` in its storage description. Source tree: `projection/profiles/defs/`;
-declaration-time checks + the publish/bind step: `projection/publish/`.
+`projection/profiles/defs/` holds the profile data — PROF descriptors (`isProfileOf`, roles,
+representation declarations), shapes, contexts, and pinned byte-identical upstream mirrors —
+for four families: the substrate floor, okf-base, llm-wiki (application #1), and dcat-catalog
+(application #2). `make publish-profiles` runs declaration-time checks (fail-loud, nothing
+written on failure), PUTs the tree, binds containers (`dct:conformsTo` +
+`powder:describedby`), and instantiates renderer-free representations (`--instantiate`).
 
-```bash
-make publish-profiles   # needs POD_TOKEN (owner bearer) — PUTs descriptors/mirrors, then binds
-                         # dct:conformsTo + powder:describedby onto the target containers
-make test-profiles      # live gate — needs `make up-fork-tls` (the fork pod, --lws-profile-index)
-```
-
-**ACL caveat:** JSS auto-creates new containers **owner-only**. `/alice/profiles/**` and any container
-you bind a profile to need an explicit public-read `.acl` *before* `make publish-profiles`/binding, or
-unauthenticated profile resolution (and the live gate) will 401/403 — see the reproducible sequence in
-`.superpowers/sdd/task-10-report.md`.
-
-No official JSS image exists; the `Dockerfile` pins `javascript-solid-server@0.0.209`
-from npm and adds `git` (required by the `--git` backend). Pinned deliberately — JSS is a
-single-maintainer v0.0.x; we bump when we choose to.
-
-Port `3838` (host) → `3000` (container), leaving `3000` free for a side-by-side CSS pod.
+**ACL caveat:** JSS creates containers owner-only; `/alice/profiles/**` and bound containers
+need a public-read `.acl` before unauthenticated profile resolution works — the recipe is in
+[`docs/foundations/06-code-placement-audit.md`](docs/foundations/06-code-placement-audit.md).
 
 ## Repo layout
 
-- `.claude/skills/` — seven grounded, source-pinned reference skills (LWS, Solid, SHACL,
-  Comunica, OKF, Semantic Markdown specs + JSS implementation docs). See `.claude/skills/README.md`.
-- `docs/` — the doc map, by register: [`FOLLOWUP.md`](FOLLOWUP.md) = current state + open items
-  (read first); [`docs/ROADMAP.md`](docs/ROADMAP.md) = forward plan; `docs/foundations/` = distilled
-  canon + the **spec-vs-JSS conformance map** (`05-…`); `docs/design-notes/` = active design
-  deliberation (**exploratory, not canon**); `docs/superpowers/` = build history (archive);
-  `docs/archive/` = superseded docs.
 - `projection/` — the neutral **PROF mechanism**: `prof/` (PROF walk, authority resolution,
-  `instantiate()` — bind + ACLs + materialize every declared representation + advertise `altr:`),
-  `publish/` (onboarding: declaration-time checks, publish/bind/`--instantiate`), `profiles/defs/`
-  (profile data: descriptors, representation roles, pinned upstream mirrors). Substrate-neutral —
-  P13's standing gate (`docs/foundations/06-code-placement-audit.md`).
-- `apps/wiki-projector/` — application #1's tooling (demoted out of `projection/`, conneg-by-profile
-  Phase 2): markdown cards, identity, the OKF nav channel, plus `renderers.mjs` (the wiki family's
-  content/links/index/graph representations) and `triggers/` (CLI one-shot + WebSocket CDC watcher,
-  now driven by `instantiate()`).
-- `app/` — the **wiki-memory curation console**: a static Solid/LWS app (vanilla custom elements, no
-  build, vendored deps) to browse agent-written cards, traverse their typed graph across containers,
-  and correct them through the floor. Also renders any OKF bundle. See `app/README.md`.
-- `experiments/headless-cid/` — headless LWS-CID provisioning + auth round-trip probe.
-- `tests/` — Vitest integration suite (the local verification gate; `make test`).
-- `experiments/smoke.sh` — archived eval probe (superseded; evidence in the conformance map).
+  `instantiate()` — materialize declared representations + advertise `altr:`), `publish/`
+  (onboarding), `profiles/defs/` (profile data). Substrate-neutral — P13's standing gate is
+  [`docs/foundations/06-code-placement-audit.md`](docs/foundations/06-code-placement-audit.md).
+- `apps/wiki-projector/` — application #1's tooling: markdown cards, identity, the OKF nav
+  channel, `renderers.mjs` (content/links/index/graph representations), `triggers/` (CLI
+  one-shot + WebSocket CDC watcher, driven by `instantiate()`).
+- `app/` — the **wiki-memory curation console**: static Solid/LWS app, vanilla custom elements,
+  no build step, vendored deps. See `app/README.md`.
+- `tests/` — the live gates (table above) + the base-pod e2e suite.
+- `experiments/` — spikes: `headless-cid/` (LWS-CID auth probe), `agent-eval/` (cold-agent
+  battery over the pod's own MCP tools), `keycloak-jss/` (authz spike).
+- `.claude/skills/` — grounded, source-pinned spec/implementation reference skills
+  (see `.claude/skills/README.md`).
+- `docs/` — by register: [`FOLLOWUP.md`](FOLLOWUP.md) = current state (**read first**);
+  [`docs/ROADMAP.md`](docs/ROADMAP.md) = forward plan; `docs/foundations/` = distilled canon
+  incl. the spec-vs-JSS conformance map (`05-…`); `docs/design-notes/` = active deliberation
+  (**not canon**); `docs/superpowers/` = build history.
 
-## What's enabled (and why)
+## History & status
 
-| Flag | Evaluates |
-|---|---|
-| `--idp` | Built-in Solid-OIDC IdP + **headless** `POST /idp/credentials` — agents auth with no browser |
-| `--mcp` | MCP server at `/mcp` — the agent consumption surface (CRUD, ACL, skills, subscribe, federation) |
-| `--conneg` | Turtle ↔ JSON-LD content negotiation (Comunica compatibility) |
-| `--git` | `git clone`/`push` backend — the versioning angle (a git working tree as storage) |
-| `--notifications` | WebSocket change notifications |
-| `--provision-keys` | Auto-generate a W3C CID v1 owner key per pod — the LWS-CID identity primitive |
+Re-founded as a general substrate 2026-06-28
+([spec](docs/superpowers/specs/2026-06-28-general-memory-substrate-design.md)); the storage
+layer is built by forking JSS and adding LWS **in-process** — not a sidecar, not `lwsd`/`tudor`
+(2026-06-29 [spec](docs/superpowers/specs/2026-06-29-lws-storage-layer-design.md)). The full
+layering — L1 containers → L2 discovery → L3 admission → L4 profile-defined projection with
+content negotiation by profile — is shipped and live-gated; round-by-round record in
+[`FOLLOWUP.md`](FOLLOWUP.md). The 2026-06-21 JSS-over-CSS evaluation verdict and its evidence
+live in [`docs/foundations/05-jss-spec-conformance.md`](docs/foundations/05-jss-spec-conformance.md).
 
-Kitchen-sink surfaces (Nostr relay, WebRTC, tunnel, ActivityPub, terminal) stay **off** to
-keep the evaluation focused on the substrate.
-
-## Evaluation checklist (what "good" looks like)
-
-**Verdict (2026-06-21): JSS is a good replacement for CSS — proceed to build the L2 memory layer
-on it.** Evidence per axis below; full analysis in [`docs/foundations/05-jss-spec-conformance.md`](docs/foundations/05-jss-spec-conformance.md),
-live probes in `experiments/smoke.sh` and `experiments/headless-cid/`.
-
-- [x] Boots clean in a container; survives a restart with the volume (`make down && make up`;
-      `make reset` wipes by design).
-- [x] **Headless agent auth**: `POST /idp/credentials` returns a usable bearer (RS256 JWT; *not*
-      DPoP-bound — replayable). The main draw works; the bearer-replay caveat is real.
-- [x] **Agent surface**: `/mcp` lists tools; CRUD + ACL are WAC-gated (agent identity = WAC subject).
-- [x] **Conneg**: resources round-trip `application/ld+json` ↔ `text/turtle`; containers expose
-      `ldp:contains` with conneg-able RDF members (Comunica-traversable, per `docs/foundations/04`).
-- [x] **Git**: a push materializes a first-class `ldp:contains` container member (queryable).
-- [x] **LWS-CID identity**: profile is CID-shaped; key provisioning works **headless** (no browser
-      doctor). Self-signed-JWT *auth* requires a public-IP WebID (JSS SSRF guard) — unverified locally.
-- [x] **L2 port lands** (now built): JSS serves `.meta` + stores `ldp:constrainedBy`, so the
-      `constrained-container/` SHACL-admission proxy ports; git push gives QuitStore-style
-      versioning into the queryable graph. The build resolved the open details — ACL provisioning
-      (seed grants per-container read), proxy auth on constraint reads (it fetches `.meta`/shape with
-      the inbound bearer) — and projection runs out-of-process via `projection/triggers/` (manual CLI
-      or CDC watcher), since JSS has no native in-process write hook.
-
-## Context
-
-Source clone read at `~/dev/git/JavaScriptSolidServer/JavaScriptSolidServer`. JSS is a
-CTH-conformant, JSON-LD-native Solid server that already ships the LWS *authentication*
-suite (not LWS storage — that stays Solid/LDP). The CSS-vs-JSS decision and the L2-port
-analysis live in the `cogitarelink-solid` notes.
+Known caveats: the headless RS256 bearer is replayable (not DPoP-bound) — fine for a trusted
+local agent only; LWS-CID auth is proven locally only.
