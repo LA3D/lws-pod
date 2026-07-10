@@ -19,12 +19,12 @@ async function memberGraph(url, token, fetchFn, origin) {
   const r = await fetchFn(url, { headers: { accept: 'application/ld+json', ...authH(token) } })
   if (!r.ok) throw new Error(`member ${url} -> ${r.status}`)
   const doc = await r.json()
-  const name = doc['@id'] || url                                  // in-band graph name, else the URL
+  const name = (doc['@id'] || url).split('#')[0]                  // graph name = doc IRI; flat members carry #it — strip to the document
   const quads = await jsonldToQuads(doc, url)                      // flatten to quads (graph component dropped below)
   return { name, quads }
 }
 
-export async function materializeDerivedView(containerUrl, token, declaration, { context = {}, fetchFn = fetch } = {}) {
+export async function materializeDerivedView(containerUrl, token, declaration, { context = {}, fetchFn = fetch, skip = [] } = {}) {
   if (!['union', 'dataset'].includes(declaration.mode)) throw new Error(`derived-view: unknown mode ${declaration.mode}`)
   // v1: 'merge' behaves as 'replace' (push_mode is not yet consumed elsewhere; documented plan stance).
   if (declaration.push_mode && !['replace', 'merge'].includes(declaration.push_mode)) throw new Error(`derived-view: unknown push_mode ${declaration.push_mode}`)
@@ -32,7 +32,8 @@ export async function materializeDerivedView(containerUrl, token, declaration, {
   const origin = new URL(containerUrl).origin
   const target = new URL(declaration.named_graph, containerUrl).href
   if (new URL(target).origin !== origin) throw new Error(`derived-view target off-origin: ${target}`)
-  const members = (await readMembers(containerUrl, token, fetchFn)).filter(u => u !== target)
+  let members = (await readMembers(containerUrl, token, fetchFn)).filter(u => u !== target && !skip.includes(u))
+  if (declaration.members) members = members.filter(u => u.endsWith(declaration.members))
   const graphs = await Promise.all(members.map(u => memberGraph(u, token, fetchFn, origin)))
 
   let body

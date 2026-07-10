@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { DataFactory } from 'n3'
-import { quadsToNamedGraph, quadsToDataset } from './jsonld-graph.mjs'
+import { quadsToNamedGraph, quadsToDataset, quadsToFlat } from './jsonld-graph.mjs'
 const { namedNode, literal, quad } = DataFactory
 
 const CTX = { rdfs: 'http://www.w3.org/2000/01/rdf-schema#', label: { '@id': 'rdfs:label' }, type: '@type' }
@@ -52,5 +52,24 @@ describe('quadsToDataset', () => {
     const ds = await quadsToDataset({ 'https://a.example/1': qs, 'https://a.example/2': qs }, { context: CTX })
     expect(ds['@graph'].map(g => g['@id']).sort()).toEqual(['https://a.example/1', 'https://a.example/2'])
     for (const g of ds['@graph']) expect(g['@graph'].find(n => n['@id'] === S)).toBeTruthy()
+  })
+})
+
+describe('quadsToFlat', () => {
+  const ctx = { dcterms: 'http://purl.org/dc/terms/', title: { '@id': 'dcterms:title' } }
+  it('single subject -> flat node, no @graph wrapper', async () => {
+    const q = [quad(namedNode('https://p.example/id/a#it'), namedNode('http://purl.org/dc/terms/title'), literal('Alpha'))]
+    const doc = await quadsToFlat(q, ctx)
+    expect(doc['@id']).toBe('https://p.example/id/a#it')
+    expect(doc.title).toBe('Alpha')
+    expect(doc['@graph']).toBeUndefined()
+  })
+  it('multi subject -> @graph fallback', async () => {
+    const q = [
+      quad(namedNode('https://p.example/id/a#it'), namedNode('http://purl.org/dc/terms/title'), literal('A')),
+      quad(namedNode('https://p.example/id/b#it'), namedNode('http://purl.org/dc/terms/title'), literal('B')),
+    ]
+    const doc = await quadsToFlat(q, ctx)
+    expect(doc['@graph']).toHaveLength(2)
   })
 })

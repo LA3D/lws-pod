@@ -127,3 +127,46 @@ describe('materializeDerivedView', () => {
     expect(puts.length).toBe(0)
   })
 })
+
+const mixListing = `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${CONTAINER}> ldp:contains <${CONTAINER}a.md>, <${CONTAINER}a.md.links.jsonld>, <${CONTAINER}other.jsonld>, <${CONTAINER}g.jsonld> .`
+const flatLinks = { '@context': CTX, '@id': 'https://authority.example/kb/a#it', label: 'A' }
+const otherDoc = { '@context': CTX, '@id': 'https://authority.example/kb/o', '@graph': [{ '@id': 'https://authority.example/kb/o#it', label: 'O' }] }
+
+function fakeMixedPod() {
+  const puts = [], fetched = []
+  const fetchFn = async (url, opts = {}) => {
+    const u = String(url)
+    if (opts.method === 'PUT') { puts.push({ url: u, body: JSON.parse(opts.body) }); return { ok: true, status: 201 } }
+    fetched.push(u)
+    if (u === CONTAINER) return { ok: true, text: async () => mixListing }
+    if (u.endsWith('a.md.links.jsonld')) return { ok: true, json: async () => flatLinks, text: async () => JSON.stringify(flatLinks) }
+    if (u.endsWith('other.jsonld')) return { ok: true, json: async () => otherDoc, text: async () => JSON.stringify(otherDoc) }
+    if (u.endsWith('a.md')) return { ok: true, json: async () => { throw new Error('markdown is not JSON') }, text: async () => '# md' }
+    return { ok: false, status: 404 }
+  }
+  return { fetchFn, puts, fetched }
+}
+
+describe('member selection', () => {
+  it('declaration.members suffix filter feeds only matching members (markdown never fetched as a graph)', async () => {
+    const { fetchFn, puts, fetched } = fakeMixedPod()
+    await materializeDerivedView(CONTAINER, null, { named_graph: 'g.jsonld', push_mode: 'replace', mode: 'union', members: '.links.jsonld' }, { context: CTX, fetchFn })
+    expect(puts[0].url).toBe(CONTAINER + 'g.jsonld')
+    expect(JSON.stringify(puts[0].body)).toContain('A')
+    expect(JSON.stringify(puts[0].body)).not.toContain('"O"')
+    expect(fetched.filter((u) => u.endsWith('a.md'))).toEqual([])
+  })
+  it('skip[] excludes sibling declared targets from the member set', async () => {
+    const { fetchFn, puts } = fakeMixedPod()
+    await materializeDerivedView(CONTAINER, null, { named_graph: 'g.jsonld', push_mode: 'replace', mode: 'union' },
+      { context: CTX, fetchFn, skip: [CONTAINER + 'a.md', CONTAINER + 'a.md.links.jsonld'] })
+    expect(JSON.stringify(puts[0].body)).toContain('"O"')
+    expect(JSON.stringify(puts[0].body)).not.toContain('"A"')
+  })
+  it('dataset graph names strip the subject fragment (doc IRI, not #it)', async () => {
+    const { fetchFn, puts } = fakeMixedPod()
+    await materializeDerivedView(CONTAINER, null, { named_graph: 'g.jsonld', push_mode: 'replace', mode: 'dataset', members: '.links.jsonld' }, { context: CTX, fetchFn })
+    expect(puts[0].body['@graph'].map((g) => g['@id'])).toEqual(['https://authority.example/kb/a'])
+  })
+})
