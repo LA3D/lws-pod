@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
 import { loadNamespaces } from './namespaces.mjs'
 
-const ctx = JSON.parse(readFileSync(new URL('../profiles/wiki-memory/context.jsonld', import.meta.url)))
+// Self-contained fixture — namespaces.mjs is the neutral floor and must not
+// depend on any app-specific profile fixture (wiki-memory was deleted L4b).
+const ctx = { '@context': {
+  wm: 'https://w3id.org/cogitarelink/wm#',
+  skos: 'http://www.w3.org/2004/02/skos/core#',
+} }
 
 describe('loadNamespaces', () => {
   it('resolves a CURIE through the context prefixes', () => {

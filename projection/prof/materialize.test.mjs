@@ -1,10 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
 import { DataFactory } from 'n3'
 import { materializeInverses } from './materialize.mjs'
 const { namedNode, quad } = DataFactory
 
-const edges = readFileSync(new URL('../profiles/wiki-memory/edges.ttl', import.meta.url), 'utf8')
+// Self-contained fixture — materialize.mjs is the neutral floor and must not
+// depend on any app-specific profile fixture (wiki-memory was deleted L4b).
+const edges = `
+@prefix wm:   <https://w3id.org/cogitarelink/wm#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+
+wm:implementedBy a rdf:Property ;
+    rdfs:label "implemented by" ;
+    rdfs:domain wm:Concept ;
+    rdfs:range wm:Implementation ;
+    owl:inverseOf wm:implements .
+
+wm:implements a rdf:Property ;
+    rdfs:label "implements" ;
+    owl:inverseOf wm:implementedBy ;
+    rdfs:comment "Materialized by the projection; not authored in frontmatter." .
+`
 
 describe('materializeInverses', () => {
   it('adds the inverse of implementedBy (implements)', () => {

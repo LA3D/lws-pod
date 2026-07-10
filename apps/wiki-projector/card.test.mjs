@@ -1,11 +1,19 @@
-// projection/okf/card.test.mjs
+// apps/wiki-projector/card.test.mjs
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
 import { loadNamespaces } from '../../projection/prof/namespaces.mjs'
 import { makeIdentityPolicy } from './identity.mjs'
 import { cardToQuads } from './card.mjs'
 
-const ns = loadNamespaces(JSON.parse(readFileSync(new URL('../../projection/profiles/wiki-memory/context.jsonld', import.meta.url))))
+// Self-contained fixture — card.mjs must not depend on the deleted (Plan-1)
+// profiles/wiki-memory fixture; this mirrors its old wm: vocab context shape.
+const ns = loadNamespaces({ '@context': {
+  wm: 'https://w3id.org/cogitarelink/wm#',
+  skos: 'http://www.w3.org/2004/02/skos/core#',
+  dcterms: 'http://purl.org/dc/terms/',
+  type: '@type',
+  title: { '@id': 'dcterms:title' },
+  implementedBy: { '@id': 'wm:implementedBy', '@type': '@id' },
+} })
 const policy = makeIdentityPolicy({ base: 'https://pod.example/kb/' })
 const URL_C = 'http://pod/c/progressive-disclosure.md'
 
