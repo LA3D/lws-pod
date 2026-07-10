@@ -139,6 +139,30 @@ describe('derived-view role', () => {
   })
 })
 
+describe('representation role', () => {
+  it('dispatches lwspr:representation — config fetched, conformsTo resolved vs the artifact URL', async () => {
+    // Minimal in-memory pod: a descriptor declaring one representation resource.
+    const docs = {
+      'https://p.example/fam/profile.jsonld': {
+        '@context': { prof: 'http://www.w3.org/ns/dx/prof/', dct: 'http://purl.org/dc/terms/',
+          isProfileOf: { '@id': 'prof:isProfileOf', '@type': '@id' }, hasToken: 'prof:hasToken',
+          hasResource: 'prof:hasResource', hasRole: { '@id': 'prof:hasRole', '@type': '@id' },
+          hasArtifact: { '@id': 'prof:hasArtifact', '@type': '@id' }, format: 'dct:format' },
+        '@id': 'https://p.example/fam/profile.jsonld', '@type': 'prof:Profile', hasToken: 'fam',
+        hasResource: [{ '@id': '#rep', hasRole: 'https://w3id.org/lws-pod/profile/role/representation',
+          hasArtifact: 'links.rep.jsonld', format: 'application/ld+json' }],
+      },
+      'https://p.example/fam/links.rep.jsonld': {
+        id: 'links', suffix: '.links.jsonld', format: 'application/ld+json', conformsTo: 'profile.jsonld' },
+    }
+    const fetchFn = async (url) => ({ ok: true, json: async () => docs[url.split('#')[0]] })
+    const loaded = await loadProfile('https://p.example/fam/profile.jsonld', { fetchFn })
+    expect(loaded.representations).toHaveLength(1)
+    expect(loaded.representations[0].id).toBe('links')
+    expect(loaded.representations[0].conformsTo).toBe('https://p.example/fam/profile.jsonld')
+  })
+})
+
 describe('discoverBinding', () => {
   const META = { '@context': { dct: 'http://purl.org/dc/terms/' }, '@id': '',
     'dct:conformsTo': { '@id': `${B}/llm-wiki/profile.jsonld` } }

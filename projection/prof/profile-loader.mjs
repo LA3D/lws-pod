@@ -14,7 +14,8 @@ async function fetchJson(url, fetchFn) {
 
 // The role dispatch table — the ONLY place role IRIs are interpreted (P7).
 // context→parser input, identity-policy/plane-mapping→configs, validation/vocabulary→artifact URLs,
-// derived-view→fetched artifact appended to the derivedViews list.
+// derived-view→fetched artifact appended to the derivedViews list,
+// representation→fetched config appended to the representations list (conformsTo resolved absolute).
 async function dispatch(resources, acc, fetchFn) {
   for (const r of resources) {
     for (const role of r.roles) {
@@ -24,13 +25,18 @@ async function dispatch(resources, acc, fetchFn) {
       else if (role === LWSP_ROLE + 'identity-policy') acc.identityPolicy = await fetchJson(r.artifact, fetchFn)
       else if (role === LWSP_ROLE + 'plane-mapping') acc.planeMapping = await fetchJson(r.artifact, fetchFn)
       else if (role === LWSP_ROLE + 'derived-view') acc.derivedViews.push(await fetchJson(r.artifact, fetchFn))
+      else if (role === LWSP_ROLE + 'representation') {
+        const rep = await fetchJson(r.artifact, fetchFn)
+        if (rep.conformsTo) rep.conformsTo = new URL(rep.conformsTo, r.artifact).href
+        acc.representations.push(rep)
+      }
       else acc.unknownRoles.push({ role, artifact: r.artifact })
     }
   }
 }
 
-// Depth-first, parents first: floor artifacts land before okf-base before
-// llm-wiki. nearest-wins configs = child assignment overwrites parent's.
+// Depth-first, parents first: floor artifacts land before parent-family
+// artifacts before child's. nearest-wins configs = child assignment overwrites parent's.
 async function walk(url, acc, visited, fetchFn) {
   if (visited.has(url)) return
   visited.add(url)
@@ -51,7 +57,7 @@ async function walk(url, acc, visited, fetchFn) {
 
 export async function loadProfile(descriptorUrl, { fetchFn = fetch } = {}) {
   const acc = { conformance: [], validation: [], vocabulary: [], contexts: [],
-    identityPolicy: null, planeMapping: null, derivedViews: [], unknownRoles: [] }
+    identityPolicy: null, planeMapping: null, derivedViews: [], representations: [], unknownRoles: [] }
   // The root descriptor must resolve — loud (P8 declaration side of the loader).
   const root = await descriptorToProfile(await fetchJson(descriptorUrl, fetchFn), descriptorUrl)
   const visited = new Set([descriptorUrl])
