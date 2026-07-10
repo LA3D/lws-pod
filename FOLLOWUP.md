@@ -11,9 +11,10 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
-**▶ CONNEG-BY-PROFILE PHASE 2 (instantiation + wiki-memory re-derivation) — DONE + LIVE-VERIFIED
-(2026-07-10).** Executed 2026-07-10, lws-pod `main` commits `c6cc876..55724ca` (11 tasks; NO fork
-touch — Phase 2 is entirely fork-empty, `la3d/lws` stays pinned at the Phase-1 merge `d75a4dd`).
+**▶ CONNEG-BY-PROFILE PHASE 2 (instantiation + wiki-memory re-derivation) — DONE + LIVE-VERIFIED +
+PROBE #5 PASSED (2026-07-10).** Executed 2026-07-10, lws-pod `main` commits `c6cc876..55724ca` + the
+probe-found sidecar fix `631677a` (11 tasks + probe #5; NO fork touch — Phase 2 is entirely
+fork-empty, `la3d/lws` stays pinned at the Phase-1 merge `d75a4dd`).
 Design of record `docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md` §5–§6
 (this closes what remained of "L4b Phase B" — see the Phase 1 block below).
 
@@ -49,12 +50,35 @@ console targets the fork pod. Pre-existing `make test-app` ECONNREFUSED exit-1 f
 (`wm-app.test.mjs`) — predates this round, not introduced by it. Fork-queue is otherwise unchanged by
 this round (still queued, see the Phase-1 block below).
 
+**▶ PROBE #5 (2026-07-10, cold/unprimed/read-only, pod URL + CA only) — PASSED decisively.** The
+agent discovered the ContentNegotiation capability + ProfileIndexService and walked BOTH families;
+exercised conneg-by-profile on `/alice/wiki/a.md` (`Accept-Profile` okf-base → **200 markdown**;
+llm-wiki → **303** → `a.md.links.jsonld` with the `/id/a#it` subject); read the dataset aggregate +
+`index.md`; stated the **jurisdiction split unprompted** (the card prose is "content the graph never
+sees" vs the typed edges in the links rep); and reconstructed the materialization pipeline
+(`push_mode`/`mode`/`members`) + identity policy (pathPrefix `id/`, `#it`) and a correct WAC+SHACL
+write recipe with the teaching messages. **Probe-found DEFECT, FIXED same session (`631677a`):**
+`instantiate()`'s source filter missed SUFFIXED sidecars (`a.md.meta` etc. are `ldp:contains`
+members whose lastSeg doesn't start with `.`), so each re-run advertised `.meta` onto the previous
+sidecar — a 5-deep `a.md.meta.meta…` recursion live. Fix: `SIDECAR_SUFFIXES`
+(`['.meta','.acl','.lwstypes']`) exclusion + TDD test (prof/ 65/65); 11 residue artifacts cleaned
+from `/alice/wiki/`; `test-wiki` run twice back-to-back **9/9 + 9/9, zero `meta.meta` after run 2**
+— instantiate is idempotent over its own sidecars. **Final sweep: full 12-gate sweep green** (incl.
+mcp-v2 16/16) + fork asserted untouched (`la3d/lws` == `d75a4dd`, clean tree). **Frictions
+(recorded):** (a) **NEW, rig-level** — `/.well-known/openid-configuration` advertises issuer + all
+endpoints as `http://localhost:3000` behind Caddy: a proxy/baseURL config mismatch a cold OIDC
+client would fail on (rig/fork-queue item); (b) known re-confirmed: root index-shadow ignores
+Accept incl. linkset (already fork-queued); no `ldp:constrainedBy` co-emission (recorded carryover);
+`/types/index` lists type IRIs without instances (use `/types/search`); phantom `X-Cost`/`X-Balance`
+CORS headers (recorded); (c) seed hygiene: the gate artifact `good.links.jsonld` is dangling (no
+content sibling) and `conneg-mem` is 401 to cold readers; `plain-probe-*`/`shadow-probe-*` residue
+still pollutes `/alice/` (the probe-#3 finding re-confirmed).
+
 **▶▶ NEXT: the fork-queue serving-path round.** Retire the hand-rolled `jsonLdToQuads`/`toJsonLd`
 pair on the **conneg-serving path** (spec-weight, named at Phase 1 — fixes the probe-#4 Turtle-drop
 family + non-self-describing stored arrays), plus the rest of the queued items: container-listing WAC
 filtering, sidecar mediaTypes, hint wording, MCP gateway advertisement, `urlToStoragePath` subdomains
-guard. **Probe #5** (cold-agent, over the re-derived wiki family) runs as this round's final step
-(T13) — *pending, appended here on completion.*
+guard, and the probe-#5 rig-level `openid-configuration` issuer/baseURL-behind-proxy mismatch.
 
 **▶ CONNEG-BY-PROFILE PHASE 1 (fork pillar) — DONE + MERGED + LIVE (2026-07-07).** Design of record
 `docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md` (**supersedes L4b Phase B's
@@ -116,7 +140,7 @@ shared helpers; INDEXED_RELATIONS↔RELATION_READERS hand-sync.
 file).** Instantiation + the wiki-memory re-derivation shipped as described there — representation
 roles as data, `instantiate()`, the `projection/prof/` + `apps/wiki-projector/` split, the RED fence
 deleted, `constrained-container/` retired. **NEXT = the fork-queue serving-path round** (same
-top block); probe #5 pending.
+top block); probe #5 PASSED (2026-07-10, see the top block).
 
 **▶ MODEL-DRIVEN READ PATH (the MCP consumption correction) — DONE + MERGED (2026-07-06).** Spec
 `docs/superpowers/specs/2026-07-06-mcp-model-driven-read-design.md` (amends the 2026-07-03 affordance
