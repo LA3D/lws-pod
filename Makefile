@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-projection publish-profiles test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-wiki test-projection publish-profiles test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -155,10 +155,21 @@ test-agent-eval:
 	@[ -d experiments/agent-eval/node_modules ] || ( cd experiments/agent-eval && npm install --silent --no-audit --no-fund )
 	cd experiments/agent-eval && BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem node run.mjs
 
-# Projection app gate — pure unit tests + e2e against the running pod (Task 6-8).
+# Phase-2 wiki gate — the re-derived family live (instantiate + conneg-by-profile).
+# Needs up-fork-tls + make cert + `make publish-profiles` (publishes the rep artifacts).
+test-wiki:
+	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
+	@[ -d projection/node_modules ] || ( cd projection && npm ci )
+	@[ -d apps/wiki-projector/node_modules ] || ( cd apps/wiki-projector && npm ci )
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-wiki.test.mjs
+
+# Projection unit gates — both the neutral PROF mechanism (projection/) and the
+# app-#1 wiki projector (apps/wiki-projector/) suites.
 test-projection:
 	@[ -d projection/node_modules ] || ( cd projection && npm ci )
+	@[ -d apps/wiki-projector/node_modules ] || ( cd apps/wiki-projector && npm ci )
 	cd projection && npm test
+	cd apps/wiki-projector && npm test
 
 # Publish the profile definitions to the fork TLS pod + bind the demo container.
 # Needs `make up-fork-tls` running + `make cert`'s CA. POD_TOKEN via tests helper flow.
