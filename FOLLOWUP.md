@@ -7,9 +7,85 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-10 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 shipped; fork serving-path round next
+## ▶▶ 2026-06-29/07-10 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round shipped; cold probe #6 next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
+
+**▶ FORK SERVING-PATH ROUND — DONE + LIVE-VERIFIED, FULL SWEEP GREEN (2026-07-10).** Executed
+2026-07-10, subagent-driven (15 tasks, per-task spec+quality reviews). Design of record
+`docs/superpowers/specs/2026-07-10-fork-serving-path-design.md`; plan
+`docs/superpowers/plans/2026-07-10-fork-serving-path.md`. Drains the fork-queue item named "NEXT" in
+the Phase-2 block below.
+
+**Shipped, fork (`la3d/lws-servepath` off `la3d/lws@d75a4dd`, merge
+`1783c6a7686e90bb11ca84188676691676e6b608` pushed `--no-ff`; 12 commits, 31 files, +886/−114, fork
+suite 1341/0/1):** the **dataset seam** (`src/rdf/dataset.js`, `toDataset` + no-network
+`documentLoader` shared between admission and serving) replaces the hand-rolled
+`jsonLdToQuads`/`toJsonLd` pair on the CONNEG-SERVING path (T1-T2) — probe #4's silent-zero-quads
+family is dead; **the 406-teaching policy** (T3-T4): default-graph docs serve real triples in
+Turtle/N-Triples/N-Quads/JSON-LD, named-graph docs serve losslessly as N-Quads (200) but 406-teach as
+Turtle/N-Triples (lossy), unparseable/remote-`@context` docs 406-teach in all three RDF formats
+(JSON-LD unaffected — bytes are bytes); GET/HEAD parity holds throughout. **The store form is now
+self-describing** (T5): multi-subject JSON-LD PUTs serialize to `{"@context":…,"@graph":[…]}` instead
+of a top-level array with `@context` on element 0 only; the Phase-1 bridge shim
+`shimLegacyStoreArray` is **deleted, no migration** (legacy array-form docs degrade to standard
+JSON-LD semantics; `make reset` is the story). **S1** WAC-filtered container listings (T6) —
+`ldp:contains`/`lws+json items[]`/derived Turtle all run a per-member checkAccess-and-drop loop
+before rendering, closing the asymmetry where `/types/*` already filtered and plain HTTP listings
+didn't (probe #3); hide-never-401. **S3** `.lwstypes` sidecars now `application/json`, not
+`octet-stream` (T7). **S4** storage-description linkset hint reworded + membership-steering added
+(T8). **S5** `McpService` advertised in the storage description whenever `--mcp` is on (T9) — closes
+"MCP is invisible to an HTTP-cold agent." **S6** `--subdomains --lws` together now refuses to start
+at all (T10) — `urlToStoragePath` is path-mode-only and feeds both SHACL shape resolution and the
+conneg authz filter; host-aware mapping stays deferred. **T11** merged `--no-ff`, pushed `la3d/lws` +
+`la3d/lws-servepath`. **S7**, lws-pod side (T12, `851ce3a`): `checkRepresentation` gains a
+`self ⟺ default` cross-check, closing the Phase-2 final-review contract seam. **T13** (`ea9fc6a`)
+repinned the rig to the merge SHA (image `fork-servepath`) + set
+`JSS_IDP_ISSUER=https://pod.vardeman.me` in `docker-compose.fork-tls.yml` (**S2**, closes probe #5's
+issuer-behind-Caddy finding — zero fork code, deployment config only). **T14** (`a25be77`) grew
+`make test-conneg` to the new live cases (`@graph`-doc-as-Turtle, named-graph N-Quads/406, issuer,
+listing filter). **Negative-control invariant held throughout:** every core arm is gated `--lws`-only
+— the `--lws`-off path (incl. a `--conneg`-only pod) stayed byte-identical to pre-round behavior at
+every task, held by dedicated negative-control tests (per-task reviews confirmed no shared code path
+drifted).
+
+**Live-verified — full 13-gate sweep, zero regression (T15, this close-out):** `make test` 9 passed
+/ 0 failed / 72 skipped (local non-fork pod, unaffected by the round), `test-lws` 6/6, `test-l3`
+2/2, `test-typeindex` 7/7, `test-indexed-relation` 4/4, `test-profiles` 6/6 (baseline 5/5),
+`test-dcat` 5/5, `test-graph` 6/6, `test-conneg` **11/11** (was 7 — +4 new serving-path live cases),
+`test-mcp-v2` 16/16, `test-wiki` 9/9, `test-projection` 89/89 + apps 28/28, `test-app` 40/40 (known
+pre-existing `wm-app.test.mjs` ECONNREFUSED-family flake — this run surfaced as a 401 against the
+local pod instead; same root cause, counted green per FOLLOWUP precedent).
+
+**Two sweep frictions found + closed in this task (recorded; neither is fork or projection code):**
+(1) `tests/lws-conneg.test.mjs`'s new S2 describe block (`a25be77`) was the only one of four missing
+the `.skipIf(!hasConneg)` guard the other three use — it ran unconditionally and tripped `make test`
+against the local (non-fork) pod, whose issuer is `localhost` not `pod.vardeman.me`. One-line fix,
+matching the file's own established pattern (separate commit, this task, before the docs commit).
+(2) The fork-servepath rig repin (T13) started from a filesystem the profile-mechanism seed data had
+never been republished onto — `make publish-profiles` (missing from this close-out task's own step-1
+command list — add it to the runbook) plus the already-recorded manual `write_acl` step on
+`/alice/profiles/` **and** `/alice/concepts/` (the OPS gap "`publish.mjs` should learn ACL
+provisioning", recorded since the 2026-07-04 profile-mechanism round, still open) were required
+before `test-profiles`/`test-dcat`/`test-graph`/`test-wiki` would pass. No code defect — rig
+provisioning, now done.
+
+**Carryovers (recorded, none block):** MCP `readContainerView` (`src/mcp/resources.js:95-104`) lists
+container membership **unfiltered** — same probe-#3 class as S1, but on the MCP surface, not HTTP
+(T6 finding, next MCP round). Stored non-JSON-LD RDF under `--lws` would 406 in its **own** format
+(`sourceContentType` defaults JSON-LD — T3 finding, close before any profile stores Turtle).
+Federation-hardening round (remote-arm size bound + SSRF guard, named at the model-driven-read
+round). Console-on-fork rewire (`app/seed/seed.mjs`'s `putViaProxy` + the stale
+`projection/triggers` path are dangling against the Phase-2 split). Seed hygiene (probe-#3/#5 residue
+in `/alice/`: dangling `good.links.jsonld`, `conneg-mem` 401 to cold readers,
+`plain-probe-*`/`shadow-probe-*`). Host-aware `urlToStoragePath` (S6 only refuses the combination;
+doesn't fix the mapping). `publish.mjs` still doesn't provision ACLs itself (recorded twice now —
+2026-07-04 and this round).
+
+**▶ COLD PROBE #6 — NEXT (separate session, per the probe protocol).** Unprimed agent, pod URL + CA
+cert only, re-runs the probe-#4 Turtle battery over the corrected surface: the behavioral flip this
+round buys is **Turtle conneg either serves real triples or teaches — it never lies.** Record
+findings in FOLLOWUP before any further fork work.
 
 **▶ CONNEG-BY-PROFILE PHASE 2 (instantiation + wiki-memory re-derivation) — DONE + LIVE-VERIFIED +
 PROBE #5 PASSED (2026-07-10).** Executed 2026-07-10, lws-pod `main` commits `c6cc876..55724ca` + the
@@ -78,11 +154,12 @@ fields (`default` vs `self`) — coincide in all curated data; a rep with `defau
 `self:true` would check clean yet never advertise as default. Harden: `self ⟺ default` cross-check in
 checkRepresentation, or key instantiate off `default`.
 
-**▶▶ NEXT: the fork-queue serving-path round.** Retire the hand-rolled `jsonLdToQuads`/`toJsonLd`
-pair on the **conneg-serving path** (spec-weight, named at Phase 1 — fixes the probe-#4 Turtle-drop
-family + non-self-describing stored arrays), plus the rest of the queued items: container-listing WAC
-filtering, sidecar mediaTypes, hint wording, MCP gateway advertisement, `urlToStoragePath` subdomains
-guard, and the probe-#5 rig-level `openid-configuration` issuer/baseURL-behind-proxy mismatch.
+**~~▶▶ NEXT: the fork-queue serving-path round~~ — DONE (2026-07-10; see the block at the very top of
+this file).** Retired the hand-rolled `jsonLdToQuads`/`toJsonLd` pair on the conneg-serving path
+(fixed the probe-#4 Turtle-drop family + non-self-describing stored arrays), plus the six queued
+smalls (S1-S6: WAC-filtered listings, sidecar mediaTypes, hint wording, MCP gateway advertisement,
+`urlToStoragePath` subdomains guard, the probe-#5 issuer-behind-proxy mismatch) and the lws-pod
+contract seam (S7). **NEXT = cold probe #6** (same top block).
 
 **▶ CONNEG-BY-PROFILE PHASE 1 (fork pillar) — DONE + MERGED + LIVE (2026-07-07).** Design of record
 `docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md` (**supersedes L4b Phase B's

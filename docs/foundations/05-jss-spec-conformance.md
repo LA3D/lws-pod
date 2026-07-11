@@ -15,8 +15,8 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 |---|---|---|
 | 1 | Container boot / reset-with-volume | CONFORMS — survives `down`/`up` *(verified live)* |
 | 2 | Headless agent auth (`/idp/credentials`) | DIVERGES — RS256 JWT bearer, no DPoP *(verified live)* |
-| 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) |
-| 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage |
+| 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) *(MCP self-advertised 2026-07-10)* |
+| 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage *(serving hardened, listings WAC-filtered 2026-07-10)* |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
 | 6 | LWS-CID identity | CONFORMS (RS-direct profile of the AS-mediated suite); `aud`+`exp` replay-guards enforced; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS — `.meta`/`constrainedBy` work, proxy ports *(verified live)* · GAP (in-process hooks) |
@@ -71,6 +71,17 @@ wording is contradicted by the live token — mechanism differs, verdict unchang
 a proof-of-possession credential — capture = replay. For an agent substrate, decide whether
 bearer-replay risk is acceptable or whether agents should ride the DPoP / LWS-CID paths (axis 6).
 
+**Rig note (fork serving-path round, 2026-07-10, S2 — zero fork code).** Probe #5 found
+`/.well-known/openid-configuration` advertising every discovery URL from the config-time default
+(`http://localhost:<port>`) even behind the TLS Caddy proxy at `pod.vardeman.me` — a cold OIDC
+client would fail on the mismatch. Not a fork bug: OIDC issuer is identity and must be stable
+config, not request-derived (`lws-storage`'s origin, by contrast, is correctly proxy-aware). Fix is
+deployment-side (spec `docs/superpowers/specs/2026-07-10-fork-serving-path-design.md` §4 S2):
+`docker-compose.fork-tls.yml` now sets `JSS_IDP_ISSUER=https://pod.vardeman.me` (the knob already
+existed, `src/config.js:190`). Live-verified: `tests/lws-conneg.test.mjs`'s "openid-configuration
+behind the TLS proxy" gate asserts the advertised issuer starts with `https://pod.vardeman.me` and
+never mentions `localhost`.
+
 ## 3. Agent surface: `/mcp` lists tools; CRUD + ACL under WAC
 
 **Spec.** MCP is not a Solid/LWS concept — no spec requirement. The underlying CRUD+ACL is:
@@ -110,6 +121,18 @@ single hole. This is a divergence-until-upstream-publishes, not a conformance ga
 one ACL edit. The MCP `write_acl` structured form is exactly where the L2 governance hooks
 attach. Watch the relative-WebID footgun (`features/mcp.md`).
 
+**Fork serving-path round (2026-07-10) — MCP now advertised to HTTP-cold agents; sidecar
+mediaType corrected.** The storage description gains a `service[]` entry (`McpService`,
+`serviceEndpoint: {origin}/mcp`, a one-line JSON-RPC 2.0 Streamable HTTP hint) whenever `--mcp` is
+on (spec `docs/superpowers/specs/2026-07-10-fork-serving-path-design.md` §4 S5) — closing "an
+HTTP-cold agent can't discover `/mcp` exists" (HTTP + MCP surfaces share the one builder,
+parity-tested). `.lwstypes` sidecars now serve `application/json` instead of falling through to
+`application/octet-stream` (§4 S3; `.meta`/`.acl` already mapped correctly — the probe-#3 finding
+on sidecar mediaTypes was half-obsolete). The other half of probe #3 — anonymous/authenticated
+**container listings** now running the same checkAccess-and-drop loop this section's `/types/*`
+already used — is recorded under axis 4 alongside the rest of the conneg-serving hardening (the
+listing is a conneg-adjacent representation, not an MCP-specific concern).
+
 ## 4. Conneg round-trip; container `ldp:contains` Comunica-traversable
 
 **Spec — two different container models in play.**
@@ -135,6 +158,44 @@ suite, not LWS storage — that stays Solid/LDP").
 **Implication.** Good news for the L2 layer: the Comunica/`.graph` query model rides the
 Solid container shape, which JSS gives us. If LWS storage ever becomes the target, the
 `items`/`lws+json` container is a separate port — out of scope for this substrate decision.
+
+**Fork serving-path round (2026-07-10, `la3d/lws-servepath` merge
+`1783c6a7686e90bb11ca84188676691676e6b608`, `--lws` only) — the JSON-LD⇄quads serving seam
+replaced; store form self-describing; listings WAC-filtered.** Spec of record
+`docs/superpowers/specs/2026-07-10-fork-serving-path-design.md`. Probe #4 had found the fork's
+hand-rolled `jsonLdToQuads` silently dropping `{@context,@graph}` docs, arrays, and remote-`@context`
+docs to **zero quads** — a Turtle-only cold client read a populated container as empty, and
+`application/n-quads` wasn't recognized at all. Fixed at the seam (§2): `toDataset` now runs
+`@rdfjs/parser-jsonld` (a no-network `documentLoader`, sole preload = the LWS v1 mirror), shared
+between admission and serving (`src/rdf/dataset.js`); under `--lws`, Turtle/N-Triples/N-Quads GET
+runs the real parser → an `n3` Writer, never the hand-rolled pair. **Policy (406 teaching, not
+lying, both cases):** default-graph docs serve real triples in any of the three RDF formats;
+named-graph docs serve losslessly as N-Quads (200) but **406 + teaching** as Turtle/N-Triples
+(lossy — the LWS lossless-conneg mandate at stake); unparseable or remote-`@context` docs **406 +
+teaching** in all three (JSON-LD is unaffected — bytes are bytes, never mislabeled). GET/HEAD
+parity holds. **The store form is now self-describing** (§3): multi-subject JSON-LD PUTs serialize
+to `{"@context": …, "@graph": […]}` instead of a top-level array with `@context` on element 0 only
+(invalid JSON-LD under strict expansion for conformant consumers — reader and writer had been
+bug-compatible since Phase 1). The Phase-1 admission-side bridge shim (`shimLegacyStoreArray`) is
+**deleted, no migration** — legacy array-form docs already on a pod degrade to standard (no
+cross-element context) JSON-LD semantics; `make reset` is the story. `--lws`-off keeps the legacy
+array form byte-identically (negative control). **Container listings are now WAC-filtered** (§4
+S1): `ldp:contains`, `lws+json` `items[]`, and the derived Turtle rendering each run a per-member
+`checkAccess`(READ)-and-drop loop before rendering — closing the asymmetry where `/types/*` and the
+MCP surface (axis 3) already filtered but a plain HTTP container listing didn't (probe #3).
+Hide-never-401, matching the no-oracle invariant used elsewhere.
+
+**Verdict update: still CONFORMS to Solid** (the hardening fixes a correctness bug in that
+conformance, not the conformance class) **· DIVERGES from LWS storage unchanged.** **Live-verified**
+(image `fork-servepath`): `make test-conneg` **11/11** (was 7 — new cases: `@graph`-doc-as-Turtle
+real triples, named-graph Turtle 406 + N-Quads 200, anonymous-listing filter, issuer) plus the full
+gate sweep zero-regression (`FOLLOWUP.md`).
+
+**Rig guard, re-dispositioned here (S6).** `urlToStoragePath` (`src/lws/admission.js`,
+path-mode-only) feeds both SHACL shape resolution (axis 7) and this axis's new listing/conneg authz
+filter — under `--subdomains` it silently omits the pod-name prefix, misresolving both. The fork
+now **refuses to start** with `--subdomains --lws` together, naming the limitation, rather than
+degrading silently (host-aware path mapping stays deferred — recorded in `FOLLOWUP.md`).
 
 ## 5. Git: container clone-able; push materializes files as resources
 
