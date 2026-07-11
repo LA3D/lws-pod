@@ -5,5 +5,24 @@
   "@id": "",
   "profiles": ["substrate-floor.jsonld", "okf-base.jsonld", "llm-wiki/profile.jsonld", "dcat-catalog/profile.jsonld"],
   "defaultProfile": "okf-base.jsonld",
-  "knownVocabGaps": ["https://la3d.github.io/llm-wiki-colab/ontology#mentions"]
+  "knownVocabGaps": ["https://la3d.github.io/llm-wiki-colab/ontology#mentions"],
+  "void": {
+    "rootResource": "/alice/",
+    "uriSpace": "id/",
+    "vocabularies": [
+      { "namespace": "https://la3d.github.io/llm-wiki-colab/ontology#", "dataDump": "llm-wiki/ontology.ttl" },
+      { "namespace": "https://w3id.org/lws-pod/profile#", "dataDump": "lwsp.ttl" }
+    ],
+    "declaredExternal": [
+      "http://www.w3.org/ns/dcat#",
+      "http://purl.org/dc/terms/",
+      "http://www.w3.org/2004/02/skos/core#",
+      "http://www.w3.org/ns/dx/prof/"
+    ],
+    "knownUndumped": ["https://w3id.org/cogitarelink/okf#"],
+    "subsets": [
+      { "name": "wiki-memory", "conformsTo": "llm-wiki/profile.jsonld", "rootResource": "/alice/wiki/" },
+      { "name": "data-catalog", "conformsTo": "dcat-catalog/profile.jsonld", "rootResource": "/alice/datasets/" }
+    ]
+  }
 }

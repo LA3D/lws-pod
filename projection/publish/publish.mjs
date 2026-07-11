@@ -6,9 +6,11 @@
 // Usage: node publish/publish.mjs --base https://pod.example [--container /alice/profiles/]
 //        [--bind /alice/concepts/=llm-wiki] [--instantiate <path>=<token>] [--token <bearer>] [--check]
 import { readFile, readdir } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
 import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation, makeDefsLoader } from './checks.mjs'
+import { buildVoid, checkVoid } from './void.mjs'
 import { descriptorToProfile } from '../prof/profile-doc.mjs'
 import { loadProfile } from '../prof/profile-loader.mjs'
 import { instantiate, mergeContexts } from '../prof/instantiate.mjs'
@@ -82,6 +84,8 @@ for (const d of DESCRIPTORS) {
   }
   if (repsSeen.filter((x) => x.default).length > 1) failures.push(`${d}: more than one default representation`)
 }
+failures.push(...checkVoid(manifest, (rel) => existsSync(join(DEFS, ...rel.split('/')))))
+if (manifest.void?.knownUndumped?.length) console.log(`void: known undumped vocab (recorded, not patched): ${manifest.void.knownUndumped.join(', ')}`)
 if (failures.length) { console.error('DECLARATION CHECKS FAILED:\n' + failures.map((f) => ' - ' + f).join('\n')); process.exit(1) }
 if (checkOnly) { console.log(`checks passed for ${DESCRIPTORS.length} profile(s)`); process.exit(0) }
 
@@ -96,6 +100,17 @@ for await (const f of files(DEFS)) {
   console.log(`PUT ${url} -> ${r.status}`)
 }
 function sepEscape() { return process.platform === 'win32' ? '\\' : '/' }
+
+// 2b. Materialize VoID (spec §5/§16): built in-memory from the manifest, PUT
+// to the profiles container root — the doc itself never lives in the defs
+// source tree (it isn't hand-authored; it's derived).
+if (manifest.void && !checkOnly) {
+  const voidDoc = buildVoid(manifest, { root, base })
+  const rv = await fetch(new URL('void.jsonld', root).href, { method: 'PUT',
+    headers: { ...headers, 'content-type': 'application/ld+json' }, body: JSON.stringify(voidDoc, null, 2) })
+  if (!rv.ok && rv.status !== 201 && rv.status !== 205) { console.error(`PUT void.jsonld -> ${rv.status}`); process.exit(1) }
+  console.log(`PUT ${new URL('void.jsonld', root).href} -> ${rv.status}`)
+}
 
 // 3. Bind containers: conformsTo (the index) + describedby (the enforcement
 // cache, materialized from the profile's validation artifacts). Read-merge-write.
