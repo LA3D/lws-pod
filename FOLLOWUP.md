@@ -161,6 +161,26 @@ hand); container-HEAD quads parity; envelope-shape admission e2e pin; MCP `readC
 listing filter; smalls — F1 wac-allow-on-401, F5 profile-406 problem+json, F7 OPTIONS Link parity,
 ETag-per-variant, bare-`.acl` listing-filter test, `e.message` hardening in serve.js.
 
+**Affordance/steering sub-batch (promoted 2026-07-11 from recorded frictions — the probes' meta-
+pattern is "where the pod teaches, cold agents succeed; where it stays silent, they strand," so
+these ARE round scope, not polish):** (A1) **alternates on the bare 200** — Phase 1 emits
+`rel="canonical"/"alternate"` Link headers only on *negotiated* responses; emit them on the plain
+GET too, so one request reveals that `a.md` has an RDF projection (kills the probe's
+"three-request entry cost" friction and softens F3's trap even before the 406 policy lands). (A2)
+**root-shadow escape** — the shadow 200 gains a `Content-Location`/Link to the listable view;
+acceptance criterion: a cold agent can enumerate root members from `/` alone (probe #6 found
+`/alice/` only because the ProfileIndexService URL happened to contain the path — third probe in a
+row to strand here). (A3) **TypeSearch syntax hint** on the service entry (`?type=` + the CNF
+filter form) — recorded at probes #3, #5, #6; a one-line hint closes it. (A4) **the `/id/`
+signpost, design decision** — subjects mint under `/id/…#it` but nothing links them back to
+storage and deref is untested; decide 303-to-storage vs documented non-deref (belongs to the L4
+read-side identity design — resolve it there and this round ships whatever steering the decision
+implies, or an explicit deferral note in the storage description). **Round close-out: probe #7 =
+MCP-cold** — agent given ONLY the `/mcp` endpoint (no HTTP walk, no CA-primed root), the MCP
+analog of probe #6; the MCP surface has never been cold-probed since the read-tools round, and
+this round touches it (`readContainerView` filter). The pending model-in-the-loop
+`test-agent-eval` run (needs ANTHROPIC_API_KEY) stays a separate marker.
+
 **▶ CONNEG-BY-PROFILE PHASE 2 (instantiation + wiki-memory re-derivation) — DONE + LIVE-VERIFIED +
 PROBE #5 PASSED (2026-07-10).** Executed 2026-07-10, lws-pod `main` commits `c6cc876..55724ca` + the
 probe-found sidecar fix `631677a` (11 tasks + probe #5; NO fork touch — Phase 2 is entirely
