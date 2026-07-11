@@ -136,9 +136,22 @@ flags-object refactor candidate (T7, noted 3× now); the `/id/` dereference deci
 vs documented non-deref) stays **deferred to the L4 read-side identity design** (spec §7) —
 probe-#7 findings about `/id/` route there, not back into this round.
 
+**Fork-queue adds (2026-07-11, rate-limit review — best-practice check vs the pinned MCP spec +
+ecosystem):** the `/mcp` limiter is spec-sanctioned (pin: "rate limit tool invocations",
+server-tools §security) and already identity-tiered (authed 600/min by WebID, anon 60/min by IP)
+with a teaching 429 (`Retry-After` + "try again in N seconds"). Two refinements queued: (1)
+**advertise the anonymous budget** in the `McpService` hint / `pod-info` ("anonymous budget: N
+req/min — authenticate for more") — a cold agent currently discovers the wall only by hitting it;
+probe #7 Arm A tests whether the 429's own teaching suffices first. (2) **Cost-weighted /
+token-bucket refinement** — a `read_resource` costs the same budget as an `initialize`; also
+decide the JSON-RPC **batching** affordance (one batched POST = one request against the limiter —
+a budget loophole nothing advertises; 2025-03-26 supports batching, the later spec drops it).
+
 **▶▶ NEXT: probe #7 — TWO ARMS** (spec §20/§9): Arm A MCP-cold (only https://pod.vardeman.me/mcp
 + CA), Arm B HTTP-cold VoID-salience (only the pod root, NO battery). Separate session per the
-probe protocol; findings recorded here before further fork work.
+probe protocol; findings recorded here before further fork work. Arm-A protocol note: the anon
+`/mcp` budget is 60 req/min — the probe gets a ~55-request budget + a record-what-the-429-teaches
+instruction; don't run `test-mcp-v2` within ~70s of dispatch.
 
 **▶ FORK SERVING-PATH ROUND — DONE + LIVE-VERIFIED, FULL SWEEP GREEN (2026-07-10).** Executed
 2026-07-10, subagent-driven (15 tasks, per-task spec+quality reviews). Design of record
