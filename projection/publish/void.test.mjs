@@ -28,7 +28,12 @@ describe('buildVoid', () => {
   })
   it('every dataDump-declaring vocabulary is a described node with a pod-served dataDump', () => {
     const d = buildVoid(manifest, OPTS)
-    for (const v of d['void:vocabulary'].filter(v => v['void:dataDump']))
+    const dumped = d['void:vocabulary'].filter(v => v['void:dataDump'])
+    expect(dumped.map(v => v['@id']).sort()).toEqual([
+      'https://la3d.github.io/llm-wiki-colab/ontology#',
+      'https://w3id.org/lws-pod/profile#',
+    ])
+    for (const v of dumped)
       expect(v['void:dataDump']['@id']).toMatch(/^https:\/\/pod\.example\/alice\/profiles\//)
   })
   it('declaredExternal vocabularies appear as bare IRIs, no dataDump', () => {
