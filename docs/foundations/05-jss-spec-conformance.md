@@ -253,8 +253,9 @@ silent arm: a non-RDF source (markdown, plain JSON) under a specific unsatisfiab
 correctness/teaching gaps in that conformance, not the conformance class itself; the VoID surface
 is a value-add (EXTENDS, no Solid/LWS requirement — VoID is an independent W3C IG Note). **Live-
 verified** (image `fork-gateway`, merge `71da6f070a1e192ace99d49749d2f9c0694df6aa`): `make
-test-conneg` **21/21** (was 11), new `make test-void` **4/4**, full 13-gate sweep zero regression
-(`FOLLOWUP.md`).
+test-conneg` **21/21** (was 11), new `make test-void` **4/4**, full 14-gate sweep zero regression
+(`FOLLOWUP.md`). Final whole-round review (2026-07-11) fixed a HEAD-face gap in the same
+`sourceContentType` seam (fork `be2ddba`) — verdict/counts above unaffected; see `FOLLOWUP.md`.
 
 ## 5. Git: container clone-able; push materializes files as resources
 

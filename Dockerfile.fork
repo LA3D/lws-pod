@@ -11,10 +11,12 @@ RUN apt-get update \
 
 # Install the fork from a pinned git ref. Default = gateway-round merge rung
 # (sourceContentType seam both faces + non-RDF teaching 406, bare-200 alternates,
-# root-shadow escape, --lws-void rung, F1/F2/F7 smalls), la3d/lws HEAD.
+# root-shadow escape, --lws-void rung, F1/F2/F7 smalls) PLUS the final-review
+# fix (HEAD legacy branch mirrors the non-RDF source gate — no 200 where GET
+# teaches 406), la3d/lws HEAD.
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=71da6f070a1e192ace99d49749d2f9c0694df6aa
+ARG JSS_GIT_REF=be2ddba5b3eda21d6b3e223cf96e102d912e202a
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).

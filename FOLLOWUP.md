@@ -20,8 +20,15 @@ preserved). Drains the "next-fork-round batch" + "affordance/steering sub-batch"
 down this file.
 
 **Shipped, fork (`la3d/lws-gateway` off `la3d/lws@1783c6a`, merge
-`71da6f070a1e192ace99d49749d2f9c0694df6aa` pushed `--no-ff`; 12 commits, 35 files, +2132/−124,
-fork suite 1435/1434/0/1, image `fork-gateway`):**
+`71da6f070a1e192ace99d49749d2f9c0694df6aa` pushed `--no-ff`; 14 commits, 35 files, +2132/−124,
+fork suite 1435/1434/0/1, image `fork-gateway`).** **PLUS the final whole-round-review fix
+(2026-07-11, `be2ddba5b3eda21d6b3e223cf96e102d912e202a`, la3d/lws HEAD — round total now 15
+commits):** the legacy HEAD JSON-LD branch in `negotiateHeadFileContentType` still gated on bare
+`isRdfContentType` (includes plain `application/json`) after T1 narrowed the lws quads block above
+it — under `--lws` a stored `.json` HEAD lied 200 where GET correctly 406-taught. Fixed to mirror
+GET's `lwsEnabled ? isRdfSourceType : isRdfContentType` ternary; **"the `sourceContentType` seam,
+both faces" below is accurate again, including the HEAD face.** Two new HEAD-parity tests added;
+targeted suite 33/33, full fork suite 1437/1436/0/1.
 
 - **The `sourceContentType` seam, both faces + the own-format rule** (T1): file GET/HEAD now
   thread the stored content type into `serveStoredRdf`/`checkServable`, and the serving gate
@@ -86,27 +93,38 @@ fork suite 1435/1434/0/1, image `fork-gateway`):**
   roll-up landed (byte-identical at 3 call sites, pinning suites re-run 35/35); `suppressLinkset`
   — flagged dead 3× across T5/T7/T9 — fully removed, zero refs repo-wide.
 - **Merge + repin** (T13-MERGE, T15): `--no-ff` merge `71da6f070a1e192ace99d49749d2f9c0694df6aa`
-  pushed `la3d/lws` + `la3d/lws-gateway`; round totals fork 12 commits/35 files/+2132/−124, suite
-  1435/1434/0/1. Rig repinned (commit `3ee3be1`, image `fork-gateway`, `--lws-void` set in
+  pushed `la3d/lws` + `la3d/lws-gateway`; round totals fork 14 commits/35 files/+2132/−124, suite
+  1435/1434/0/1 (final-review fix adds a 15th commit, `be2ddba`, suite 1437/1436/0/1 — see the
+  top block). Rig repinned (commit `3ee3be1`, image `fork-gateway`, `--lws-void` set in
   `docker-compose.fork-tls.yml`), gh-api-verified `71da6f0`=HEAD `la3d/lws`, 8 live spot-checks
   corroborated (VoidService entry, 303, etag-ttl, wac-allow-empty, F5-detail, A1-links). Gate
   growth this round: `test-void` 4/4 NEW, `test-conneg` 21/21 (was 11), `test-mcp-v2` 18/18 (was
   16); `test-wiki` 9/9, `test-profiles` 6/6, `test-dcat` 5/5, `test-graph` 6/6 held zero-regression.
 
-**Live-verified — full 13-gate sweep, zero regression (T16, this close-out):** `make test` 9
+**Live-verified — full 14-gate sweep, zero regression (T16, this close-out):** `make test` 9
 passed / 88 skipped (local non-fork pod; skip count grew +16 from the round's new gated live
 cases — 10 conneg + 2 mcp-v2 + 4 void — not a regression), `test-lws` 6/6, `test-l3` 2/2,
 `test-typeindex` 7/7, `test-indexed-relation` 4/4, `test-profiles` 6/6, `test-dcat` 5/5,
 `test-graph` 6/6, `test-conneg` 21/21, `test-wiki` 9/9, `test-void` 4/4, `test-mcp-v2` 18/18,
 `test-projection` 98/98 + apps 28/28, `test-app` 40/40 (clean this run — the recorded
-`wm-app.test.mjs` ECONNREFUSED/401 flake didn't surface). One sweep friction (recorded, not a
-regression): running the live gates back-to-back tripped the L2.5h round's IdP login rate-limiter
-(`/idp/credentials -> 429`) on `test-conneg`/`test-wiki`, distinct from the documented mcp-v2 anon
-429; a ~75s cooldown cleared it and both gates passed clean on retry.
+`wm-app.test.mjs` ECONNREFUSED/401 flake didn't surface). Count corrected at final review: this
+sweep runs 14 gates (`test-void` is new this round, growing the serving-path round's 13-gate list
+to 14), not the 13 first recorded. One sweep friction (recorded, not a regression): running the
+live gates back-to-back tripped the L2.5h round's IdP login rate-limiter (`/idp/credentials ->
+429`) on `test-conneg`/`test-wiki`, distinct from the documented mcp-v2 anon 429; a ~75s cooldown
+cleared it and both gates passed clean on retry. **Final-review re-run (2026-07-11, post-fix,
+`be2ddba`):** `test-conneg` 21/21, `test-void` 4/4, `test-mcp-v2` 18/18 — zero regression from the
+HEAD-face fix.
 
 **Carryovers (recorded, none block):** HTML-data-island files retain the F2 format-switch 304
-residual (T10, outside RDF-stored scope); file-304 `Vary` lacks `Accept-Profile` while the 200
-has it (T10, pre-existing); extension-less shape paths PUT as Turtle serve post-conversion bytes
+residual (T10, outside RDF-stored scope); a conditional-request family of pre-existing nuances
+(T10, none block, restored at final review — dropped from an earlier close-out pass): file-304
+`Vary` lacks `Accept-Profile` while the 200 has it; a client presenting the `-ls` etag with a
+contradictory Range+linkset-Accept can get a 304 where a non-conditional request would serve a
+media Range (defensible under RFC 7232, characterized in the T10 report); and the early
+`If-None-Match` check precedes the F3/profile-406 gates (RFC 9110 §13.2.2 wrinkle — a
+Vary-ignoring client with an unsatisfiable Accept can 304 where a fresh request would 406;
+unreachable for RDF-variant keys); extension-less shape paths PUT as Turtle serve post-conversion bytes
 as `application/octet-stream` (T11, the T1 seam family's ungoverned face); F3's gate is
 `lwsEnabled`-only, not nested in `connegEnabled` (T2, production-moot asymmetry); mcp-v2 new
 fixtures join the no-afterAll seed-hygiene residue pile (T15); `authorize()`'s public-mode
@@ -272,9 +290,11 @@ non-RDF-Accept policy decision; container-HEAD quads parity; envelope-shape admi
 MCP `readContainerView` listing filter; smalls — F1 wac-allow-on-401, F5 profile-406 problem+json,
 F7 OPTIONS Link parity, ETag-per-variant.
 
-**Affordance/steering sub-batch (promoted 2026-07-11 from recorded frictions — the probes' meta-
+**~~DRAINED~~ (2026-07-11, this round — see the top block): Affordance/steering sub-batch**
+(promoted 2026-07-11 from recorded frictions — the probes' meta-
 pattern is "where the pod teaches, cold agents succeed; where it stays silent, they strand," so
-these ARE round scope, not polish):** (A1) **alternates on the bare 200** — Phase 1 emits
+these ARE round scope, not polish; A1/A2/A3 shipped as T4-T6 above, A4 stays deferred to the L4
+read-side identity design as designed):** (A1) **alternates on the bare 200** — Phase 1 emits
 `rel="canonical"/"alternate"` Link headers only on *negotiated* responses; emit them on the plain
 GET too, so one request reveals that `a.md` has an RDF projection (kills the probe's
 "three-request entry cost" friction and softens F3's trap even before the 406 policy lands). (A2)
