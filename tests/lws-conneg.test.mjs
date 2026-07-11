@@ -1,4 +1,4 @@
-import { describe, it, beforeAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
 
 // Content-negotiation-by-profile live gate (DX-PROF-CONNEG cnpr:http) against
@@ -98,5 +98,75 @@ describe.skipIf(!hasConneg)('LWS content negotiation by profile', () => {
     const miss = await fetch(`${BASE}/types/search?conformsTo=${encodeURIComponent(LINKS_P + 'X')}`, { headers: auth })
     expect(miss.status).toBe(200)
     expect((await miss.json()).items.length).toBe(0)
+  })
+})
+
+describe.skipIf(!hasConneg)('LWS serving path (dataset seam, spec 2026-07-10)', () => {
+  let token, auth, doc, ng
+  beforeAll(async () => {
+    await ensurePod()
+    ;({ token } = await getToken())
+    auth = { Authorization: `Bearer ${token}` }
+    doc = `${BASE}/alice/servepath-graphdoc.jsonld`
+    ng = `${BASE}/alice/servepath-namedgraph.jsonld`
+    await fetch(doc, { method: 'PUT', headers: { 'Content-Type': 'application/ld+json', ...auth },
+      body: JSON.stringify({ '@context': { name: 'https://schema.org/name' }, '@graph': [
+        { '@id': `${doc}#a`, name: 'A' }, { '@id': `${doc}#b`, name: 'B' }] }) })
+    await fetch(ng, { method: 'PUT', headers: { 'Content-Type': 'application/ld+json', ...auth },
+      body: JSON.stringify({ '@context': { name: 'https://schema.org/name' }, '@id': `${ng}#g`, '@graph': [
+        { '@id': `${ng}#a`, name: 'A' }] }) })
+  })
+  afterAll(async () => {
+    for (const u of [doc, ng]) await fetch(u, { method: 'DELETE', headers: auth })
+  })
+
+  it('@graph doc serves real Turtle triples (probe-#4 family dead, live)', async () => {
+    const r = await fetch(doc, { headers: { Accept: 'text/turtle', ...auth } })
+    expect(r.status).toBe(200)
+    const body = await r.text()
+    expect(body).toContain('"A"')
+    expect(body).toContain('"B"')
+  })
+
+  it('named graphs: Turtle 406-teaches, N-Quads serves losslessly', async () => {
+    const ttl = await fetch(ng, { headers: { Accept: 'text/turtle', ...auth } })
+    expect(ttl.status).toBe(406)
+    const problem = await ttl.json()
+    expect(problem.detail).toMatch(/named graphs/)
+    expect(problem.detail).toMatch(/application\/n-quads/)
+    const nq = await fetch(ng, { headers: { Accept: 'application/n-quads', ...auth } })
+    expect(nq.status).toBe(200)
+    expect(await nq.text()).toContain('#g>')
+  })
+})
+
+describe('openid-configuration behind the TLS proxy (S2)', () => {
+  it('advertises the public issuer, never localhost', async () => {
+    const r = await fetch(`${BASE}/.well-known/openid-configuration`)
+    expect(r.status).toBe(200)
+    const oc = await r.json()
+    expect(oc.issuer.startsWith('https://pod.vardeman.me')).toBe(true)
+    expect(JSON.stringify(oc)).not.toContain('localhost')
+  })
+})
+
+describe.skipIf(!hasConneg)('WAC-filtered listing (S1, live)', () => {
+  let token, auth, priv
+  beforeAll(async () => {
+    await ensurePod()
+    ;({ token } = await getToken())
+    auth = { Authorization: `Bearer ${token}` }
+    priv = `${BASE}/alice/servepath-private.jsonld`
+    // owner-only by the pod's default ACL inheritance under /alice/
+    await fetch(priv, { method: 'PUT', headers: { 'Content-Type': 'application/ld+json', ...auth }, body: '{}' })
+  })
+  afterAll(async () => { await fetch(priv, { method: 'DELETE', headers: auth }) })
+
+  it('anonymous listing hides the owner-only member; the owner sees it', async () => {
+    const anon = await fetch(`${BASE}/alice/`, { headers: { Accept: 'application/ld+json' } })
+    expect(anon.status).toBe(200)
+    expect(await anon.text()).not.toContain('servepath-private')
+    const owner = await fetch(`${BASE}/alice/`, { headers: { Accept: 'application/ld+json', ...auth } })
+    expect(await owner.text()).toContain('servepath-private')
   })
 })
