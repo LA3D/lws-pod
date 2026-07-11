@@ -9,11 +9,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = model-driven MCP read path rung
-# (read_resource/list_resources, links carrier, RFC 9264 storage description), la3d/lws HEAD.
+# Install the fork from a pinned git ref. Default = serving-path merge rung
+# (retired jsonLdToQuads/toJsonLd on the serving path), la3d/lws HEAD.
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=d75a4dd6e807805bd6a16ff6cf04b3fad8ecb123
+ARG JSS_GIT_REF=1783c6a7686e90bb11ca84188676691676e6b608
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).

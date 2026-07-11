@@ -16,14 +16,16 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (conneg-by-profile rung); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-d75a4dd6e807805bd6a16ff6cf04b3fad8ecb123}"
-    image: lws-pod:fork-conneg
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (serving-path rung); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-1783c6a7686e90bb11ca84188676691676e6b608}"
+    image: lws-pod:fork-servepath
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --lws-profile-index (opt-in,
-    # per-deployment: advertises the ProfileIndexService at this pod path — spec §10).
+    # per-deployment: advertises the ProfileIndexService at this pod path — spec §10),
+    # and --idp-issuer to advertise the public Caddy-fronted issuer (S2, zero fork code).
     command: ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data",
       "--idp", "--mcp", "--conneg", "--mashlib-cdn", "--git", "--notifications", "--provision-keys",
+      "--idp-issuer", "https://pod.vardeman.me",
       "--lws", "--lws-profile-index", "/alice/profiles/index.jsonld"]
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.
     expose:
