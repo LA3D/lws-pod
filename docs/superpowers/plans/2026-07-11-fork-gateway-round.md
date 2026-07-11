@@ -661,15 +661,18 @@ describe('wac-allow on .acl denial is honest (F1)', () => {
 - [ ] **Step 3: Implement.** In `authorizeAclAccess`, the returned `wacAllow` currently passes through `checkAccess`'s computation for the protected resource. Replace with modes derived for the ACL resource itself (WAC: `.acl` access ⇔ CONTROL on the protected resource):
 
 ```js
-const { allowed } = await checkAccess({ ...as today, requiredMode: AccessMode.CONTROL });
+const { allowed, wacAllow } = await checkAccess({ ...as today, requiredMode: AccessMode.CONTROL });
 // WAC-Allow must describe the REQUESTED resource (the .acl), not the protected
 // resource — control-holders may read+write the acl; everyone else gets nothing
-// (probe-#6 F1: a 401 wearing public="read" is retry-loop bait).
-const aclWacAllow = allowed ? 'user="read write", public=""' : 'user="", public=""';
+// (probe-#6 F1: a 401 wearing public="read" is retry-loop bait). --lws-gated
+// (2026-07-11 Chuck decision): the off path keeps the upstream header byte-identical.
+const aclWacAllow = lwsEnabled
+  ? (allowed ? 'user="read write", public=""' : 'user="", public=""')
+  : wacAllow;
 return { authorized: allowed, webId, wacAllow: aclWacAllow, authError };
 ```
 
-(If public CONTROL is actually granted — rare — `public=""` under-reports; acceptable and safe. Note it in a comment.) This is not `--lws`-gated (it's a correctness fix on a header that was factually wrong), but confirm no existing test pins the old header — grep `wac-allow` in `test/` and update assertions with a spec-citing comment.
+(If public CONTROL is actually granted — rare — `public=""` under-reports; acceptable and safe. Note it in a comment.) **`--lws`-GATED (Chuck, 2026-07-11 pre-flight decision — supersedes any ungated wording):** verify how the lws flag reaches `authorizeAclAccess` (a `request.lwsEnabled` field, an options param, or thread it from the caller in `authorize`) and gate exactly as above. Add a negative-control case: `--lws` off, anonymous `GET /f1/.acl` → 401 with the UPSTREAM header (`user="read", public="read"` given public-read on the protected resource) — byte-identity pinned. Confirm no existing test pins the old header on the `--lws` path — grep `wac-allow` in `test/` and update assertions with a spec-citing comment.
 
 - [ ] **Step 4: Run — PASS** + `test/wac.test.js`, `test/auth.test.js` zero failures.
 - [ ] **Step 5: Commit** — `[Agent: Claude] fix(wac): WAC-Allow on .acl responses describes the acl, not the protected resource (F1)`
