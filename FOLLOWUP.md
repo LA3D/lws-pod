@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-10 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round shipped; cold probe #6 next
+## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round shipped; probe #6 PASSED; next-fork-round batch next
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -93,10 +93,73 @@ in `/alice/`: dangling `good.links.jsonld`, `conneg-mem` 401 to cold readers,
 doesn't fix the mapping). `publish.mjs` still doesn't provision ACLs itself (recorded twice now —
 2026-07-04 and this round).
 
-**▶ COLD PROBE #6 — NEXT (separate session, per the probe protocol).** Unprimed agent, pod URL + CA
-cert only, re-runs the probe-#4 Turtle battery over the corrected surface: the behavioral flip this
-round buys is **Turtle conneg either serves real triples or teaches — it never lies.** Record
-findings in FOLLOWUP before any further fork work.
+**▶ PROBE #6 (2026-07-11, cold/unprimed/anonymous, pod URL + CA only, 63 reqs) — PASSED decisively:
+the serving-path behavioral flip CONFIRMED cold.** Zero zero-statement RDF responses, zero parse
+failures, zero count drift: four RDF serializations × six resources served **identical** statement
+counts (wiki container 47, `card.jsonld` 15, `a.md.links.jsonld` 3, `seed.jsonld` 2, `a.md.meta` 6);
+the named-graph dataset (`graph.jsonld`, 5 quads / 2 graphs) **406-teaches** in Turtle/N-Triples
+(RFC 9457 problem+json naming the formats that work — the probe called it "the best self-explaining
+error I've seen from a storage server") and serves losslessly as N-Quads/JSON-LD. GET/HEAD parity
+exact (3 spot-checks incl. the 406 case). The round's smalls held cold: **S1** (pre-grant, the
+unauthorized `graphs/` was correctly *hidden* from the anon listing, not 401'd), **S2** (issuer),
+**S5** (McpService found from the storage description); the storage-description hints scored
+"accurate and actionable" (linkset semantics, descend-to-a-member, profile-conneg instructions all
+verified); profile conneg walked cold again (`Accept-Profile` 303s on `a.md` + the container,
+unknown-profile 406, linkset = `.meta` = 303 behavior triple-consistent).
+
+**Controller-side battery supplement (the `.lwstypes` case):** (i) the `.lwstypes` HTTP face is
+**UNREACHABLE** — blanket dotfile guard, `403 "Dotfile access is not allowed"`, even with the owner
+bearer, every Accept type (probe-#3's octet-stream observation is dead on this surface; S3's
+mediaType change manifests only where sidecars ARE served — listings/MCP). (ii) **The
+stored-plain-JSON face of the `sourceContentType` seam is CONFIRMED LIVE** (as the final review
+predicted): PUT `application/json` (keyword-less plain JSON) into an ungoverned container → bare GET
+serves it **mislabeled `application/ld+json`**; `Accept: text/turtle` → **200 + prefix-only
+preamble, ZERO triples** (the probe-#4 signature exactly); `Accept: application/n-quads` → 200 empty
+body. Probe artifact deleted after. The queued fix (thread the stored type / narrow the serving
+arm's `isRdfContentType` gate) now has a **live repro** — top of the next fork round.
+
+**Probe-#6 findings — fork-queue ADDS:** (F1) `GET /.acl` anon → 401 **with
+`wac-allow: user="read", public="read"`** — the header contradicts the denial it rides on
+(retry-loop bait for a WAC-aware client; `/alice/settings/` gets it right with empty grants). (F5)
+the profile-406 is plain `{"error":…}` while the media-406 is RFC 9457 problem+json with teaching —
+unify on problem+json and list the profiles that WOULD conform (the media arm already lists working
+formats). (F7) OPTIONS on `/` omits the `storageDescription` Link that GET/HEAD carry. (F3 → seam
+design input) non-RDF resources **silently 200 the authored format** for any media-type Accept
+(markdown handed to a `text/turtle` requester, no 406, no redirect) — sharply asymmetric with the
+dataset teaching-406; fold into the `sourceContentType` fix: decide whether an unsatisfiable media
+Accept on non-RDF should 406-teach naming the profile route (also answers the probe's
+"three-request entry cost" friction — a plain-conneg client is silently stranded where an
+Accept-Profile client gets a 303). (F2 → widens the recorded S1 cache note) ETags are **not
+representation-specific** — the same strong ETag covers the Turtle/N-Triples/N-Quads/JSON-LD
+variants of one resource (and, per S1, one etag across auth-filtered listing variants) → a
+format-switching client can 304-revalidate a wrong-format cache entry; the S1 memoization follow-up
+becomes "ETag per variant".
+
+**Record-class (none block):** (F4) three membership views, three answers for `wiki/` — LDP graph 11
+members (incl. container `.meta` + suffixed metas), `items[]` 10 (omits the container's own
+`.meta`), type-search 8 (omits all `.meta`) — `.meta` resources are invisible to type-based
+discovery despite being first-class DataResources when fetched; consistency decision someday. (F6)
+`/alice/settings/publicTypeIndex.jsonld` is listable via anonymous `/types/search` while its parent
+401s — per-resource WAC working as intended (it IS the public type index), but the
+listable-child-inside-unlistable-parent pattern discloses protected path structure; note for the
+Policy work. (F8) root index-shadow re-confirmed (known, queued family): 200 html for every Accept,
+with `Vary: Accept` implying negotiation and no 406/`Content-Location` escape. **Frictions
+re-confirmed:** root membership unreachable by conneg alone (the probe found `/alice/` only via the
+ProfileIndexService URL + the TypeSearch full dump); TypeSearch query syntax still undocumented
+(`?type=` was a guess; recorded before); the `/id/` identity namespace has no observable link back
+to storage paths (the two-identity signpost gap again — `/id/` deref untested); `@vocab`→`proto#`
+term-coining noted as a producer trap (known — it IS the projection advisory mechanism).
+
+**Rig provisioning this session (runbook add):** the fresh-filesystem re-seed list from the
+close-out gains `/alice/graphs/` — its probe-#4 public-read grant was lost at the T13 repin
+(re-granted via the MCP `write_acl` recipe). `/alice/datasets/` self-heals via the dcat gate's
+beforeAll.
+
+**▶▶ NEXT: the next-fork-round batch** (carryovers block above + probe-#6 adds): the
+`sourceContentType` seam, both faces, WITH the F3 non-RDF-Accept policy decision (live repro in
+hand); container-HEAD quads parity; envelope-shape admission e2e pin; MCP `readContainerView`
+listing filter; smalls — F1 wac-allow-on-401, F5 profile-406 problem+json, F7 OPTIONS Link parity,
+ETag-per-variant, bare-`.acl` listing-filter test, `e.message` hardening in serve.js.
 
 **▶ CONNEG-BY-PROFILE PHASE 2 (instantiation + wiki-memory re-derivation) — DONE + LIVE-VERIFIED +
 PROBE #5 PASSED (2026-07-10).** Executed 2026-07-10, lws-pod `main` commits `c6cc876..55724ca` + the
@@ -170,7 +233,8 @@ this file).** Retired the hand-rolled `jsonLdToQuads`/`toJsonLd` pair on the con
 (fixed the probe-#4 Turtle-drop family + non-self-describing stored arrays), plus the six queued
 smalls (S1-S6: WAC-filtered listings, sidecar mediaTypes, hint wording, MCP gateway advertisement,
 `urlToStoragePath` subdomains guard, the probe-#5 issuer-behind-proxy mismatch) and the lws-pod
-contract seam (S7). **NEXT = cold probe #6** (same top block).
+contract seam (S7). **~~NEXT = cold probe #6~~ — PASSED 2026-07-11 (see the probe-#6 block above);
+NEXT = the next-fork-round batch.**
 
 **▶ CONNEG-BY-PROFILE PHASE 1 (fork pillar) — DONE + MERGED + LIVE (2026-07-07).** Design of record
 `docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md` (**supersedes L4b Phase B's
