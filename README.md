@@ -106,6 +106,7 @@ Unit gates need no pod; live gates run against the fork TLS rig (`make cert && m
 | `make test-dcat` | zero-code application onboarding (its setup IS the recipe) | fork rig |
 | `make test-wiki` | the wiki family end-to-end: bind → instantiate → negotiate | fork rig + `make publish-profiles` |
 | `make test-mcp-v2` | the 10-tool MCP agent surface (wait ~70s between runs — anon rate limit) | fork rig |
+| `make test-void` | `/.well-known/void` gateway + pod-dereferenceable-vocabulary rail | fork rig + `make publish-profiles` |
 
 ## Profiles
 

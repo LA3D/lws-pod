@@ -16,17 +16,20 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (serving-path rung); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-1783c6a7686e90bb11ca84188676691676e6b608}"
-    image: lws-pod:fork-servepath
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (gateway rung); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-71da6f070a1e192ace99d49749d2f9c0694df6aa}"
+    image: lws-pod:fork-gateway
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --lws-profile-index (opt-in,
     # per-deployment: advertises the ProfileIndexService at this pod path — spec §10),
-    # and --idp-issuer to advertise the public Caddy-fronted issuer (S2, zero fork code).
+    # --idp-issuer to advertise the public Caddy-fronted issuer (S2, zero fork code), and
+    # --lws-void pointing at the pod-materialized VoID document (Task 14's `publish.mjs`
+    # output) — the /.well-known/void 303 rung (spec 2026-07-11 §5).
     command: ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data",
       "--idp", "--mcp", "--conneg", "--mashlib-cdn", "--git", "--notifications", "--provision-keys",
       "--idp-issuer", "https://pod.vardeman.me",
-      "--lws", "--lws-profile-index", "/alice/profiles/index.jsonld"]
+      "--lws", "--lws-profile-index", "/alice/profiles/index.jsonld",
+      "--lws-void", "/alice/profiles/void.jsonld"]
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.
     expose:
       - "3000"

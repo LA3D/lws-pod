@@ -153,14 +153,65 @@ describe.skipIf(!hasResources)('model-driven read tools (spec 2026-07-06)', () =
     expect(sd.linkset.conformsTo).toBe('https://www.rfc-editor.org/rfc/rfc9264')
   })
 
-  it('index-shadowed container omits rel="linkset"; plain container keeps it', async () => {
+  it('index-shadowed container carries rel="linkset" too (gateway round: no longer a suppressed/false affordance); plain container keeps it', async () => {
     await rpc('tools/call', { name: 'create_resource', arguments: { container: '/alice/', slug: 'shadow-probe', isContainer: true } }, token)
     await rpc('tools/call', { name: 'write_resource', arguments: { path: '/alice/shadow-probe/index.html', content: '<html></html>', contentType: 'text/html' } }, token)
     await rpc('tools/call', { name: 'create_resource', arguments: { container: '/alice/', slug: 'plain-probe', isContainer: true } }, token)
+    // Gateway round (Task-13 hygiene item 5): the dead `suppressLinkset` param
+    // was removed — its rationale (index.html shadowing every Accept) was
+    // superseded by A2's shadow-escape, which makes non-HTML Accepts reach
+    // the real listing, so rel="linkset" is no longer a false affordance on
+    // the shadowed HTML response either. Both containers now advertise it.
     const shadowed = await fetch(`${BASE}/alice/shadow-probe/`, { headers: { Authorization: `Bearer ${token}` } })
-    expect(shadowed.headers.get('link') || '').not.toMatch(/rel="linkset"/)
+    expect(shadowed.headers.get('link') || '').toMatch(/rel="linkset"/)
     const plain = await fetch(`${BASE}/alice/plain-probe/`, { headers: { Authorization: `Bearer ${token}` } })
     expect(plain.headers.get('link') || '').toMatch(/rel="linkset"/)
+  })
+})
+
+// Gateway round (spec 2026-07-11, fork merge 71da6f0): MCP container listing
+// is WAC-filtered per requester (S1 parity, closes the recorded carryover
+// "readContainerView lists membership unfiltered") + read_resource accepts a
+// bare-origin uri (no path) as the root container view.
+describe.skipIf(!hasResources)('MCP listing filter + bare-origin read (gateway round)', () => {
+  let token, webid
+  const OPEN_PATH = '/alice/public/mcp-filter-open.jsonld'
+  const PRIV_PATH = '/alice/public/mcp-filter-priv.jsonld'
+
+  beforeAll(async () => {
+    await ensurePod()
+    ;({ token, webid } = await getToken())
+    const open = await rpc('tools/call', { name: 'write_resource', arguments: { path: OPEN_PATH, content: JSON.stringify({ note: 'open' }), contentType: 'application/ld+json' } }, token)
+    expect(open.body.result.isError ?? false).toBe(false)
+    const priv = await rpc('tools/call', { name: 'write_resource', arguments: { path: PRIV_PATH, content: JSON.stringify({ note: 'private' }), contentType: 'application/ld+json' } }, token)
+    expect(priv.body.result.isError ?? false).toBe(false)
+    // Owner-only ACL on the private member — no public grant, so it's hidden
+    // by default (hide, never 401 — no discovery oracle for a listing).
+    const acl = await rpc('tools/call', { name: 'write_acl', arguments: { path: PRIV_PATH, authorizations: [
+      { agents: [webid], modes: ['Read', 'Write', 'Control'], isDefault: false },
+    ] } }, token)
+    expect(acl.body.result.isError ?? false).toBe(false)
+  })
+
+  it('resources/read of the container hides the owner-only member from anon, shows it to the owner', async () => {
+    const container = `${BASE}/alice/public/`
+    const anon = await rpc('resources/read', { uri: container })
+    const anonListing = JSON.parse(text(anon.body.result))
+    expect(anonListing.items.some((i) => i.id.endsWith('mcp-filter-open.jsonld'))).toBe(true)
+    expect(anonListing.items.some((i) => i.id.endsWith('mcp-filter-priv.jsonld'))).toBe(false)
+
+    const owner = await rpc('resources/read', { uri: container }, token)
+    const ownerListing = JSON.parse(text(owner.body.result))
+    expect(ownerListing.items.some((i) => i.id.endsWith('mcp-filter-open.jsonld'))).toBe(true)
+    expect(ownerListing.items.some((i) => i.id.endsWith('mcp-filter-priv.jsonld'))).toBe(true)
+  })
+
+  it('read_resource with a bare-origin uri (no path) returns the root container view', async () => {
+    const res = (await rpc('tools/call', { name: 'read_resource', arguments: { uri: BASE } }, token)).body.result
+    expect(res.isError ?? false).toBe(false)
+    const doc = JSON.parse(res.content[0].text)
+    expect(doc.type).toBe('Container')
+    expect(doc.items.some((i) => i.id === `${BASE}/alice/`)).toBe(true)
   })
 })
 

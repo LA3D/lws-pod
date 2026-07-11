@@ -84,11 +84,15 @@ describe.skipIf(!hasConneg)('LWS content negotiation by profile', () => {
     expect(h2.headers.get('location')).toBe(links)
   })
 
-  it('bare GET unchanged (additivity): markdown, no Content-Profile, no canonical Link', async () => {
+  it('bare GET stays unnegotiated (no Content-Profile) but now advertises A1 alternates', async () => {
     const r = await fetch(mem, { headers: auth })
     expect(r.status).toBe(200)
     expect(r.headers.get('content-profile')).toBeNull()
-    expect(r.headers.get('link') || '').not.toContain('rel="canonical"')
+    // Gateway round A1 (spec 2026-07-11 §4, fork merge 71da6f0): the bare 200
+    // now carries canonical/alternate Links for discovery even without
+    // Accept-Profile — supersedes this test's pre-round "no canonical Link"
+    // claim (Phase-1 additivity meant "unnegotiated", not "no Link headers").
+    expect(r.headers.get('link') || '').toContain('rel="canonical"')
     expect(await r.text()).toBe('# Memory A\n')
   })
 
@@ -168,5 +172,115 @@ describe.skipIf(!hasConneg)('WAC-filtered listing (S1, live)', () => {
     expect(await anon.text()).not.toContain('servepath-private')
     const owner = await fetch(`${BASE}/alice/`, { headers: { Accept: 'application/ld+json', ...auth } })
     expect(await owner.text()).toContain('servepath-private')
+  })
+})
+
+// Gateway round (spec 2026-07-11) live cases — the sourceContentType seam both
+// faces (non-RDF teaching 406), the bare-200/root-shadow affordance fixes
+// (A1/A2), and the F1/F2/F5/F7 probe-#6 smalls. Fork merge 71da6f0.
+describe.skipIf(!hasConneg)('teaching 406 on non-RDF sources (F3, live)', () => {
+  let token, auth, md, json
+  beforeAll(async () => {
+    await ensurePod()
+    ;({ token } = await getToken())
+    auth = { Authorization: `Bearer ${token}` }
+    md = `${BASE}/alice/public/wiki-f3.md`
+    json = `${BASE}/alice/public/f3.json`
+    await fetch(md, { method: 'PUT', headers: { 'Content-Type': 'text/markdown', ...auth }, body: '# F3\n' })
+    await fetch(json, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...auth }, body: '{"plain":true}' })
+  })
+  afterAll(async () => {
+    for (const u of [md, json]) await fetch(u, { method: 'DELETE', headers: auth })
+  })
+
+  it('markdown as text/turtle → 406 problem+json naming the authored format and Accept-Profile', async () => {
+    const r = await fetch(md, { headers: { Accept: 'text/turtle' } })
+    expect(r.status).toBe(406)
+    expect(r.headers.get('content-type').split(';')[0]).toBe('application/problem+json')
+    const p = await r.json()
+    expect(p.detail).toMatch(/text\/markdown/)
+    expect(p.detail).toMatch(/Accept-Profile/)
+  })
+
+  it('plain JSON as text/turtle → 406 (the probe-#6 live-repro case, now teaching)', async () => {
+    const r = await fetch(json, { headers: { Accept: 'text/turtle' } })
+    expect(r.status).toBe(406)
+    expect(r.headers.get('content-type').split(';')[0]).toBe('application/problem+json')
+  })
+
+  it('browser Accept → 200 unchanged (no F3 406 regression; mashlib-cdn wraps markdown as html on this rig)', async () => {
+    const r = await fetch(md, { headers: { Accept: 'text/html,application/xhtml+xml,*/*;q=0.8' } })
+    expect(r.status).toBe(200)
+    // This rig runs --mashlib-cdn, which wraps viewable types (text/markdown
+    // included) in an HTML data-browser shell whenever Accept explicitly
+    // names text/html (JSS src/mashlib/index.js shouldServeMashlib) — a
+    // pre-existing, unrelated feature. The claim under test is "no new 406",
+    // not the exact content-type served for a browser-navigation Accept.
+    expect(r.headers.get('content-type').split(';')[0]).toBe('text/html')
+  })
+})
+
+describe.skipIf(!hasConneg)('bare-200 alternates (A1, live)', () => {
+  it('GET /alice/wiki/a.md with no Accept-Profile carries rel="alternate" Link', async () => {
+    const r = await fetch(`${BASE}/alice/wiki/a.md`)
+    expect(r.status).toBe(200)
+    const link = r.headers.get('link') || ''
+    expect(link).toContain('rel="canonical"')
+    expect(link).toContain('rel="alternate"')
+    expect(link).toMatch(/formats="/)
+  })
+})
+
+describe.skipIf(!hasConneg)('root listing by conneg (A2, live)', () => {
+  it('GET / with Accept: application/lws+json lists top-level containers', async () => {
+    const r = await fetch(`${BASE}/`, { headers: { Accept: 'application/lws+json' } })
+    expect(r.status).toBe(200)
+    const j = await r.json()
+    expect(j.items.some((i) => i.id === `${BASE}/alice/`)).toBe(true)
+  })
+  it('GET / with a browser Accept still serves the HTML', async () => {
+    const r = await fetch(`${BASE}/`, { headers: { Accept: 'text/html,application/xhtml+xml,*/*;q=0.8' } })
+    expect(r.status).toBe(200)
+    expect(r.headers.get('content-type').split(';')[0]).toBe('text/html')
+  })
+})
+
+describe.skipIf(!hasConneg)('variant ETags + honest WAC-Allow + OPTIONS (F2/F1/F7, live)', () => {
+  it('Turtle vs JSON-LD variant ETags differ on /alice/wiki/a.md.links.jsonld', async () => {
+    const jsonld = await fetch(`${BASE}/alice/wiki/a.md.links.jsonld`, { headers: { Accept: 'application/ld+json' } })
+    const ttl = await fetch(`${BASE}/alice/wiki/a.md.links.jsonld`, { headers: { Accept: 'text/turtle' } })
+    expect(jsonld.status).toBe(200)
+    expect(ttl.status).toBe(200)
+    expect(ttl.headers.get('etag')).not.toBe(jsonld.headers.get('etag'))
+    expect(ttl.headers.get('etag')).toMatch(/-ttl"$/)
+  })
+
+  it('anon GET /.acl → 401 with empty WAC-Allow grants', async () => {
+    const r = await fetch(`${BASE}/alice/public/.acl`)
+    expect(r.status).toBe(401)
+    const wa = r.headers.get('wac-allow') || ''
+    expect(wa).toMatch(/user=""/)
+    expect(wa).toMatch(/public=""/)
+  })
+
+  it('OPTIONS / carries the storageDescription Link', async () => {
+    const r = await fetch(`${BASE}/`, { method: 'OPTIONS' })
+    expect(r.status).toBe(204)
+    expect(r.headers.get('link') || '').toContain('rel="https://www.w3.org/ns/lws#storageDescription"')
+  })
+})
+
+describe.skipIf(!hasConneg)('unified profile-406 (F5, live)', () => {
+  it('unknown Accept-Profile on a.md → problem+json listing the conforming profiles', async () => {
+    const r = await fetch(`${BASE}/alice/wiki/a.md`, { headers: { 'Accept-Profile': '<https://ex.org/profiles/nope>' } })
+    expect(r.status).toBe(406)
+    expect(r.headers.get('content-type').split(';')[0]).toBe('application/problem+json')
+    const p = await r.json()
+    expect(p.type).toBe('about:blank')
+    expect(p.title).toBe('Not Acceptable')
+    expect(p.status).toBe(406)
+    expect(p.detail).toContain(`${BASE}/alice/profiles/okf-base.jsonld`)
+    expect(p.detail).toContain(`${BASE}/alice/profiles/llm-wiki/profile.jsonld`)
+    expect(p.instance).toBe(`${BASE}/alice/wiki/a.md`)
   })
 })

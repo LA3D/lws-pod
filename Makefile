@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-wiki test-projection publish-profiles test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-void test-wiki test-projection publish-profiles test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -141,6 +141,14 @@ test-graph:
 test-conneg:
 	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-conneg.test.mjs
+
+# VoID gateway live gate (spec 2026-07-11 §5) — /.well-known/void 303s to the
+# pod-materialized void.jsonld; deref rail (every declared vocabulary carries
+# a pod-served dump). Needs `make up-fork-tls` (fork-gateway image, --lws-void)
+# + `make cert` + `make publish-profiles` (materializes void.jsonld).
+test-void:
+	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-void.test.mjs
 
 # Cold-agent affordance harness (experiments/agent-eval). -dry = plumbing smoke
 # (MCP handshake + read surface, no API key); full run needs ANTHROPIC_API_KEY.
