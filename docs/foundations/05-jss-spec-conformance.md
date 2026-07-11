@@ -181,8 +181,9 @@ bug-compatible since Phase 1). The Phase-1 admission-side bridge shim (`shimLega
 cross-element context) JSON-LD semantics; `make reset` is the story. `--lws`-off keeps the legacy
 array form byte-identically (negative control). **Container listings are now WAC-filtered** (§4
 S1): `ldp:contains`, `lws+json` `items[]`, and the derived Turtle rendering each run a per-member
-`checkAccess`(READ)-and-drop loop before rendering — closing the asymmetry where `/types/*` and the
-MCP surface (axis 3) already filtered but a plain HTTP container listing didn't (probe #3).
+`checkAccess`(READ)-and-drop loop before rendering — closing the asymmetry where `/types/*` already
+filtered but a plain HTTP container listing didn't (probe #3). NOTE: the MCP `readContainerView`
+listing surface remains **unfiltered** (same class, recorded FOLLOWUP carryover — next MCP round).
 Hide-never-401, matching the no-oracle invariant used elsewhere.
 
 **Verdict update: still CONFORMS to Solid** (the hardening fixes a correctness bug in that

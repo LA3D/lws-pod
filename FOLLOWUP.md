@@ -72,8 +72,19 @@ provisioning, now done.
 
 **Carryovers (recorded, none block):** MCP `readContainerView` (`src/mcp/resources.js:95-104`) lists
 container membership **unfiltered** — same probe-#3 class as S1, but on the MCP surface, not HTTP
-(T6 finding, next MCP round). Stored non-JSON-LD RDF under `--lws` would 406 in its **own** format
-(`sourceContentType` defaults JSON-LD — T3 finding, close before any profile stores Turtle).
+(T6 finding, next MCP round). The `sourceContentType`-defaults-JSON-LD seam, BOTH faces (T3 +
+final review): stored non-JSON-LD RDF under `--lws` would 406 in its **own** format (close before
+any profile stores Turtle), AND `.lwstypes`/any stored plain-JSON enters the serving arm via
+`isRdfContentType('application/json')` and parses to **zero quads → 200 empty Turtle** — the
+probe-#4 signature reborn on the sidecar surface; one fix covers both (thread the stored type /
+narrow the arm's gate), next fork round; probe #6's battery should include a `.lwstypes`-as-Turtle
+case. Next-fork-round batch (final review): envelope-shape admission e2e pin (Turtle-PUT shape →
+non-conforming write still rejects through the `{@context,@graph}` store form — closure currently
+holds by composition, unpinned), container-HEAD quads parity (HEAD's directory branch calls
+`selectContentType` 2-arg — GET serves n-quads, HEAD reports ld+json), bare-`.acl` listing-filter
+test, `e.message` hardening in serve.js, extractCertKeys-JSDoc + url.js comment nits. S1 cache
+note: filtered listings vary by agent under one etag — a same-client auth-state flip can 304 a
+stale variant (fold into the S1 memoization follow-up).
 Federation-hardening round (remote-arm size bound + SSRF guard, named at the model-driven-read
 round). Console-on-fork rewire (`app/seed/seed.mjs`'s `putViaProxy` + the stale
 `projection/triggers` path are dangling against the Phase-2 split). Seed hygiene (probe-#3/#5 residue
