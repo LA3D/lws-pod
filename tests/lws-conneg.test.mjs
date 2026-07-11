@@ -140,7 +140,7 @@ describe.skipIf(!hasConneg)('LWS serving path (dataset seam, spec 2026-07-10)', 
   })
 })
 
-describe('openid-configuration behind the TLS proxy (S2)', () => {
+describe.skipIf(!hasConneg)('openid-configuration behind the TLS proxy (S2)', () => {
   it('advertises the public issuer, never localhost', async () => {
     const r = await fetch(`${BASE}/.well-known/openid-configuration`)
     expect(r.status).toBe(200)
