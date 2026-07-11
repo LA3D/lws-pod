@@ -131,6 +131,11 @@ export function checkRepresentation(jsonText, name) {
   for (const k of ['id', 'format', 'conformsTo']) if (typeof rep[k] !== 'string' || !rep[k]) out.push(`${name}: missing '${k}'`)
   const kinds = REP_KINDS.filter((k) => rep[k] !== undefined)
   if (kinds.length !== 1) out.push(`${name}: exactly one of ${REP_KINDS.join('/')} required (got ${kinds.join(',') || 'none'})`)
+  // Contract seam (FOLLOWUP 2026-07-10): publish's ≤1-default check counts
+  // `default`; instantiate() advertises altr:hasDefaultRepresentation from
+  // `self`. A rep declaring one without the other checks clean here yet
+  // never advertises (or advertises undeclared) — require them together.
+  if (!!rep.self !== !!rep.default) out.push(`${name}: 'self' and 'default' must be declared together — instantiate advertises the default from 'self'`)
   if (rep.named_graph !== undefined && !['union', 'dataset'].includes(rep.mode)) out.push(`${name}: named_graph requires mode union|dataset`)
   return out
 }

@@ -94,4 +94,16 @@ describe('checkRepresentation', () => {
   it('fails named_graph without a valid mode', () =>
     expect(checkRepresentation(JSON.stringify({ id: 'g', format: 'f', conformsTo: 'c', named_graph: 'g.jsonld' }), 'x')).not.toEqual([]))
   it('fails on non-JSON', () => expect(checkRepresentation('nope', 'x')).not.toEqual([]))
+  it('representation: default without self is a declaration error (contract seam, FOLLOWUP 2026-07-10)', () => {
+    const rep = JSON.stringify({ id: 'links', suffix: '.links.jsonld', default: true, format: 'application/ld+json', conformsTo: 'p' })
+    expect(checkRepresentation(rep, 'links').some((m) => m.includes("'self' and 'default' must be declared together"))).toBe(true)
+  })
+  it('representation: self without default is the same error', () => {
+    const rep = JSON.stringify({ id: 'content', self: true, format: 'text/markdown', conformsTo: 'p' })
+    expect(checkRepresentation(rep, 'content').some((m) => m.includes('declared together'))).toBe(true)
+  })
+  it('representation: self+default together stays clean (all curated reps)', () => {
+    const rep = JSON.stringify({ id: 'content', self: true, default: true, format: 'text/markdown', conformsTo: 'p' })
+    expect(checkRepresentation(rep, 'content')).toEqual([])
+  })
 })
