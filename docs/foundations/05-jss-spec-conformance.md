@@ -15,8 +15,8 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 |---|---|---|
 | 1 | Container boot / reset-with-volume | CONFORMS — survives `down`/`up` *(verified live)* |
 | 2 | Headless agent auth (`/idp/credentials`) | DIVERGES — RS256 JWT bearer, no DPoP *(verified live)* |
-| 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) *(MCP self-advertised 2026-07-10)* |
-| 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage *(serving hardened, listings WAC-filtered 2026-07-10)* |
+| 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) *(MCP self-advertised 2026-07-10; listing WAC-filtered 2026-07-11)* |
+| 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage *(serving hardened, listings WAC-filtered 2026-07-10; teaching-406/gateway/VoID/ETag 2026-07-11)* |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
 | 6 | LWS-CID identity | CONFORMS (RS-direct profile of the AS-mediated suite); `aud`+`exp` replay-guards enforced; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS — `.meta`/`constrainedBy` work, proxy ports *(verified live)* · GAP (in-process hooks) |
@@ -133,6 +133,16 @@ on sidecar mediaTypes was half-obsolete). The other half of probe #3 — anonymo
 already used — is recorded under axis 4 alongside the rest of the conneg-serving hardening (the
 listing is a conneg-adjacent representation, not an MCP-specific concern).
 
+**Fork gateway round (2026-07-11) — the last unfiltered listing surface closed.** `readContainerView`
+(`src/mcp/resources.js`) now runs the same per-member WAC checkAccess-and-drop loop as the HTTP
+listing surfaces (spec `docs/superpowers/specs/2026-07-11-fork-gateway-round-design.md` §8),
+closing the carryover this section itself recorded above ("the MCP `readContainerView` listing
+surface remains **unfiltered**") — S1 parity is now complete across HTTP and MCP. Folded in the
+same batch: `isLocalUri`/`uriToPath` widened to an EXACT `uri === origin` match (no prefix
+bypass — all 4 consumers verified, federation arm stays unreachable via bare origin), a bare-origin
+normalization test, and `localLinks` no longer emits a 404ing `up` for fixed `.well-known`
+resources. **Verified:** `make test-mcp-v2` **18/18** (was 16).
+
 ## 4. Conneg round-trip; container `ldp:contains` Comunica-traversable
 
 **Spec — two different container models in play.**
@@ -197,6 +207,54 @@ path-mode-only) feeds both SHACL shape resolution (axis 7) and this axis's new l
 filter — under `--subdomains` it silently omits the pod-name prefix, misresolving both. The fork
 now **refuses to start** with `--subdomains --lws` together, naming the limitation, rather than
 degrading silently (host-aware path mapping stays deferred — recorded in `FOLLOWUP.md`).
+
+**Fork gateway round (2026-07-11) — the non-RDF teaching gap closed; the root becomes a real
+gateway; a VoID surface added.** Spec of record
+`docs/superpowers/specs/2026-07-11-fork-gateway-round-design.md`. Probe #6 had found the last
+silent arm: a non-RDF source (markdown, plain JSON) under a specific unsatisfiable `Accept`
+**silently 200'd the authored format** instead of teaching — sharply asymmetric with the dataset
+406. Fixed by generalizing the axis's own "own format = bytes-are-bytes" rule symmetrically:
+*own format = 200; conversions = parse or teach (406)* (§2-3). Concretely:
+- **`sourceContentType` threaded both faces** (T1): file GET/HEAD pass the stored content type
+  into the serving seam; the serving gate now excludes `application/json` from the RDF set (a
+  stored plain-JSON sidecar or resource is a **non-RDF source** for conneg purposes, closing the
+  probe-#6-predicted "stored-plain-JSON" repro).
+- **F3 teaching-406 + F5 unified error shape** (T2/T3): a non-RDF source under a specific,
+  unsatisfiable Accept now answers a teaching `406` (authored format + declared `altr:`
+  alternates + the Accept-Profile route); wildcard/absent Accept is unchanged (browsers see
+  nothing new). The profile-406 moved onto the same RFC 9457 problem+json builder as the
+  media-406 and now lists the profiles that would conform — one error grammar across both conneg
+  dimensions.
+- **A1/A2/A3 — the root becomes a self-describing gateway:** alternates now advertise via
+  `canonical`/`alternate` Link headers on the **bare, un-negotiated** 200 too (A1 — kills the
+  "three-request entry cost" three probes found); the root's `index.html` shadow now honors
+  non-HTML Accepts, so a specific media/linkset request negotiates the real container instead of
+  being eaten by the shadow (A2 — root enumeration by plain conneg, closing a friction three
+  probes in a row hit); the storage description carries a root-enumeration nav hint and a
+  TypeSearch syntax hint (A3).
+- **`/.well-known/void`** (T7 fork rung + T14 lws-pod materialization): `--lws-void <path>` (off
+  by default, the `--lws-profile-index` precedent) 303s to a publish-time-built `void.jsonld` —
+  one `void:Dataset` per pod, `void:rootResource`/`void:uriSpace`, a `void:subset` per bound
+  application family, and **every declared vocabulary carries `void:dataDump` to a pod-served
+  pinned mirror, never a bare external URI** — a deref rail fails `make publish-profiles` loud on
+  any undeclared external (the linked-data self-containment discipline already used for
+  `/.well-known/lws/context|vocab`, §3, extended outward). Rationale: VoID/DCAT/SKOS are in a
+  semantic-web-literate agent's model priors — the probe-#6 lesson generalized ("where the pod
+  teaches, cold agents succeed").
+- **F1/F7/ETag/HEAD-parity smalls** (T8-T10): a `401`/`403` no longer carries a granting
+  `wac-allow` header (`--lws`-gated, per Chuck's pre-flight decision — off-path byte-identical);
+  `OPTIONS` now carries the storageDescription Link, parity with GET/HEAD; strong `ETag`s are now
+  **variant-keyed** (served-content-type suffix + the WAC-filtered-listing auth-visibility key),
+  closing the stale-variant risk the serving-path round's S1 note flagged; HEAD's directory
+  branch now calls the lws 3-arg `selectContentType` form, closing a GET/HEAD N-Quads-vs-ld+json
+  divergence.
+
+**Verdict unchanged** (CONFORMS to Solid conneg · DIVERGES from LWS storage) — this round closes
+correctness/teaching gaps in that conformance, not the conformance class itself; the VoID surface
+is a value-add (EXTENDS, no Solid/LWS requirement — VoID is an independent W3C IG Note). **Live-
+verified** (image `fork-gateway`, merge `71da6f070a1e192ace99d49749d2f9c0694df6aa`): `make
+test-conneg` **21/21** (was 11), new `make test-void` **4/4**, full 13-gate sweep zero regression
+(`FOLLOWUP.md`).
 
 ## 5. Git: container clone-able; push materializes files as resources
 
