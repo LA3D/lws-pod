@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round shipped; probe #6 PASSED; probe #7 next
+## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round shipped; probes #6 + #7 (two arms) PASSED; next-fork-round queue below
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
@@ -147,11 +147,68 @@ token-bucket refinement** — a `read_resource` costs the same budget as an `ini
 decide the JSON-RPC **batching** affordance (one batched POST = one request against the limiter —
 a budget loophole nothing advertises; 2025-03-26 supports batching, the later spec drops it).
 
-**▶▶ NEXT: probe #7 — TWO ARMS** (spec §20/§9): Arm A MCP-cold (only https://pod.vardeman.me/mcp
-+ CA), Arm B HTTP-cold VoID-salience (only the pod root, NO battery). Separate session per the
-probe protocol; findings recorded here before further fork work. Arm-A protocol note: the anon
-`/mcp` budget is 60 req/min — the probe gets a ~55-request budget + a record-what-the-429-teaches
-instruction; don't run `test-mcp-v2` within ~70s of dispatch.
+**▶ PROBE #7 — TWO ARMS, BOTH PASSED (2026-07-11, cold/unprimed/anonymous; pre-flight: pod
+residue swept — probe containers, conneg-mem, idx-docs, mcp-filter fixtures, dangling
+good.links.jsonld deleted; anon cold view = exactly the seven seed containers).**
+
+**Arm A (MCP-cold, only `/mcp` + CA, ~44 reqs) — PASSED decisively.** Bootstrapped the ENTIRE
+protocol from the GET-405 teaching body alone (one request), walked initialize → tools/list →
+read_resource/list_resources → storage description → type search → profiles → VoID, and
+reconstructed the substrate thesis unprompted ("structure imposed by profiles, not baked in" —
+quoted back a third time). Rate limit never hit (peak burst ~4; `x-ratelimit-*` headers passively
+advertise the 60/60s budget — the queued advertise-the-budget item gains that nuance). The
+pod-info → storage-description → type-search START-HERE chain scored "a well-signposted
+endpoint"; error handling "clean, spec-correct."
+
+**Arm B (HTTP-cold, only the root, NO battery, 40 reqs) — PASSED: the vocabulary question
+answered entirely in-pod.** Headers → storage description ("this is the map") → VoID census →
+profile walk, zero guessed paths; both OOD vocabularies (llm-wiki ontology, lwsp) read from the
+pod-served dumps with pinned versions understood; `knownUndumped`/`knownVocabGaps` read as
+self-honesty. **The deref rail worked as designed.** Nuance for the salience hypothesis: VoID was
+reached via the storage-description advertisement, not a blind priors probe — the affordance beat
+the prior (consistent with the priming-ablation arc).
+
+**Probe-#7 findings — fork-queue ADDS:** (B1, SPEC-WEIGHT, top of next round) **`.ttl`-named
+artifacts serve JSON-LD bytes labeled `text/turtle`** — the conneg WRITE path stores Turtle PUTs
+as the JSON-LD envelope without renaming; the extension-derived sourceContentType then lies, and
+the own-format short-circuit serves mislabeled bytes (`ontology.ttl`, `lwsp.ttl`, `shapes.ttl`
+live). Fix family: persist the true stored type (or sniff at the short-circuit) — the same
+extension-vs-bytes root cause as T11's octet-stream find; controller-verified. (A1) **injection-
+guard asymmetry**: `read_resource`/`describe_resource` fence pod bodies as untrusted;
+MCP-native `resources/read` returns them UNWRAPPED — two read paths, one guard. (A2)
+**conneg-by-profile is undiscoverable from inside MCP** — `rel="alternate"` representation links
+live only in HTTP Link headers; `describe_resource` surfaces governance edges only. Add the
+alternates to the MCP links carrier + one teaching sentence ("representations are negotiable via
+Accept-Profile…"). (A5) `read_resource` links block reports `a.md` as `text/plain` while its own
+fence says text/markdown. (A8) the no-oracle denial could read "not found or not authorized"
+(honest about its own ambiguity; wording only). (A9) `lws_type_search`'s empty-args =
+full-inventory behavior is undocumented in the tool description (one sentence). (S3-family, exact
+evidence) container `items[]` reports suffixed `.meta` sidecars as `application/octet-stream`
+while direct GET correctly serves `application/ld+json` — the LISTING's mediaType derivation
+bypasses the override (controller-verified both ways; probe #6 and Arm B were each right about
+their surface).
+
+**Design inputs → L4 read-side (recorded, not ad hoc):** (A3) **referent types are invisible to
+type search** — wiki cards index as bare `lws#DataResource`; their real types live on `id/…#it`
+in the links reps, reachable via `graph.jsonld` but not `lws_type_search` (joins the
+earned-conformsTo / defaultProfile-precedence input set). (B2) `/id/…` is declared as the subject
+URI space (VoID) but 401s to anonymous — cold agents can read triples but cannot follow subject
+IRIs; the deref decision stays at L4, now with live evidence.
+
+**Recorded (none block):** (A4) **derived views don't auto-refresh on member deletion** — the
+residue sweep left `good#it` in `graph.jsonld` until re-instantiation (controller re-ran the wiki
+bind/instantiate, `test-wiki` 9/9, aggregate clean: `id/a` + `id/b` only); consistent with the
+derived-views-belong-to-a-build design, but the staleness is silent — CDC-trigger/rebuild story
+input. (A6) `skills: true` advertised, `skill:items: []` — known, the operating-skills layer
+comes last. (A7) phantom `X-Cost`/`X-Balance` CORS headers re-confirmed (recorded). (B3) root
+linkset is thin (type only) — storage description compensates; minor. Positive signal worth
+keeping: the GET-405 hint, the START-HERE chain, teaching 406s, and hint fields all did exactly
+their job — three cold agents in a row now navigate without guessed paths.
+
+**▶▶ NEXT: the next fork round draws from the queue above** — B1 ttl-mislabel (spec-weight) + the
+MCP affordance batch (A1 guard parity, A2 alternates-in-links-carrier, A5/A8/A9 smalls, the
+`.meta` listing mediaType) + the rate-limit adds (budget hint, cost-weighting/batching decision) +
+the standing federation-hardening round. Scope the round deliberately; don't drain by reflex.
 
 **▶ FORK SERVING-PATH ROUND — DONE + LIVE-VERIFIED, FULL SWEEP GREEN (2026-07-10).** Executed
 2026-07-10, subagent-driven (15 tasks, per-task spec+quality reviews). Design of record
