@@ -613,13 +613,13 @@ git rev-parse HEAD   # record the FULL merge SHA for Task 13's repin
 
 **Interfaces:**
 - Consumes: the manifest; `buildVoid` (`projection/publish/void.mjs`).
-- Produces: `pod-config.jsonld` = `{ "profileIndex": "/alice/profiles/index.jsonld", "void": "/alice/profiles/void.jsonld" }` shipped in the publish tree (PUT to `/alice/profiles/pod-config.jsonld`); a check that its pointers resolve to manifest-known resources; `buildVoid`'s `void:rootResource` emitted consistently (node-object, matching `uriSpace`'s form per the T14 minor).
+- Produces: `pod-config.jsonld` = `{ "profileIndex": "/alice/profiles/index.jsonld", "void": "/alice/profiles/void.jsonld" }` shipped in the publish tree (PUT to `/alice/profiles/pod-config.jsonld`); a check that its pointers resolve to manifest-known resources; `buildVoid`'s `void:rootResource` emitted consistently with `uriSpace` (both **bare-string** — `uriSpace`'s actual pre-existing form; the CTX `@type:@id` coercion makes them RDF-equivalent — per the T14 minor).
 
 - [ ] **Step 1: Failing tests** — `checkVoid`/a new `checkPodConfig` fails a pod-config whose `void` points at a path no manifest resource declares; `buildVoid` emits `void:rootResource` in the agreed shape (assert the shape both ways — rootResource and uriSpace consistent).
 
 - [ ] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement.** Create `pod-config.jsonld` (plain JSON data). Add `checkPodConfig(manifest, existsRel)` to `checks.mjs` mirroring `checkVoid`'s rule shape (pointers resolve). Fix `buildVoid`'s `void:rootResource` to the node-object form used by `uriSpace` (the T14 recorded minor). Wire `checkPodConfig` into `publish.mjs`'s checks phase (the file is in the tree walk, so it PUTs automatically).
+- [ ] **Step 3: Implement.** Create `pod-config.jsonld` (plain JSON data). Add `checkPodConfig(manifest, existsRel)` to `checks.mjs` mirroring `checkVoid`'s rule shape (pointers resolve). Fix `buildVoid`'s `void:rootResource` to match `uriSpace`'s form — both **bare-string** (`uriSpace` is already bare-string; converting rootResource to bare-string is what actually makes them consistent; the CTX `@type:@id` coercion keeps the RDF identical) (the T14 recorded minor). Wire `checkPodConfig` into `publish.mjs`'s checks phase (the file is in the tree walk, so it PUTs automatically).
 
 - [ ] **Step 4: Run** `cd projection && npx vitest run publish/` — green.
 - [ ] **Step 5: Commit** — `[Agent: Claude] feat(publish): ship pod-config.jsonld as data + resolves-check; buildVoid rootResource shape`
