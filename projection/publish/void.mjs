@@ -18,12 +18,14 @@ export function buildVoid(manifest, { root, base }) {
     '@context': CTX,
     '@id': abs('void.jsonld', root),
     '@type': 'void:Dataset',
-    'void:rootResource': { '@id': abs(v.rootResource) },
+    // Bare IRI strings for both — the CTX @type:@id coercion carries them as
+    // IRIs; same shape as void:uriSpace (T14-recorded minor, now consistent).
+    'void:rootResource': abs(v.rootResource),
     'void:uriSpace': abs(v.uriSpace),
     'void:vocabulary': vocab,
     'void:subset': (v.subsets ?? []).map((s) => ({
       '@id': abs(`void.jsonld#${s.name}`, root), '@type': 'void:Dataset',
-      'void:rootResource': { '@id': abs(s.rootResource) },
+      'void:rootResource': abs(s.rootResource),
       'dcterms:conformsTo': { '@id': abs(s.conformsTo, root) },
     })),
   }

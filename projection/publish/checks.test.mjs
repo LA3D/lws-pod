@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation } from './checks.mjs'
+import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation, checkPodConfig } from './checks.mjs'
 
 const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
 const read = (f) => readFile(join(DEFS, f), 'utf8')
@@ -105,5 +105,21 @@ describe('checkRepresentation', () => {
   it('representation: self+default together stays clean (all curated reps)', () => {
     const rep = JSON.stringify({ id: 'content', self: true, default: true, format: 'text/markdown', conformsTo: 'p' })
     expect(checkRepresentation(rep, 'content')).toEqual([])
+  })
+})
+
+describe('checkPodConfig — the pod-config.jsonld resolves rail (spec §4b/§7)', () => {
+  const allExist = () => true
+  const manifest = { void: { rootResource: '/alice/', uriSpace: 'id/' } }
+  it('passes the real pod-config.jsonld against a manifest that declares void', async () => {
+    expect(await checkPodConfig(manifest, allExist)).toEqual([])
+  })
+  it('FAILS profileIndex when it does not resolve in the defs tree', async () => {
+    const fails = await checkPodConfig(manifest, () => false)
+    expect(fails.some((f) => f.includes('profileIndex'))).toBe(true)
+  })
+  it('FAILS void when the manifest declares no void section (nothing would materialize it)', async () => {
+    const fails = await checkPodConfig({}, allExist)
+    expect(fails.some((f) => f.includes('void'))).toBe(true)
   })
 })

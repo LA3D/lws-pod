@@ -10,7 +10,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
-import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation, makeDefsLoader } from './checks.mjs'
+import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation, checkPodConfig, makeDefsLoader } from './checks.mjs'
 import { buildVoid, checkVoid } from './void.mjs'
 import { buildAclPayload } from './acl.mjs'
 import { descriptorToProfile } from '../prof/profile-doc.mjs'
@@ -87,7 +87,9 @@ for (const d of DESCRIPTORS) {
   }
   if (repsSeen.filter((x) => x.default).length > 1) failures.push(`${d}: more than one default representation`)
 }
-failures.push(...checkVoid(manifest, (rel) => existsSync(join(DEFS, ...rel.split('/')))))
+const existsRel = (rel) => existsSync(join(DEFS, ...rel.split('/')))
+failures.push(...checkVoid(manifest, existsRel))
+failures.push(...await checkPodConfig(manifest, existsRel))
 if (manifest.void?.knownUndumped?.length) console.log(`void: known undumped vocab (recorded, not patched): ${manifest.void.knownUndumped.join(', ')}`)
 if (failures.length) { console.error('DECLARATION CHECKS FAILED:\n' + failures.map((f) => ' - ' + f).join('\n')); process.exit(1) }
 if (checkOnly) { console.log(`checks passed for ${DESCRIPTORS.length} profile(s)`); process.exit(0) }

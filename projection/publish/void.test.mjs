@@ -20,10 +20,10 @@ const manifest = {
 const OPTS = { root: 'https://pod.example/alice/profiles/', base: 'https://pod.example' }
 
 describe('buildVoid', () => {
-  it('builds a void:Dataset with absolute rootResource + uriSpace', () => {
+  it('builds a void:Dataset with absolute rootResource + uriSpace, SAME shape (bare IRI string, CTX @type:@id coercion — T14 minor fixed)', () => {
     const d = buildVoid(manifest, OPTS)
     expect(d['@type']).toBe('void:Dataset')
-    expect(d['void:rootResource']['@id']).toBe('https://pod.example/alice/')
+    expect(d['void:rootResource']).toBe('https://pod.example/alice/')
     expect(d['void:uriSpace']).toBe('https://pod.example/id/')
   })
   it('every dataDump-declaring vocabulary is a described node with a pod-served dataDump', () => {
@@ -46,6 +46,8 @@ describe('buildVoid', () => {
     expect(d['void:subset']).toHaveLength(2)
     expect(d['void:subset'][0]['dcterms:conformsTo']['@id'])
       .toBe('https://pod.example/alice/profiles/llm-wiki/profile.jsonld')
+    // subset rootResource: same bare-IRI shape as the top-level one, not a node-object
+    expect(d['void:subset'][0]['void:rootResource']).toBe('https://pod.example/alice/wiki/')
   })
 })
 

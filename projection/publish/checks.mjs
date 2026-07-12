@@ -139,3 +139,21 @@ export function checkRepresentation(jsonText, name) {
   if (rep.named_graph !== undefined && !['union', 'dataset'].includes(rep.mode)) out.push(`${name}: named_graph requires mode union|dataset`)
   return out
 }
+
+// pod-config.jsonld resolves-check (spec §4b/§7): the single DATA pointer pair
+// --lws-config reads (profileIndex + void). profileIndex must land on a real
+// defs-tree artifact; void isn't a defs file — it's materialized by buildVoid
+// at publish time (publish.mjs step 2b) — so its rule is "the manifest
+// declares a void section to materialize", not existsRel.
+export async function checkPodConfig(manifest, existsRel) {
+  let cfg
+  try { cfg = JSON.parse(await readFile(join(DEFS, 'pod-config.jsonld'), 'utf8')) }
+  catch (e) { return [`pod-config: unreadable (${e.message})`] }
+  const base = (p) => (p ?? '').split('/').pop()
+  const fails = []
+  if (!cfg.profileIndex || !existsRel(base(cfg.profileIndex)))
+    fails.push(`pod-config: profileIndex ${cfg.profileIndex} — not in the defs tree`)
+  if (!cfg.void || base(cfg.void) !== 'void.jsonld' || !manifest.void)
+    fails.push(`pod-config: void ${cfg.void} — no manifest.void to materialize it`)
+  return fails
+}
