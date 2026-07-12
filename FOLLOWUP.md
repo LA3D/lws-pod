@@ -7,38 +7,51 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round + debt-drain-round shipped; probes #6 + #7 (two arms) PASSED; carryovers DRAINED to the single L4 read-side pointer; **a post-drain code review (2026-07-12) then surfaced 15 findings — see the review-backlog block below** — NEXT = a publish-hardening batch + a fork review-round, both before the L4 read-side design round
+## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round + debt-drain-round shipped; probes #6 + #7 (two arms) PASSED; carryovers DRAINED to the single L4 read-side pointer; **a post-drain code review (2026-07-12) then surfaced 15 findings — see the review-backlog block below; the publish-hardening batch (A) SHIPPED same day (#1/#11/#15 FIXED, live-verified)** — NEXT = the fork review-round (B, 12 findings, one rebuild+repin) before the L4 read-side design round
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
-**▶ 2026-07-12 — POST-DRAIN CODE-REVIEW BACKLOG — 15 findings, NOT yet dispositioned.**
-High-effort multi-agent `/code-review` of the debt-drain round (fork `be2ddba..4824fe2`, lws-pod
-`75cf0d0..HEAD`): 10 finder angles → verify-per-candidate → gap sweep. **15 confirmed, 2 refuted.**
-None of the 15 was in any existing FOLLOWUP disposition (seeds / WON'T-FIX / carryovers); two even
-contradict claims already in this file (finding #2 — see the ⚠ markers at the DT2 bullet below and
-in the working-MCP block). **This block is the raw backlog** — nothing here is FIX/WON'T-FIX yet.
-Recommended scope: **(A) publish-hardening batch [lws-pod only, no fork rebuild] → (B) fork
-review-round [12 findings, one rebuild+repin] → then the L4 read-side design round.** Each finding =
+**▶ 2026-07-12 — POST-DRAIN CODE-REVIEW BACKLOG — 15 findings; (A) FIXED same day, (B)/(C) NOT
+yet dispositioned.** High-effort multi-agent `/code-review` of the debt-drain round (fork
+`be2ddba..4824fe2`, lws-pod `75cf0d0..HEAD`): 10 finder angles → verify-per-candidate → gap sweep.
+**15 confirmed, 2 refuted.** None of the 15 was in any existing FOLLOWUP disposition (seeds /
+WON'T-FIX / carryovers); two even contradict claims already in this file (finding #2 — see the ⚠
+markers at the DT2 bullet below and in the working-MCP block). **(A) below is dispositioned
+(FIXED); the (B)/(C) blocks remain the raw backlog.** Remaining scope: **(B) fork review-round
+[12 findings, one rebuild+repin] → then the L4 read-side design round.** Each finding =
 `file:line` + one-line repro + fix direction.
 
-**(A) Publish-hardening batch — `projection/publish/`, no fork rebuild, ships independently:**
+**(A) Publish-hardening batch — ALL THREE FIXED 2026-07-12 (`projection/publish/`, TDD red-green
+per finding, projection suite 116/116 + wiki-projector 28/28, live-verified on the fork-drain
+rig):**
 - **#1 ACL clobber on `make reinstantiate`** (`publish.mjs:129`, `acl.mjs:10`) — SECURITY, live on
   the routine freshness command: `write_acl` fully overwrites `.acl` (no merge, fork
   `tools.js:191-192,242` never reads the existing doc); an owner who hand-tightens a container
   (removes public-read) is silently re-opened to anonymous read, inherited by children via
-  `isDefault`. The step comment claims "idempotent." **Fix:** skip when an `.acl` already exists (or
-  read-merge), and/or wire `--no-acl` into the `reinstantiate` target.
+  `isDefault`. The step comment claims "idempotent." **FIXED:** ACL step extracted to
+  `provisionAcls()` (`acl.mjs`, injectable fetch, unit-tested) which probes `<target>.acl` first —
+  2xx → skip ("exists, left untouched": owner edits win), 404 → `write_acl`, anything else →
+  fail loud (neither clobber nor silent-skip). The false "idempotent" comment is gone;
+  `reinstantiate` needs no `--no-acl` (fresh pods still auto-provision). Live: all 3 rig targets
+  skipped; scratch-target 404→write→200 arm proven, cleaned up (note: fork `write_acl`
+  materializes the parent container as a side effect — cleaned too). Fork-side read-merge stays a
+  (B)-round candidate if wanted; the lws-pod caller no longer depends on it.
 - **#11 owner WebID hardcoded to `/alice/profile/card.jsonld#me`** (`publish.mjs:125`) —
   partial-publish + P13 leak: on any non-alice pod the fork anti-lockout guard refuses the first
   `write_acl` and publish `exit(1)` AFTER the profile tree + VoID were PUT → half-provisioned pod.
-  `--container` default is the neutral `/profiles/`, so the CLI reads as pod-agnostic. **Fix:**
-  derive the owner from the token's `webid` (the `/idp/credentials` response carries it) or a
-  validated `--owner` flag.
+  `--container` default is the neutral `/profiles/`, so the CLI reads as pod-agnostic. **FIXED:**
+  `ownerFromToken()` (`acl.mjs`) reads the bearer JWT's `webid` claim (confirmed against fork
+  `src/idp/credentials.js` payload + a live rig token); validated `--owner` flag overrides;
+  resolution runs at a new step 1b BEFORE any write — an underivable owner exits 1 with nothing
+  half-provisioned. The hardcoded line is deleted.
 - **#15 `checkPodConfig` resolves `profileIndex` by basename only** (`checks.mjs:154`) — broken
   rail: `base(p)=p.split('/').pop()` + the manifest IS `defs/index.jsonld`, so any `*/index.jsonld`
   passes vacuously and nested pointers false-fail; the directory (the part most likely wrong) is
-  never checked. **Fix:** reuse the subdir-preserving `makeDefsLoader` (the B5 mapping) already in
-  the same file.
+  never checked. **FIXED:** now `checkPodConfig(cfgText, manifest, existsRel, container)` — pure
+  (matches sibling checks; publish.mjs owns the file read), pointers must sit UNDER the publish
+  container, `profileIndex` resolved subdir-preserving (the B5 rule), `void` pinned to
+  `<container>void.jsonld`. Consequence: `--check` now needs the `--container` the pod-config
+  actually points at (Makefile always passed it; a mismatch fails loud — that's the rail working).
 
 **(B) Fork review-round — `JavaScriptSolidServer/src/`, one rebuild+repin, sequence BEFORE L4:**
 

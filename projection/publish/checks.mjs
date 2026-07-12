@@ -140,20 +140,24 @@ export function checkRepresentation(jsonText, name) {
   return out
 }
 
-// pod-config.jsonld resolves-check (spec §4b/§7): the single DATA pointer pair
-// --lws-config reads (profileIndex + void). profileIndex must land on a real
-// defs-tree artifact; void isn't a defs file — it's materialized by buildVoid
-// at publish time (publish.mjs step 2b) — so its rule is "the manifest
-// declares a void section to materialize", not existsRel.
-export async function checkPodConfig(manifest, existsRel) {
+// pod-config.jsonld resolves-check (spec §4b/§7, review #15): the single DATA
+// pointer pair --lws-config reads (profileIndex + void). Both pointers must
+// live UNDER the publish container — the directory is the part most likely
+// wrong, so it's checked, subdir-preserving (the B5 mapping, same rule as
+// makeDefsLoader). profileIndex must land on a real defs-tree artifact; void
+// isn't a defs file — it's materialized by buildVoid at the container root
+// (publish.mjs step 2b) — so its rule is "container root + a manifest.void
+// section to materialize", not existsRel.
+export function checkPodConfig(cfgText, manifest, existsRel, container) {
   let cfg
-  try { cfg = JSON.parse(await readFile(join(DEFS, 'pod-config.jsonld'), 'utf8')) }
-  catch (e) { return [`pod-config: unreadable (${e.message})`] }
-  const base = (p) => (p ?? '').split('/').pop()
+  try { cfg = JSON.parse(cfgText) } catch (e) { return [`pod-config: not JSON (${e.message})`] }
+  const root = container.endsWith('/') ? container : container + '/'
+  const under = (p) => typeof p === 'string' && p.startsWith(root) ? p.slice(root.length) : null
   const fails = []
-  if (!cfg.profileIndex || !existsRel(base(cfg.profileIndex)))
-    fails.push(`pod-config: profileIndex ${cfg.profileIndex} — not in the defs tree`)
-  if (!cfg.void || base(cfg.void) !== 'void.jsonld' || !manifest.void)
-    fails.push(`pod-config: void ${cfg.void} — no manifest.void to materialize it`)
+  const idxRel = under(cfg.profileIndex)
+  if (!idxRel || !existsRel(idxRel))
+    fails.push(`pod-config: profileIndex ${cfg.profileIndex} — not a defs-tree artifact under ${root}`)
+  if (under(cfg.void) !== 'void.jsonld' || !manifest.void)
+    fails.push(`pod-config: void ${cfg.void} — must be ${root}void.jsonld with a manifest.void to materialize it`)
   return fails
 }

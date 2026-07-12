@@ -108,18 +108,37 @@ describe('checkRepresentation', () => {
   })
 })
 
-describe('checkPodConfig — the pod-config.jsonld resolves rail (spec §4b/§7)', () => {
+describe('checkPodConfig — the pod-config.jsonld resolves rail (spec §4b/§7, review #15)', () => {
   const allExist = () => true
   const manifest = { void: { rootResource: '/alice/', uriSpace: 'id/' } }
+  const CONTAINER = '/alice/profiles/'
+  const cfg = (o) => JSON.stringify({ profileIndex: '/alice/profiles/index.jsonld', void: '/alice/profiles/void.jsonld', ...o })
   it('passes the real pod-config.jsonld against a manifest that declares void', async () => {
-    expect(await checkPodConfig(manifest, allExist)).toEqual([])
+    expect(checkPodConfig(await read('pod-config.jsonld'), manifest, allExist, CONTAINER)).toEqual([])
   })
-  it('FAILS profileIndex when it does not resolve in the defs tree', async () => {
-    const fails = await checkPodConfig(manifest, () => false)
+  it('FAILS profileIndex when it does not resolve in the defs tree', () => {
+    const fails = checkPodConfig(cfg(), manifest, () => false, CONTAINER)
     expect(fails.some((f) => f.includes('profileIndex'))).toBe(true)
   })
-  it('FAILS void when the manifest declares no void section (nothing would materialize it)', async () => {
-    const fails = await checkPodConfig({}, allExist)
+  it('FAILS profileIndex outside the publish container even when the basename matches (no vacuous pass)', () => {
+    const fails = checkPodConfig(cfg({ profileIndex: '/alice/elsewhere/index.jsonld' }), manifest, allExist, CONTAINER)
+    expect(fails.some((f) => f.includes('profileIndex'))).toBe(true)
+  })
+  it('resolves a nested profileIndex subdir-preserving (the B5 mapping, no false-fail)', () => {
+    const seen = []
+    const spy = (rel) => { seen.push(rel); return true }
+    expect(checkPodConfig(cfg({ profileIndex: '/alice/profiles/llm-wiki/profile.jsonld' }), manifest, spy, CONTAINER)).toEqual([])
+    expect(seen).toContain('llm-wiki/profile.jsonld')
+  })
+  it('FAILS void when the manifest declares no void section (nothing would materialize it)', () => {
+    const fails = checkPodConfig(cfg(), {}, allExist, CONTAINER)
     expect(fails.some((f) => f.includes('void'))).toBe(true)
+  })
+  it('FAILS void when it is not at the publish container root (buildVoid PUTs it there)', () => {
+    const fails = checkPodConfig(cfg({ void: '/alice/other/void.jsonld' }), manifest, allExist, CONTAINER)
+    expect(fails.some((f) => f.includes('void'))).toBe(true)
+  })
+  it('FAILS loud on a non-JSON config (fail-open blocked)', () => {
+    expect(checkPodConfig('not json', manifest, allExist, CONTAINER).length).toBeGreaterThan(0)
   })
 })

@@ -5,14 +5,14 @@
 // adding a profile family is a manifest entry + files, never a code edit.
 // Usage: node publish/publish.mjs --base https://pod.example [--container /alice/profiles/]
 //        [--bind /alice/concepts/=llm-wiki] [--instantiate <path>=<token>] [--token <bearer>]
-//        [--check] [--no-acl]
+//        [--owner <webid>] [--check] [--no-acl]
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
 import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation, checkPodConfig, makeDefsLoader } from './checks.mjs'
 import { buildVoid, checkVoid } from './void.mjs'
-import { buildAclPayload } from './acl.mjs'
+import { ownerFromToken, provisionAcls } from './acl.mjs'
 import { descriptorToProfile } from '../prof/profile-doc.mjs'
 import { loadProfile } from '../prof/profile-loader.mjs'
 import { instantiate, mergeContexts } from '../prof/instantiate.mjs'
@@ -89,10 +89,23 @@ for (const d of DESCRIPTORS) {
 }
 const existsRel = (rel) => existsSync(join(DEFS, ...rel.split('/')))
 failures.push(...checkVoid(manifest, existsRel))
-failures.push(...await checkPodConfig(manifest, existsRel))
+try {
+  failures.push(...checkPodConfig(await readFile(join(DEFS, 'pod-config.jsonld'), 'utf8'), manifest, existsRel, container))
+} catch (e) { failures.push(`pod-config: unreadable (${e.message})`) }
 if (manifest.void?.knownUndumped?.length) console.log(`void: known undumped vocab (recorded, not patched): ${manifest.void.knownUndumped.join(', ')}`)
 if (failures.length) { console.error('DECLARATION CHECKS FAILED:\n' + failures.map((f) => ' - ' + f).join('\n')); process.exit(1) }
 if (checkOnly) { console.log(`checks passed for ${DESCRIPTORS.length} profile(s)`); process.exit(0) }
+
+// 1b. Owner resolution (review #11) — BEFORE any write, so an underivable owner
+// fails loud with nothing half-provisioned. --owner wins; else the bearer's own
+// webid claim. No hardcoded pod name.
+const ownerArg = arg('owner')
+if (ownerArg && !/^https?:\/\//.test(ownerArg)) { console.error(`--owner must be an absolute WebID URL, got '${ownerArg}'`); process.exit(1) }
+const ownerWebId = ownerArg ?? (token ? ownerFromToken(token) : null)
+if (!noAcl && !ownerWebId) {
+  console.error('cannot determine the owner WebID for ACL provisioning: pass --owner <webid>, use a bearer whose JWT carries a webid claim, or opt out with --no-acl')
+  process.exit(1)
+}
 
 // 2. Publish the tree.
 const headers = token ? { authorization: `Bearer ${token}` } : {}
@@ -118,20 +131,14 @@ if (manifest.void && !checkOnly) {
 }
 
 // 2c. ACLs (spec §7 — the OPS gap recorded 3x, closed): public-read + owner-control
-// (isDefault both) on the profiles container and every --bind/--instantiate target, via the
-// pod's own MCP write_acl tool. Idempotent (re-PUT of an ACL is fine). --no-acl opts out;
-// --check already exited at line ~90, so this never runs unattended on a dry run either way.
+// (isDefault both) on the profiles container and every --bind/--instantiate target, via
+// the pod's own MCP write_acl tool. NOT a blind re-PUT (review #1): an existing .acl is
+// left untouched, so an owner's hand-tightened ACL survives `make reinstantiate`.
+// --no-acl opts out; --check already exited above, so a dry run never gets here.
 if (!checkOnly && !noAcl) {
-  const ownerWebId = new URL('/alice/profile/card.jsonld#me', base).href
   const aclTargets = [...new Set([container, ...binds.map((b) => b.split('=')[0]), ...insts.map((s) => s.split('=')[0])])]
-  let rpcId = 1
-  for (const path of aclTargets) {
-    const rpcBody = { jsonrpc: '2.0', id: rpcId++, method: 'tools/call', params: { name: 'write_acl', arguments: buildAclPayload(path, ownerWebId) } }
-    const ra = await fetch(new URL('/mcp', base).href, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(rpcBody) })
-    const rj = await ra.json().catch(() => ({}))
-    if (!ra.ok || rj.error || rj.result?.isError) { console.error(`ACL ${path} -> ${ra.status} ${JSON.stringify(rj.error ?? rj.result ?? rj)}`); process.exit(1) }
-    console.log(`ACL ${path} -> public-read + owner-control`)
-  }
+  try { await provisionAcls({ base, targets: aclTargets, ownerWebId, headers }) }
+  catch (e) { console.error(e.message); process.exit(1) }
 }
 
 // 3. Bind containers: conformsTo (the index) + describedby (the enforcement
