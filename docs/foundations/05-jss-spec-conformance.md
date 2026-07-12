@@ -16,7 +16,7 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 | 1 | Container boot / reset-with-volume | CONFORMS — survives `down`/`up` *(verified live)* |
 | 2 | Headless agent auth (`/idp/credentials`) | DIVERGES — RS256 JWT bearer, no DPoP *(verified live)* |
 | 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) *(MCP self-advertised 2026-07-10; listing WAC-filtered + guard-parity/alternates/SSRF-hardened 2026-07-11)* |
-| 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage *(serving hardened, listings WAC-filtered 2026-07-10; teaching-406/gateway/VoID/ETag + representation-preservation/304-406-ordering/`--lws-config` 2026-07-11)* |
+| 4 | Conneg + container traversal | CONFORMS to Solid conneg · DIVERGES from LWS storage · ⚠ **PATCH/ETag sub-conformance BROKEN** *(serving hardened, listings WAC-filtered 2026-07-10; teaching-406/gateway/VoID/ETag + representation-preservation/304-406-ordering/`--lws-config` 2026-07-11; **2026-07-12 conformance audit found 2 round-introduced violations — N3-Patch-on-Turtle 409, Turtle↔JSON-LD shared ETag — + 3 pre-existing (JSON-Merge-Patch, missing-Content-Type, json-label); see the §4 correction block**)* |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
 | 6 | LWS-CID identity | CONFORMS (RS-direct profile of the AS-mediated suite); `aud`+`exp` replay-guards enforced; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS — `.meta`/`constrainedBy` work, proxy ports *(verified live)* · GAP (in-process hooks) |
@@ -279,7 +279,12 @@ silent arm: a non-RDF source (markdown, plain JSON) under a specific unsatisfiab
   `wac-allow` header (`--lws`-gated, per Chuck's pre-flight decision — off-path byte-identical);
   `OPTIONS` now carries the storageDescription Link, parity with GET/HEAD; strong `ETag`s are now
   **variant-keyed** (served-content-type suffix + the WAC-filtered-listing auth-visibility key),
-  closing the stale-variant risk the serving-path round's S1 note flagged; HEAD's directory
+  closing the stale-variant risk the serving-path round's S1 note flagged **[⚠ 2026-07-12: OVER-BROAD
+  — JSON-LD is NOT variant-keyed (`VARIANT_KEYS`/`QUADS_OUTPUTS` cover only quads targets), so a
+  Turtle/N3 source served as `application/ld+json` shares the own-format Turtle ETag → a reachable
+  wrong-variant 304 that VIOLATES RFC 9110 §8.8.3 + the LWS ETag MUST. The two colliding
+  serializations are the two Solid-*mandated* ones. See the §4 correction below; FOLLOWUP backlog
+  #5]**; HEAD's directory
   branch now calls the lws 3-arg `selectContentType` form, closing a GET/HEAD N-Quads-vs-ld+json
   divergence.
 
@@ -307,12 +312,19 @@ envelope; Turtle is already self-describing as Turtle). A new write-time **name/
 gate** (`src/lws/write-consistency.js`) teaches a 400 on a name/body mismatch or an
 extension-less RDF write (would silently serve `octet-stream`) — so the stored type, the served
 `Content-Type`, and `items[].mediaType` can never disagree (`items[]` itself fixed via
-`getContentType`, DT7, axis 3). The hand-rolled RDF→JSON-LD serializer is retired for
+`getContentType`, DT7, axis 3). **[⚠ 2026-07-12: this "can never disagree" invariant is enforced at
+the 2 HTTP write handlers ONLY — MCP writes bypass `applyLwsWrite`'s gate entirely (FOLLOWUP backlog
+#2), and `application/json` bodies at RDF names (#10) + slug-less RDF POST (#9) evade or mis-fire the
+gate. See the §4 correction below.]** The hand-rolled RDF→JSON-LD serializer is retired for
 `jsonld@9.0.0`'s `fromRDF` per explicit user directive (fixes `@type`/`@list` flattening the
 hand-roll had introduced). **Conditional-request correctness** (DT3): the file/container/HEAD
 `If-None-Match` fast path now defers until the negotiation outcome (media F3 arm OR profile arm)
 is known — RFC 9110 §13.2.2's "preconditions apply only to requests that would otherwise
-succeed": a request that would 406 always 406s, never a stale 304; file-304 `Vary` gains
+succeed": a request that would 406 always 406s, never a stale 304 **[⚠ 2026-07-12: OVER-BROAD — the
+deferral predicate `wouldNotNegotiate` excludes RDF sources (`!isRdfSourceType`), so a would-406
+RDF-source lossy conversion (named-graph→Turtle) can still be preempted by the early 304. RFC 9110
+§13.2.2 gap; ~unreachable (no replayable strong validator) but real. See §4 correction, FOLLOWUP
+backlog #4]**; file-304 `Vary` gains
 `Accept-Profile`. 304 winning over a profile-303 stays deliberate, pre-existing, and now tested
 (not a bug). **Flag consolidation** (DT4): `--lws-profile-index`/`--lws-void` are **replaced, no
 aliases**, by `--lws-config <pod-path>` — one pod resource declaring `{profileIndex, void}` as
@@ -329,6 +341,62 @@ round-trip pinned to exact bytes, not a substring — tightened after a review f
 test-conneg` **27/27** (was 21, +6: 3 for 304-never-beats-406 GET+HEAD+Vary, 3 for
 `--lws-config`-driven service presence), `make test-void` **4/4** unchanged, full 15-gate sweep
 zero regression (`FOLLOWUP.md`).
+
+**⚠ Conformance-review correction (2026-07-12) — the "closed" claims above are over-broad; the round
+introduced two standards VIOLATIONS.** A post-round audit against the pinned LWS 1.0 core / Solid
+Protocol / RFC 9110 specs (`.claude/skills/{lws-protocol,solid-protocol}`) found that the
+"truthful-by-construction," "stale-variant risk closed," and "would-406 always 406s" claims in this
+section are each narrower in truth than stated, and that the round's DT2 store-verbatim change — whose
+downstream PATCH and ETag handlers were **not** made serialization-agnostic — introduced two genuine
+violations. This doc previously **did not track PATCH conformance at all**, which is why V1/P1 went
+unrecorded.
+
+- **V1 (round-introduced VIOLATION) — N3-Patch on a verbatim-Turtle resource returns 409.** Violates
+  Solid `#server-patch-n3-accept` MUST ("Servers MUST accept a PATCH request with an N3 Patch body
+  when the target of the request is an RDF document"). `handlePatch` (`resource.js:2078-2162`)
+  `safeJsonParse`es the stored bytes; a verbatim Turtle body throws, the `catch` handles only
+  SPARQL-Update, and a plain N3-Patch falls to a 409. Pre-round, Turtle was transcoded to JSON-LD at
+  write, so the patch silently worked — the mandated format now fails on the commonest serialization
+  while the *non*-mandated SPARQL-Update is the only one that works. (FOLLOWUP backlog #7.)
+- **V2 (round-introduced VIOLATION) — one strong ETag shared across the Turtle and JSON-LD
+  representations → wrong-variant 304.** Violates RFC 9110 §8.8.3 (an ETag MUST differentiate
+  representations) + LWS core's ETag MUST (`Operations/read-resource.md`). `predictFileEtag`
+  variant-keys only quads targets (`VARIANT_KEYS`/`QUADS_OUTPUTS`), so a Turtle/N3 source served as
+  `application/ld+json` carries the bare `stats.etag` — identical to its own-format Turtle ETag; a
+  cross-format `If-None-Match` then 304s. Reachable in the deployed `--lws --conneg` config, on the
+  two Solid-mandated serializations. (FOLLOWUP backlog #5.)
+
+Risky deviations (real, but NOT protocol-surface violations under the spec's scoping): **#4** the
+304-can-preempt-a-would-406 gap for RDF-source lossy conversions (RFC 9110 §13.2.2 — but the would-406
+representations emit no replayable validator, so ~unreachable); **#6** stored `.nt`/`.nq` sources 406
+on every conversion (`.nt`/`.nq` are 415-rejected on write, so the server never *creates* them via the
+protocol, and read-conversion of a non-written source is a MAY under LWS — though git-seeded sources,
+§5 below, are a live path for this project); **#9** slug-less RDF POST 400 (create-resource "server
+generates identifier" is declarative + Slug is a MAY). **#10** `application/json` name/type is
+SPEC-SILENT (JSON-LD 1.1 permits both the interpret-as-JSON-LD and serve-as-plain-JSON readings).
+
+Pre-existing violations the audit surfaced (NOT round-attributable — the PATCH handler + write path
+are untouched by the round):
+- **P1 — JSON Merge Patch MUST unmet** (`resource.js:2013-2022`): LWS core `Operations/update-resource.md`
+  ("LWS server MUST minimally support JSON Merge Patch (`application/merge-patch+json`)"). The handler
+  415s everything except `text/n3` and `application/sparql-update`. **Clean LWS-core VIOLATES.**
+- **P2 — bodied write with no `Content-Type` not 400'd** (`conneg.js:191`, `canAcceptInput('')`
+  returns true): Solid `#server-content-type-missing` MUST. Candidate violation — confirm no upstream
+  Fastify guard catches it first.
+- **P3 — `Accept: application/json` on a container returns `application/ld+json`**: LWS media-type
+  label MUST. Body identity is met (the payload-identity MUST holds); only the `Content-Type` label
+  is wrong.
+
+**The cornerstone is unaffected.** The same audit pass confirmed profile content negotiation (exact
+W3C `altr:` vocabulary + the registered `profile`/`canonical`/`alternate` relations + spec-shaped
+303/200/406 arms), the PROF profile mechanism (`projection/prof/` — faithful `prof:` terms, clean
+`lwspr:` role extension), the LWS vocabulary + storage-description shape + the byte-exact
+`https://www.w3.org/ns/lws#storageDescription` discovery relation, and the `/.well-known/void` rail
+(a safe additive extension — registered well-known, real VoID vocab, off by default) all CONFORM. One
+cosmetic item: the storage-description vendor service types (`ProfileIndexService`/`VoidService`/
+`McpService`) are bare tokens where the LWS extension convention is a URI (the pod already uses a URI
+for its conneg capability, `http://www.w3.org/ns/dx/connegp/profile/http`). Full findings + fix
+directions: the "2026-07-12 POST-DRAIN CODE-REVIEW BACKLOG" block in `FOLLOWUP.md`.
 
 ## 5. Git: container clone-able; push materializes files as resources
 

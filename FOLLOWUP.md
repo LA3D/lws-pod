@@ -7,9 +7,163 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round + debt-drain-round shipped; probes #6 + #7 (two arms) PASSED; carryovers DRAINED to the single L4 read-side pointer — NEXT = the L4 read-side design round
+## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round + debt-drain-round shipped; probes #6 + #7 (two arms) PASSED; carryovers DRAINED to the single L4 read-side pointer; **a post-drain code review (2026-07-12) then surfaced 15 findings — see the review-backlog block below** — NEXT = a publish-hardening batch + a fork review-round, both before the L4 read-side design round
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
+
+**▶ 2026-07-12 — POST-DRAIN CODE-REVIEW BACKLOG — 15 findings, NOT yet dispositioned.**
+High-effort multi-agent `/code-review` of the debt-drain round (fork `be2ddba..4824fe2`, lws-pod
+`75cf0d0..HEAD`): 10 finder angles → verify-per-candidate → gap sweep. **15 confirmed, 2 refuted.**
+None of the 15 was in any existing FOLLOWUP disposition (seeds / WON'T-FIX / carryovers); two even
+contradict claims already in this file (finding #2 — see the ⚠ markers at the DT2 bullet below and
+in the working-MCP block). **This block is the raw backlog** — nothing here is FIX/WON'T-FIX yet.
+Recommended scope: **(A) publish-hardening batch [lws-pod only, no fork rebuild] → (B) fork
+review-round [12 findings, one rebuild+repin] → then the L4 read-side design round.** Each finding =
+`file:line` + one-line repro + fix direction.
+
+**(A) Publish-hardening batch — `projection/publish/`, no fork rebuild, ships independently:**
+- **#1 ACL clobber on `make reinstantiate`** (`publish.mjs:129`, `acl.mjs:10`) — SECURITY, live on
+  the routine freshness command: `write_acl` fully overwrites `.acl` (no merge, fork
+  `tools.js:191-192,242` never reads the existing doc); an owner who hand-tightens a container
+  (removes public-read) is silently re-opened to anonymous read, inherited by children via
+  `isDefault`. The step comment claims "idempotent." **Fix:** skip when an `.acl` already exists (or
+  read-merge), and/or wire `--no-acl` into the `reinstantiate` target.
+- **#11 owner WebID hardcoded to `/alice/profile/card.jsonld#me`** (`publish.mjs:125`) —
+  partial-publish + P13 leak: on any non-alice pod the fork anti-lockout guard refuses the first
+  `write_acl` and publish `exit(1)` AFTER the profile tree + VoID were PUT → half-provisioned pod.
+  `--container` default is the neutral `/profiles/`, so the CLI reads as pod-agnostic. **Fix:**
+  derive the owner from the token's `webid` (the `/idp/credentials` response carries it) or a
+  validated `--owner` flag.
+- **#15 `checkPodConfig` resolves `profileIndex` by basename only** (`checks.mjs:154`) — broken
+  rail: `base(p)=p.split('/').pop()` + the manifest IS `defs/index.jsonld`, so any `*/index.jsonld`
+  passes vacuously and nested pointers false-fail; the directory (the part most likely wrong) is
+  never checked. **Fix:** reuse the subdir-preserving `makeDefsLoader` (the B5 mapping) already in
+  the same file.
+
+**(B) Fork review-round — `JavaScriptSolidServer/src/`, one rebuild+repin, sequence BEFORE L4:**
+
+*Cluster 1 — write-consistency gate coverage (the DT2 gate is wired at 2 HTTP call sites only):*
+- **#2 MCP write path bypasses the name/type gate** (`src/mcp/tools.js:53`; gate at
+  `resource.js:1832` / `container.js:120`) — `write_resource`/`create_resource`/`put_typed_resource`
+  call `applyLwsWrite` with no `writeTypeConsistency`. Worst case: omit `contentType` →`text/plain`→
+  `admission.js:34` skips SHACL entirely → arbitrary bytes at an RDF-extension name in a governed
+  container. **Falsifies the DT2 `:39` "can never disagree" claim.** **Fix:** move the gate inside
+  `applyLwsWrite` (`src/lws/write.js`) — the choke point all write surfaces share.
+- **#10 gate exempts `application/json`** (`write-consistency.js:26`) — a JSON body at a `.ttl` name
+  passes (json not in the gate's RDF set) while the rest of the pipeline treats json as JSON-LD →
+  stored verbatim, then read-back 406s / mislabels. **Fix:** map `application/json`→JSON-LD in the
+  gate's `RDF` set.
+- **#9 slug-less POST of non-JSON-LD RDF always 400s** (`container.js:120`→`write-consistency.js:39`)
+  — server assigns an extensionless UUID (`filesystem.js:213`); the gate rejects extensionless for
+  Turtle/N3/NT/NQ, and the client can't fix a server-assigned name → standard LDP POST-to-create is
+  broken (the gate's docstring lists "POST slug-less create" as passing — coded only in the JSON-LD
+  branch). **Fix:** derive an extension from the submitted type when generating the name under
+  `--lws`, or exempt extensionless in the non-JSON-LD branch and stamp the type at store time.
+
+*Cluster 2 — serving-path conditional / negotiation:*
+- **#4 304 beats 406 on lossy RDF conversion** (`resource.js:308`, `wouldNotNegotiate`) — the
+  predicate's `!isRdfSourceType` term makes it false for every RDF source, so a would-406
+  (named-graph / parse-fail) is short-circuited to a wrong 304, and the 406 itself leaks the
+  matching ETag. The recorded WON'T-FIX is scoped "outside RDF-stored scope"; the in-code "never a
+  wrong 304" comment is falsified here. **Fix:** extend the deferral to RDF-source would-406
+  outcomes (one seam GET + HEAD both flow through). *(Conformance audit: RISKY deviation of RFC 9110
+  §13.2.2, but ~unreachable — the would-406 RDF representations emit no replayable strong validator,
+  so a client can't hold a matching `If-None-Match`. Lower priority than #4's line-neighbour #5.)*
+- **#5 wrong-variant 304 via bare ETag on the JSON-LD arm** (`resource.js:251`, `predictFileEtag`)
+  — **⚠ STANDARDS VIOLATION (2026-07-12 conformance audit): RFC 9110 §8.8.3 [ETags MUST
+  differentiate representations] + LWS core ETag MUST; reachable in the deployed `--lws --conneg`
+  config, on the two Solid-mandated serializations (Turtle↔JSON-LD). Priority.** —
+  no JSON-LD variant key (`QUADS_OUTPUTS`/`VARIANT_KEYS`), and the branch keyed on `connegEnabled`
+  while the serving arm runs under `negotiate = connegEnabled || lwsEnabled` → a cross-variant
+  conditional GET reuses Turtle bytes as JSON-LD; on `--lws`-without-`--conneg` all variants collide
+  on the bare ETag. **Fix:** teach `predictFileEtag` a JSON-LD variant key and key it on `negotiate`.
+- **#6 false 406 on all conversions from verbatim-stored N-Quads/N-Triples** (`src/rdf/dataset.js:42`;
+  `serve.js:27`) — `toDataset` routes nq/nt bytes to the JSON-LD parser (never parses); `ld+json` is
+  absent from `GRAPH_CAPABLE`, so named-graph→JSON-LD 406s though `jsonld.fromRDF` is lossless (the
+  406 even recommends ld+json). DT2 verbatim storage exposed this. **Fix:** route NTRIPLES/NQUADS
+  through the n3 parser in `toDataset`; add `JSON_LD` to `GRAPH_CAPABLE`. *(Conformance audit: NOT a
+  protocol-surface violation — `.nt`/`.nq` are 415-rejected on write, so the server never* creates
+  *them via the protocol, and read-conversion of a non-written source is a MAY under LWS / Solid. BUT
+  git/filesystem-seeded `.nq`/`.nt` sources are a live path for this "pod is canonical, git is a
+  client" project — §5 of `05-jss-spec-conformance.md` confirms git-pushed files bypass conneg — so
+  still worth fixing as a data-path bug, just not a standards obligation.)*
+
+*Cluster 3 — verbatim-storage fallout:*
+- **#7 N3-Patch on a verbatim-stored Turtle resource 409s** (`resource.js:2159`) — **⚠ STANDARDS
+  VIOLATION (2026-07-12 conformance audit): Solid `#server-patch-n3-accept` MUST ["Servers MUST
+  accept a PATCH request with an N3 Patch body when the target is an RDF document"]. Round-introduced
+  by DT2. Priority.** — `handlePatch`
+  still `safeJsonParse`es the stored bytes; a `text/n3` PATCH of a stored `.ttl` (now raw after DT2)
+  → 409 "not valid JSON-LD." Pre-round it stored JSON-LD and patched fine; scope is all verbatim RDF.
+  Suite is green because no test PATCHes a Turtle-stored resource. **Fix:** parse the stored form by
+  its actual media type before applying the patch.
+
+*Cluster 4 — MCP trust / federation:*
+- **#3 `altr` strings emitted to the model unsanitized** (`read-tools.js:73`, `tools.js:433`) —
+  href/format/conformsTo from client-managed `.meta` reach the model unfenced while adjacent fields
+  get `sanitizeTypes`; U+200B/U+202E verified surviving → prompt-injection channel. **Fix:**
+  sanitize href/format/profile at both MCP emission sites (HTTP linkset stays raw — not model-bound).
+- **#12 `lws_type_search` returns declared types unsanitized** (`tools.js:327`) — vs
+  `describe_resource`, which sanitizes the same client-supplied source; smuggled bidi/zero-width in a
+  type URI (only `new URL`-validated) reaches the model. **Fix:** wrap `tools.js:327` in
+  `sanitizeTypes`.
+- **#13 `read_resource` mimeType = `getContentType(path)`** (`read-tools.js:230`) —
+  `application/octet-stream` for containers/`.well-known` (regression from `application/lws+json`),
+  and disagrees with the `resources/read` primitive on the same URI. The A5 fenced-markdown fix
+  over-generalized to a blanket `getContentType`. **Fix:** report the trust/view type (`c.mimeType`)
+  for the structural field, or override only when the extension actually resolves a type.
+- **#8 `redirect:'error'` breaks the pod's own 303 VoID rail cross-pod** (`read-tools.js:144`) —
+  federation `read_resource` of a remote `/.well-known/void` (a 303, advertised with "GET follows a
+  303") dead-ends at "remote unreachable: fetch failed," Location never surfaced. **Fix:**
+  `redirect:'manual'` + per-hop `isBlockedHost` revalidation (keeps the SSRF property, restores the
+  rail).
+- **#14 MCP SSRF blocklist misses `100.64.0.0/10`** (`ssrf.js:20`) — Alibaba metadata
+  `100.100.100.200` + Tailscale space; the pre-existing `src/utils/ssrf.js` (5 importers) blocks it.
+  Two divergent hand-rolled lists. **Fix:** consolidate the MCP guard onto the shared
+  `utils/ssrf.js` range table (fold in the MCP guard's stronger IPv4-mapped-IPv6 handling).
+
+**(C) Pre-existing LWS/Solid violations — surfaced by the 2026-07-12 conformance audit, NOT
+round-attributable (the PATCH handler + write path are untouched by the drain round; scope these
+whenever the PATCH/write handlers are next opened):**
+- **P1 — JSON Merge Patch MUST unmet** (`resource.js:2013-2022`) — **VIOLATES LWS core**
+  `Operations/update-resource.md:35` ("LWS server MUST minimally support JSON Merge Patch
+  (`application/merge-patch+json`)"). The PATCH handler 415s everything except `text/n3` and
+  `application/sparql-update`. (This doc — `05-jss-spec-conformance.md` — does not track PATCH
+  conformance at all, which is why P1 and #7 went unrecorded.)
+- **P2 — bodied write with no `Content-Type` not 400'd** (`conneg.js:191`, `canAcceptInput('')`
+  returns true) — candidate **VIOLATES** Solid `#server-content-type-missing` MUST ("Server MUST
+  reject PUT/POST/PATCH requests that contain content but lack the Content-Type header, with 400").
+  Verify no upstream Fastify guard catches it first before treating as confirmed.
+- **P3 — `Accept: application/json` on a container returns `application/ld+json`** (`selectContentType`
+  fall-through; `resource.js:490-495` has no `application/json` branch) — **VIOLATES** the LWS
+  media-type label MUST ("If a client requests application/json, the server MUST respond with
+  Content-Type: application/json"). Body identity is met; only the `Content-Type` label is wrong.
+
+**Conformance-audit summary (2026-07-12):** the cornerstone — profile conneg, PROF, LWS vocabulary,
+discovery — is CONFORMANT (exact `altr:`/`prof:` terms, byte-exact `storageDescription` Link rel,
+`/.well-known/void` a safe additive extension). The deviations are all on the RDF serving/patch
+path: #5 + #7 are round-introduced STANDARDS VIOLATIONS (priority); #4/#6/#9 are risky-but-scoped
+deviations; #10 is spec-silent; P1/P2/P3 are pre-existing violations. Full spec citations live in
+the "Conformance-review correction (2026-07-12)" block appended to §4 of
+`docs/foundations/05-jss-spec-conformance.md`. One cosmetic item (not a finding): the vendor service
+types `ProfileIndexService`/`VoidService`/`McpService` in the storage description are bare tokens
+where the LWS extension convention is a URI — the pod already uses a URI for its conneg capability.
+
+**Not in the 15:**
+- **Refuted (checked, dropped):** decimal/hex/octal-IPv4 SSRF "bypass" — WHATWG `new URL()`
+  normalizes numeric forms to dotted-quad before the guard, so they're blocked (verified via
+  `node`); unbounded `r.text()` OOM — the `!reader` fallback is dead under the pinned Node ≥18 /
+  undici (reachable only via a test double, and it caps its output anyway).
+- **Confirmed but ALREADY RECORDED — do NOT re-hunt:** `ctx.public` unthreaded → MCP
+  under-advertises alternates on `--public` pods = the recorded "safe but unthreaded" next-fork-round
+  seed (fail-closed under-advertisement, not exposure).
+- **Lower-severity near-misses (fold into whichever round touches the file):** `app/seed/seed.mjs`
+  PUTs `/alice/concepts/.meta` as `text/turtle`, which the new gate (#9-family) 400s on a `--lws`
+  fork pod → the constrained-container demo silently degrades to ungoverned (rides with the L4
+  console-on-fork rewire, but note this specific cause is new); `pod-config.js` does no shape
+  validation → `[object Object]` service endpoints / a `null` config 500s both well-known routes
+  (only reachable by hand-PUTting the config — publish crashes in `checkPodConfig` first); the
+  `pod-config.js` `mtime:size` cache key has a negligible same-tick collision residual.
 
 **▶ DEBT-DRAIN ROUND — DONE + LIVE-VERIFIED (2026-07-11).** Executed 2026-07-11, subagent-driven
 (9 fork tasks DT1-DT9 + lws-pod DT10-DT14, per-task spec+quality reviews). Design of record
@@ -37,6 +191,9 @@ modules `pod-config.js`/`write-consistency.js`/`ssrf.js`, image `fork-drain`).**
   (`src/lws/write-consistency.js`) teaches a 400 on a name/body mismatch (`x.jsonld` PUT as
   `text/turtle`) or an extension-less RDF write (would serve `octet-stream`) — truthful-by-
   construction: stored type, served `Content-Type`, and `items[].mediaType` can never disagree.
+  **[⚠ 2026-07-12 review: this "can never disagree" invariant is FALSIFIED — the gate is wired at
+  the 2 HTTP call sites only, so MCP writes (backlog #2), `application/json` bodies (#10), and
+  slug-less POST (#9) evade or mis-fire it. See the review backlog at top.]**
   **USER DIRECTIVE enforced:** the hand-rolled `datasetToJsonLd` serializer is retired for
   `jsonld@9.0.0`'s `fromRDF` (already a transitive dep, zero download) — fixes `@type`/`@list`
   the hand-roll had been flattening. Closes probe #7's B1 finding (`.ttl`-named artifacts serving
@@ -1362,6 +1519,9 @@ non-`--lws` paths provably unchanged):
   core (SHACL admission → write → type-capture), the SAME path as HTTP PUT/POST, so an MCP write can no
   longer bypass the L3 admission floor (+ a `types` param = the `rel="type"` equivalent). Closes the
   finding that MCP writes hit `storage.write` directly.
+  **[⚠ 2026-07-12 review: still true for the L3 SHACL admission floor, but the LATER debt-drain
+  name/type gate (DT2, `write-consistency.js`) was added at the HTTP handlers, NOT inside
+  `applyLwsWrite` — so MCP writes evade *that* gate. See review backlog #2.]**
 - **LWS-aware read tools** — `lws_type_search` / `lws_linkset` / `lws_storage_description`, each reusing
   the HTTP-side function (`collectAuthorizedResources` WAC-filtered walk / `generateLinkset` /
   `buildStorageDescription`) so the **no-oracle** property is inherited, not reimplemented.
