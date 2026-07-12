@@ -4,13 +4,15 @@
 // defs/index.jsonld and each descriptor's own PROF roles drive its checks —
 // adding a profile family is a manifest entry + files, never a code edit.
 // Usage: node publish/publish.mjs --base https://pod.example [--container /alice/profiles/]
-//        [--bind /alice/concepts/=llm-wiki] [--instantiate <path>=<token>] [--token <bearer>] [--check]
+//        [--bind /alice/concepts/=llm-wiki] [--instantiate <path>=<token>] [--token <bearer>]
+//        [--check] [--no-acl]
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
 import { checkDescriptor, checkShapes, checkContext, checkVocabulary, usedTermsFromContext, checkRepresentation, makeDefsLoader } from './checks.mjs'
 import { buildVoid, checkVoid } from './void.mjs'
+import { buildAclPayload } from './acl.mjs'
 import { descriptorToProfile } from '../prof/profile-doc.mjs'
 import { loadProfile } from '../prof/profile-loader.mjs'
 import { instantiate, mergeContexts } from '../prof/instantiate.mjs'
@@ -27,6 +29,7 @@ function arg(name, dflt = null) {
 const binds = process.argv.flatMap((a, i) => (process.argv[i - 1] === '--bind' ? [a] : []))
 const insts = process.argv.flatMap((a, i) => (process.argv[i - 1] === '--instantiate' ? [a] : []))
 const checkOnly = process.argv.includes('--check')
+const noAcl = process.argv.includes('--no-acl')
 
 async function* files(dir) {
   for (const e of await readdir(dir, { withFileTypes: true })) {
@@ -110,6 +113,23 @@ if (manifest.void && !checkOnly) {
     headers: { ...headers, 'content-type': 'application/ld+json' }, body: JSON.stringify(voidDoc, null, 2) })
   if (!rv.ok && rv.status !== 201 && rv.status !== 205) { console.error(`PUT void.jsonld -> ${rv.status}`); process.exit(1) }
   console.log(`PUT ${new URL('void.jsonld', root).href} -> ${rv.status}`)
+}
+
+// 2c. ACLs (spec §7 — the OPS gap recorded 3x, closed): public-read + owner-control
+// (isDefault both) on the profiles container and every --bind/--instantiate target, via the
+// pod's own MCP write_acl tool. Idempotent (re-PUT of an ACL is fine). --no-acl opts out;
+// --check already exited at line ~90, so this never runs unattended on a dry run either way.
+if (!checkOnly && !noAcl) {
+  const ownerWebId = new URL('/alice/profile/card.jsonld#me', base).href
+  const aclTargets = [...new Set([container, ...binds.map((b) => b.split('=')[0]), ...insts.map((s) => s.split('=')[0])])]
+  let rpcId = 1
+  for (const path of aclTargets) {
+    const rpcBody = { jsonrpc: '2.0', id: rpcId++, method: 'tools/call', params: { name: 'write_acl', arguments: buildAclPayload(path, ownerWebId) } }
+    const ra = await fetch(new URL('/mcp', base).href, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(rpcBody) })
+    const rj = await ra.json().catch(() => ({}))
+    if (!ra.ok || rj.error || rj.result?.isError) { console.error(`ACL ${path} -> ${ra.status} ${JSON.stringify(rj.error ?? rj.result ?? rj)}`); process.exit(1) }
+    console.log(`ACL ${path} -> public-read + owner-control`)
+  }
 }
 
 // 3. Bind containers: conformsTo (the index) + describedby (the enforcement

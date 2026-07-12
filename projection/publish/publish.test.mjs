@@ -3,6 +3,7 @@ import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { buildAclPayload } from './acl.mjs'
 
 const projectionRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const defsPath = (f) => join(projectionRoot, 'profiles', 'defs', f)
@@ -25,5 +26,20 @@ describe('publish.mjs (import smoke — full run is Task 10, live)', () => {
     // llm-wiki lives in a subdirectory; resolution must come from hasToken, not name convention
     const manifest = JSON.parse(readFileSync(defsPath('index.jsonld'), 'utf8'))
     expect(manifest.profiles).toContain('llm-wiki/profile.jsonld')
+  })
+})
+
+// ACL provisioning (spec §7): buildAclPayload is the pure shape builder consumed by the
+// publish CLI's write_acl step (live-exercised by Task 13's gate, not here).
+describe('buildAclPayload', () => {
+  const OWNER = 'https://pod.example/alice/profile/card.jsonld#me'
+
+  it('grants public-read + owner Read/Write/Control, both isDefault', () => {
+    const p = buildAclPayload('/alice/profiles/', OWNER)
+    expect(p.path).toBe('/alice/profiles/')
+    expect(p.authorizations).toEqual([
+      { agentClasses: ['foaf:Agent'], modes: ['Read'], isDefault: true },
+      { agents: [OWNER], modes: ['Read', 'Write', 'Control'], isDefault: true },
+    ])
   })
 })
