@@ -1,4 +1,4 @@
-import { describe, it, beforeAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { BASE, ensurePod, getToken } from './helpers.mjs'
 
 // MCP affordance-surface live gate — real-URI Resource reads against the running
@@ -40,6 +40,17 @@ describe.skipIf(!hasResources)('MCP affordance surface (real-URI reads)', () => 
     // assert its @context survives structurally.
     const w = await rpc('tools/call', { name: 'put_typed_resource', arguments: { path: PROBE_PATH, content: PROBE_BODY, contentType: 'application/ld+json', types: [PROBE] } }, token)
     expect(w.body.result.isError ?? false).toBe(false)
+  })
+  afterAll(async () => {
+    // NOT PROBE_PATH here: the next describe block ('model-driven read tools') reads it
+    // too, and afterAll runs before that block's tests start — deleting it here would pull
+    // it out from under them. PROBE_PATH cleanup lives in that block's afterAll instead
+    // (its last consumer). Here: the shape-violating-write case's shape fixture. The
+    // rejected '/alice/affnotes/bad' write (SHACL-refused, never persisted) is included
+    // too — a delete of a resource that was never created is a harmless no-op, not an error.
+    for (const p of ['/alice/shapes/affnote', '/alice/affnotes/bad']) {
+      await rpc('tools/call', { name: 'delete_resource', arguments: { path: p } }, token)
+    }
   })
 
   it('advertises resources + a real-URI template + fixed real-URL resources', async () => {
@@ -105,6 +116,16 @@ describe.skipIf(!hasResources)('MCP affordance surface (real-URI reads)', () => 
 describe.skipIf(!hasResources)('model-driven read tools (spec 2026-07-06)', () => {
   let token
   beforeAll(async () => { await ensurePod(); ({ token } = await getToken()) })
+  afterAll(async () => {
+    // PROBE_PATH: created in the PRIOR describe block's beforeAll but read here too (this
+    // block is its last consumer) — cleaned up here, not there, so it survives until this
+    // block's tests finish. Plus this block's own fixtures from the 'index-shadowed
+    // container' case: child before container (non-empty container delete), then the
+    // empty plain-probe container.
+    for (const p of [PROBE_PATH, '/alice/shadow-probe/index.html', '/alice/shadow-probe/', '/alice/plain-probe/']) {
+      await rpc('tools/call', { name: 'delete_resource', arguments: { path: p } }, token)
+    }
+  })
 
   it('tools/list: read_resource + list_resources present, read_remote_resource retired', async () => {
     const names = (await rpc('tools/list', {}, token)).body.result.tools.map(t => t.name)
@@ -191,6 +212,12 @@ describe.skipIf(!hasResources)('MCP listing filter + bare-origin read (gateway r
       { agents: [webid], modes: ['Read', 'Write', 'Control'], isDefault: false },
     ] } }, token)
     expect(acl.body.result.isError ?? false).toBe(false)
+  })
+  afterAll(async () => {
+    // OPEN_PATH + PRIV_PATH (beforeAll writes) + PRIV_PATH's own .acl (write_acl call above).
+    for (const p of [OPEN_PATH, PRIV_PATH, `${PRIV_PATH}.acl`]) {
+      await rpc('tools/call', { name: 'delete_resource', arguments: { path: p } }, token)
+    }
   })
 
   it('resources/read of the container hides the owner-only member from anon, shows it to the owner', async () => {

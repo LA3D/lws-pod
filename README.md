@@ -121,6 +121,25 @@ written on failure), PUTs the tree, binds containers (`dct:conformsTo` +
 need a public-read `.acl` before unauthenticated profile resolution works — the recipe is in
 [`docs/foundations/06-code-placement-audit.md`](docs/foundations/06-code-placement-audit.md).
 
+### Derived-view freshness
+
+`instantiate()` materializes aggregate/derived representations (e.g. a container's
+`graph.jsonld`, the wiki family's `index.md` nav channel) from a container's *current* members
+at the moment it runs. Those materialized resources are **build products, not live views** —
+writing, editing, or deleting a member does **not** auto-refresh them. A deleted member's data
+can linger in `graph.jsonld` until the next instantiate.
+
+`make reinstantiate` is the refresh: it re-runs bind+instantiate for every manifest family
+(alias of `make publish-profiles` — re-PUTting the defs tree is idempotent, and bind+instantiate
+is the part that actually needs re-running). Run it after any batch of member writes/deletes
+where an aggregate view needs to reflect current state.
+
+There is no CDC/watcher runtime keeping aggregates live-synced on every write — the wiki family
+ships a WebSocket trigger (`apps/wiki-projector/triggers/`) as an *application-level* option, but
+running a background watcher for every profile family is a deliberate **non-goal** of the
+substrate itself until an application actually needs push-freshness. Pull-refresh
+(`make reinstantiate`, or the app's own CLI trigger) is the supported story today.
+
 ## Repo layout
 
 - `projection/` — the neutral **PROF mechanism**: `prof/` (PROF walk, authority resolution,

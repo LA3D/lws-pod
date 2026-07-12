@@ -127,7 +127,9 @@ Vary-ignoring client with an unsatisfiable Accept can 304 where a fresh request 
 unreachable for RDF-variant keys); extension-less shape paths PUT as Turtle serve post-conversion bytes
 as `application/octet-stream` (T11, the T1 seam family's ungoverned face); F3's gate is
 `lwsEnabled`-only, not nested in `connegEnabled` (T2, production-moot asymmetry); mcp-v2 new
-fixtures join the no-afterAll seed-hygiene residue pile (T15); `authorize()`'s public-mode
+fixtures join the no-afterAll seed-hygiene residue pile (T15 — **closed 2026-07-11, DT12:
+`tests/mcp-v2.test.mjs` now has `afterAll` cleanup in all three fixture-creating describe
+blocks**); `authorize()`'s public-mode
 short-circuit skips `authorizeAclAccess` on `.acl` for a fully-public pod (T8, pre-existing, out
 of scope); `void:rootResource` node-object vs `uriSpace` bare-string shape inconsistency, both
 valid JSON-LD (T14); T1's two MINORS (latent non-JSON-LD-source + JSON-LD-target fallthrough;
@@ -199,7 +201,10 @@ IRIs; the deref decision stays at L4, now with live evidence.
 residue sweep left `good#it` in `graph.jsonld` until re-instantiation (controller re-ran the wiki
 bind/instantiate, `test-wiki` 9/9, aggregate clean: `id/a` + `id/b` only); consistent with the
 derived-views-belong-to-a-build design, but the staleness is silent — CDC-trigger/rebuild story
-input. (A6) `skills: true` advertised, `skill:items: []` — known, the operating-skills layer
+input. **Closed 2026-07-11 (DT12):** `make reinstantiate` (Makefile, aliases `publish-profiles`)
+is the rebuild command; the freshness story (aggregates are build products, deletion doesn't
+auto-refresh, CDC/watcher runtime stays a non-goal until an app needs it) is documented in
+README's "Derived-view freshness". (A6) `skills: true` advertised, `skill:items: []` — known, the operating-skills layer
 comes last. (A7) phantom `X-Cost`/`X-Balance` CORS headers re-confirmed (recorded). (B3) root
 linkset is thin (type only) — storage description compensates; minor. Positive signal worth
 keeping: the GET-405 hint, the START-HERE chain, teaching 406s, and hint fields all did exactly

@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-void test-wiki test-projection publish-profiles test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-void test-wiki test-projection publish-profiles reinstantiate test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -187,6 +187,14 @@ publish-profiles:
 	  node publish/publish.mjs --base https://pod.vardeman.me --container /alice/profiles/ \
 	  --bind /alice/concepts/=llm-wiki \
 	  --bind /alice/datasets/=dcat-catalog --instantiate /alice/datasets/=dcat-catalog --token $${POD_TOKEN}
+
+# Derived-view refresh (README "Derived-view freshness"): re-runs bind+instantiate for every
+# manifest family. Aggregates (graph.jsonld, index.md, …) are BUILD PRODUCTS — deleting or
+# editing a member does not auto-refresh them; this target is the refresh. Alias of
+# publish-profiles: re-PUTting the defs tree is idempotent/harmless, and bind+instantiate
+# (publish.mjs steps 3-4, driven by the manifest's --bind/--instantiate flags) is the part that
+# actually needs re-running. Needs `make up-fork-tls` + `make cert` + POD_TOKEN.
+reinstantiate: publish-profiles
 
 # Wiki-memory app gate — unit tests (jsdom/node), e2e excluded (Task 10).
 test-app:
