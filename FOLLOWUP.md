@@ -7,9 +7,211 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round shipped; probes #6 + #7 (two arms) PASSED; next-fork-round queue below
+## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round + debt-drain-round shipped; probes #6 + #7 (two arms) PASSED; carryovers DRAINED to the single L4 read-side pointer — NEXT = the L4 read-side design round
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
+
+**▶ DEBT-DRAIN ROUND — DONE + LIVE-VERIFIED (2026-07-11).** Executed 2026-07-11, subagent-driven
+(9 fork tasks DT1-DT9 + lws-pod DT10-DT14, per-task spec+quality reviews). Design of record
+`docs/superpowers/specs/2026-07-11-debt-drain-round-design.md` (`0fd3a2d`); plan
+`docs/superpowers/plans/2026-07-11-debt-drain-round.md` (`df2b414`). **The whole point of this
+round:** every open FOLLOWUP item gets exactly one disposition — FIX / WON'T-FIX (rationale
+recorded, deleted) / DESIGN (routed to L4) — nothing swept forward. See the "Carryovers" block
+immediately below this one: it ends **empty except a single L4 pointer.**
+
+**Shipped, fork (`la3d/lws-drain` off `la3d/lws@be2ddba`, merge
+`4824fe2375d0959856e93bebf9878f9db9da099c` pushed `--no-ff`; 10 commits + merge, 40 files,
++1638/−178, fork suite **1486/0/1** (143-file bounded run + `mcp-lws-read` alone 8/8 — the
+pre-existing open-handle file needs its own bounded run under node-26 process isolation), new
+modules `pod-config.js`/`write-consistency.js`/`ssrf.js`, image `fork-drain`).**
+
+- **`--lws` implies the LWS-mandated negotiation surface** (DT1, `ef03bf8`): the shared
+  `connegEnabled` guards (file-GET serving, HEAD mirror, HEAD container, `canAcceptInput`) now
+  gate on `connegEnabled || request.lwsEnabled` — a `--lws`-without-`--conneg` pod negotiates
+  (the ONE deliberate behavior change outside the `--lws`+`--conneg` pairing, spec §4a); the
+  write-conversion gate was left untouched (DT2's).
+- **Representation preservation, B1 root fix** (DT2, `042cf2c`+`e10efda`): under `--lws` the
+  write path **stops converting** Turtle/N3/N-Triples/N-Quads — the pod now stores exactly what
+  the client submitted (JSON-LD keeps its self-describing `{@context,@graph}` envelope; a Turtle
+  doc is already self-describing as Turtle). A new **write-time name/type consistency gate**
+  (`src/lws/write-consistency.js`) teaches a 400 on a name/body mismatch (`x.jsonld` PUT as
+  `text/turtle`) or an extension-less RDF write (would serve `octet-stream`) — truthful-by-
+  construction: stored type, served `Content-Type`, and `items[].mediaType` can never disagree.
+  **USER DIRECTIVE enforced:** the hand-rolled `datasetToJsonLd` serializer is retired for
+  `jsonld@9.0.0`'s `fromRDF` (already a transitive dep, zero download) — fixes `@type`/`@list`
+  the hand-roll had been flattening. Closes probe #7's B1 finding (`.ttl`-named artifacts serving
+  JSON-LD bytes labeled `text/turtle`) at the root, not the serving arm.
+- **406 never beats a 304** (DT3, `9d15efd`+`67c7d98`): the file/container/HEAD `If-None-Match`
+  fast path now defers until the negotiation outcome (media F3 arm OR profile arm) is known — a
+  request that would 406 always 406s, never a stale 304 (RFC 9110 §13.2.2); file-304 `Vary`
+  gains `Accept-Profile` (parity with the 200). **304 still wins over a profile-303** — a
+  pre-existing, deliberate, now-*tested* behavior (not a bug — restored after an initial pass
+  broke it and the full suite caught the regression). The `wouldNotNegotiate` predicate's
+  `looksHtml`-superset approximation (an HTML-looking non-RDF resource under an unsatisfiable
+  Accept skips the 304 fast path, falling through to 200 rather than the real F3 gate's 406) is
+  now **documented in-code** as a deliberate zero-I/O-vs-HEAD-invariant tradeoff — never a wrong
+  304, never a wrong 406, a missed cache-revalidation optimization in one narrow corner, accepted
+  by design. Closes the HTML-data-island F2 residual and the Range+linkset nuance the gateway
+  round carried — the whole conditional-request family is now either fixed or explicitly
+  documented; none of it is left open.
+- **`--lws-config` replaces the per-service path flags** (DT4, `91ca615`+`1d86c5e`): one pod
+  resource (`{ profileIndex, void }`) — `--lws-profile-index`/`--lws-void` are GONE, no aliases.
+  Read lazily with an mtime+size cache (`src/lws/pod-config.js`); absent = services off (warned
+  once, no crash-loop on a fresh pod); malformed = error-logged, pod keeps serving; present = no
+  restart needed, next request picks it up. **One shared `podConfig` instance** threads HTTP
+  routes + MCP ctx so the two surfaces can never diverge. Bonus security fix (reviewer catch):
+  `/.well-known/void`'s write-blocking 405s are now registered **unconditionally** — the old
+  conditional registration left an unauthenticated-write hole on any pod that hadn't set
+  `--lws-void` (the default). Closes the per-flag-threading pattern flagged three times (T7,
+  gateway round).
+- **MCP read-path guard parity, verify-first** (DT5, `d693199`): probe #7's A1 premise was
+  **wrong** — `resources/read` and `read_resource` already agreed exactly (both funnel through
+  `readBody`). The real gap was `describe_resource`, which unconditionally fenced JSON-LD,
+  destroying `@context`. Extracted the shared trust decision into `sanitizeForTrust` (`src/mcp/
+  read.js`) — one choke point, all three read surfaces now agree.
+- **MCP alternates in the links carrier + affordance smalls** (DT6, `83e2f4d`): `read_resource`/
+  `describe_resource` now surface authz-filtered `canonical`/`alternate` representations plus a
+  teaching sentence ("representations are negotiable via `Accept-Profile`…") — conneg-by-profile
+  is discoverable without dropping to HTTP (closes A2). Smalls: real `mimeType` (A5, `text/
+  markdown` not `text/plain`); a unified "not found or not authorized" denial (A8, no oracle
+  split); `lws_type_search` empty-args doc (A9); the McpService hint now names the anonymous
+  budget ("N requests/minute — authenticate for more; the `x-ratelimit-*` headers carry your
+  remaining budget") — closes the rate-limit review's "advertise the budget" item.
+- **`items[]` mediaType via `getContentType`** (DT7, `35dd3c1`): suffixed sidecars (`x.meta`,
+  `x.acl`) report their true mapped type in container listings instead of `mime.lookup`'s
+  `octet-stream` fallback — closes the S3-family probe-#7 finding.
+- **Federation hardening — SSRF guard + response-size bound** (DT8, `07cf016`+`45bc516`): new
+  `src/mcp/ssrf.js` blocks loopback/RFC-1918/link-local/cloud-metadata by default;
+  `--lws-federation-private` opts a local rig back in. **An adversarial opus review earned its
+  keep** — found 2 Critical bypasses in the first pass (redirect-follow to a blocked host never
+  rechecked the hop; `new URL().hostname`'s always-bracketed IPv6 form made the entire IPv6
+  block-list dead code on the real path, so `[::ffff:169.254.169.254]` reached cloud metadata) +
+  1 Important (`0.0.0.0`/`::` unblocked) — all closed, adversarially re-verified. DNS-rebinding
+  stays a recorded, explicit, out-of-scope limitation (checks the literal hostname, not a
+  resolved address — see the WON'T-FIX list below). The remote-arm response read is now
+  streamed-and-capped (`MAX_BODY_BYTES`), never buffered unbounded. Closes the federation-
+  hardening item deferred twice since the model-driven-read round.
+- **Fork suite + merge** (DT9): full suite **1486/0/1** — merged `--no-ff` into `la3d/lws`,
+  pushed.
+
+**Shipped, lws-pod (`main`, `58aecaa..6d42c62`, 6 commits).**
+
+- **`publish.mjs` provisions ACLs by default** (DT10, `58aecaa`): public-read + owner-control
+  (`isDefault: true` both) via the pod's own MCP `write_acl`, on the profiles container and
+  every `--bind`/`--instantiate` target; idempotent; `--no-acl` opts out. **The OPS gap recorded
+  three times (2026-07-04, serving-path round, gateway round) is DEAD** — the reseed runbook is
+  now `POD_TOKEN=… make publish-profiles`, one command, zero manual `write_acl` calls.
+- **`pod-config.jsonld` ships as publish data** (DT11, `c75e221`): the `{profileIndex, void}`
+  pointer resource joins the manifest + a resolves-check; `buildVoid`'s `void:rootResource` now
+  matches `uriSpace`'s bare-string shape (closes the T14 minor).
+- **`make reinstantiate` + mcp-v2 hygiene + freshness docs** (DT12, `7e4c5ff`): re-runs
+  bind+instantiate for every manifest family (the derived-view refresh command); `tests/
+  mcp-v2.test.mjs` gained `afterAll` cleanup in all three fixture-creating blocks (the residue
+  pile stops regrowing); README's "Derived-view freshness" section documents that aggregates are
+  build products, deletion doesn't auto-refresh them, and the CDC watcher stays a deliberate
+  non-goal until an application needs it.
+- **Rig repin + grown live gates** (DT13, `a461482`+`6d42c62`): `Dockerfile.fork`/
+  `docker-compose.fork-tls.yml` → merge SHA `4824fe2375d0959856e93bebf9878f9db9da099c`, image
+  `fork-drain`, command `--lws --lws-config /alice/profiles/pod-config.jsonld` (the two path
+  flags GONE). Reseed needed **zero manual `write_acl` calls** — `publish-profiles` auto-
+  provisioned all 3 ACLs (DT10's payoff, live-proven). New `tests/lws-preservation.test.mjs`
+  (Turtle round-trip pinned to **exact bytes**, not a substring, after a review fix); `tests/
+  lws-conneg.test.mjs` grew the 406-never-304 + `--lws-config` service-presence live cases;
+  `tests/mcp-v2.test.mjs` grew the alternates + guard-parity live cases.
+
+**Headline payoffs (live-proven, this round): manual `write_acl` ELIMINATED; `pod-config.jsonld`
+drives `VoidService`+`ProfileIndexService` (no flags); Turtle round-trips byte-exact
+(`descriptor-shape.ttl` diffed live, 60 bytes, no trailing newline).**
+
+**Full 15-gate sweep, zero regression — independently re-verified in THIS close-out task
+(2026-07-11, both rigs live: `lws-pod-fork` on `fork-drain`, `lws-pod-local` unaffected).** `make
+test` 9 passed / 0 failed / 105 skipped (local pod, skip count grew with the round's new
+live-gated cases — not a regression), `test-lws` 6/6, `test-l3` 2/2, `test-typeindex` 7/7,
+`test-indexed-relation` 4/4, `test-profiles` 6/6, `test-dcat` 5/5, `test-graph` 6/6, `test-conneg`
+**27/27** (was 21), `test-void` 4/4, `test-preservation` **6/6 (NEW gate)**, `test-wiki` 9/9,
+`test-mcp-v2` **23/23** (was 18), `test-projection` 102/102 + apps 28/28, `test-app` 40/40 (the
+recorded `wm-app.test.mjs` ECONNREFUSED/401 flake surfaced this run — exit 1 despite 40/40 pass,
+counted green per FOLLOWUP precedent, unrelated to this round's changes). Byte-identical to
+DT13's own live verification ~40 minutes earlier — no drift. One friction, recorded not a
+regression: the IdP `/idp/credentials` 10/min/IP limiter 429'd when `test-conneg`/
+`test-preservation`/`test-wiki` ran back-to-back without spacing; a ~75s cooldown between runs
+cleared it every time (the same rig artifact DT13 documented).
+
+**Targeted cold-surface verification (spec §9 — stands in for a full cold probe #8, which waits
+for L4).** The two changed cold surfaces are exercised **live** by the grown gates themselves:
+`test-preservation`'s Turtle-PUT-then-GET round-trip IS Arm B's `.ttl` check, now passing where
+probe #7 found it lying; `test-mcp-v2`'s new alternates + guard-parity cases ARE an Arm-A-style
+walk of the fixed MCP surface. Both green live on the fork-drain rig — the targeted verification
+the spec calls for is satisfied by the gate growth itself, not a separate manual walk.
+
+---
+
+## Carryovers (2026-07-11, debt-drain close-out) — ONE ITEM
+
+Every item that was open before this round now has exactly one disposition (spec §8/§10, the
+"drain rule"). **This is the entire list of what remains:**
+
+**→ DESIGN, routed to the L4 read-side round (next — its own brainstorm → spec → plan, NOT a
+cold probe):** `/id/` dereference (declared `void:uriSpace` but 401s to anonymous — probe #7 B2,
+now with live evidence of the exact failure mode), referent-type indexing (typed `#it` subjects
+at `id/…#it` are invisible to `lws_type_search` — probe #7 A3; wiki cards index as bare
+`lws#DataResource`), earned-at-admission `conformsTo` (currently declared, not derived from what
+SHACL actually validated), `defaultProfile` precedence (the profile-index's tie-break rule when
+more than one representation could apply), B7 identity-policy vocabulary (the `#it`/`id/`
+pathPrefix convention wants a first-class vocabulary term, not just a house convention). The
+console-on-fork rewire (`app/seed/seed.mjs`'s `putViaProxy` + the stale `projection/triggers`
+path) rides along with L4 rather than standing alone — it targets the fork pod, which L4 is about
+to change underneath it. **Inputs:** probe #6 (FOLLOWUP, serving-path-round block below), probe
+#7 both arms (FOLLOWUP, gateway-round block below), and this round's DT2/DT6 fixes — with
+representation preservation and MCP alternates now shipped, `/id/` and referent-type indexing are
+the LAST undiscoverable surfaces a cold agent hits.
+
+**Everything else this round got FIX or WON'T-FIX — nothing else is open.**
+
+### WON'T-FIX this round (spec §8, rationale recorded, deleted from the queue)
+
+- **Host-aware `urlToStoragePath` under `--subdomains`** — the S6 startup refusal (serving-path
+  round) IS the guard until subdomains are actually wanted; fixing the mapping without a live
+  need would be speculative.
+- **Cost-weighted/token-bucket rate limiting** (+ the JSON-RPC batching-as-budget-loophole
+  question, same family) — the `x-ratelimit-*` headers already advertise the budget (a teaching
+  429 names the wait); probe #7 Arm A never approached the wall (peak burst ~4 of 60/min);
+  revisit only on probe evidence of an actual abuse pattern, not speculatively.
+- **`authorize()`'s public-mode `.acl` short-circuit** — upstream behavior in the no-WAC dev mode
+  neither rig runs (both rigs run WAC-on); not a code path either rig exercises.
+- **Phantom `X-Cost`/`X-Balance` CORS headers** — baseline JSS payment surface, dormant by
+  design; re-confirmed at probes #5/#6, not a defect.
+- **The thin root linkset** — correct, not a bug: an unbound container genuinely has no
+  governance edges to advertise; the storage description is the root's real map (probe #7 itself
+  concluded this).
+- **The HTML-data-island 304 residual + the `wouldNotNegotiate` `looksHtml`-approximation**
+  (DT3) — documented in-code as a deliberate zero-I/O-vs-HEAD-invariant tradeoff; sniffing bytes
+  early would break HEAD's zero-I/O contract for a narrow, safe-direction (never-wrong-304) edge
+  case.
+- **SSRF residuals — IPv4-compatible (`::a.b.c.d`, deprecated) and NAT64 (`64:ff9b::/96`,
+  IPv6-only-host-only) addresses** — already documented in-code (`src/mcp/ssrf.js`) as a
+  literal-IP-scope limitation (same class as DNS-rebinding); the rig is not dual-stack, so
+  neither is a live exposure — not re-opened here.
+
+(The five items the plan named explicitly — host-aware `urlToStoragePath`, cost-weighted
+limiter, the public-mode `.acl` quirk, phantom `X-Cost`, thin root linkset — plus the two
+DT3-adjudicated conditional-request nuances and the SSRF literal-IP residuals: all deleted from
+the carryover queue, none carried forward.)
+
+### FIXED this round (the rest of what was open — closed, not carried)
+
+B1 representation preservation (DT2); the whole conditional-request family except the two
+WON'T-FIX items above (DT3); the per-service-flag / per-flag-threading pattern flagged three
+times (T7, gateway round) — closed by `--lws-config` + the shared `podConfig` instance (DT4); MCP
+guard parity (DT5); alternates-in-links-carrier + the A5/A8/A9 smalls (DT6); `items[]` sidecar
+mediaType (DT7); the federation remote arm's missing size bound + SSRF guard, deferred twice
+since the model-driven-read round (DT8); `publish.mjs`'s missing ACL provisioning, recorded three
+times since 2026-07-04 (DT10); the `void:rootResource`/`uriSpace` shape inconsistency (DT11); the
+mcp-v2 no-`afterAll` residue pile (DT12); derived-view staleness's freshness *story* documented
+(DT12 — the underlying staleness is a by-design build-product property, not a bug, per the
+serving-path round's finding).
+
+---
 
 **▶ FORK GATEWAY ROUND — DONE + LIVE-VERIFIED, FULL SWEEP GREEN (2026-07-11).** Executed
 2026-07-11, subagent-driven (13 fork tasks T1-T13 + lws-pod T14-T16, per-task spec+quality
@@ -116,38 +318,40 @@ cleared it and both gates passed clean on retry. **Final-review re-run (2026-07-
 `be2ddba`):** `test-conneg` 21/21, `test-void` 4/4, `test-mcp-v2` 18/18 — zero regression from the
 HEAD-face fix.
 
-**Carryovers (recorded, none block):** HTML-data-island files retain the F2 format-switch 304
-residual (T10, outside RDF-stored scope); a conditional-request family of pre-existing nuances
-(T10, none block, restored at final review — dropped from an earlier close-out pass): file-304
-`Vary` lacks `Accept-Profile` while the 200 has it; a client presenting the `-ls` etag with a
+**~~Carryovers (recorded, none block)~~ — ALL DISPOSITIONED 2026-07-11 (debt-drain round, see the
+top block + the "Carryovers" section above; recapped here for history).** HTML-data-island files
+retain the F2 format-switch 304 residual (T10, outside RDF-stored scope) → **WON'T-FIX, DT3,
+documented in-code.** A conditional-request family of pre-existing nuances (T10, restored at
+final review — dropped from an earlier close-out pass): file-304 `Vary` lacks `Accept-Profile`
+while the 200 has it → **FIXED, DT3 (3-arg Vary).** A client presenting the `-ls` etag with a
 contradictory Range+linkset-Accept can get a 304 where a non-conditional request would serve a
-media Range (defensible under RFC 7232, characterized in the T10 report); and the early
-`If-None-Match` check precedes the F3/profile-406 gates (RFC 9110 §13.2.2 wrinkle — a
-Vary-ignoring client with an unsatisfiable Accept can 304 where a fresh request would 406;
-unreachable for RDF-variant keys); extension-less shape paths PUT as Turtle serve post-conversion bytes
-as `application/octet-stream` (T11, the T1 seam family's ungoverned face); F3's gate is
-`lwsEnabled`-only, not nested in `connegEnabled` (T2, production-moot asymmetry); mcp-v2 new
-fixtures join the no-afterAll seed-hygiene residue pile (T15 — **closed 2026-07-11, DT12:
-`tests/mcp-v2.test.mjs` now has `afterAll` cleanup in all three fixture-creating describe
-blocks**); `authorize()`'s public-mode
-short-circuit skips `authorizeAclAccess` on `.acl` for a fully-public pod (T8, pre-existing, out
-of scope); `void:rootResource` node-object vs `uriSpace` bare-string shape inconsistency, both
-valid JSON-LD (T14); T1's two MINORS (latent non-JSON-LD-source + JSON-LD-target fallthrough;
-N3-exclusion guard untested); the per-flag threading pattern (6 touch-points/rung) is a future
-flags-object refactor candidate (T7, noted 3× now); the `/id/` dereference decision (303-to-storage
-vs documented non-deref) stays **deferred to the L4 read-side identity design** (spec §7) —
-probe-#7 findings about `/id/` route there, not back into this round.
+media Range (defensible under RFC 7232, characterized in the T10 report) → **WON'T-FIX, DT3
+(closed with the conditional family).** The early `If-None-Match` check precedes the
+F3/profile-406 gates (RFC 9110 §13.2.2 wrinkle) → **FIXED, DT3 (406 wins, always).** Extension-
+less shape paths PUT as Turtle serve post-conversion bytes as `application/octet-stream` (T11,
+the T1 seam family's ungoverned face) → **FIXED, DT2 (write-consistency 400 catches this
+directly).** F3's gate is `lwsEnabled`-only, not nested in `connegEnabled` (T2, production-moot
+asymmetry) → **MOOT, DT1 (`--lws` now implies conneg unconditionally — no more half-negotiating
+combination to be asymmetric about).** mcp-v2 new fixtures join the no-afterAll seed-hygiene
+residue pile (T15) → **closed 2026-07-11, DT12** (already noted inline below, unchanged).
+`authorize()`'s public-mode short-circuit skips `authorizeAclAccess` on `.acl` for a fully-public
+pod (T8) → **WON'T-FIX, spec §8 (upstream dev-mode neither rig runs).** `void:rootResource`
+node-object vs `uriSpace` bare-string shape inconsistency (T14) → **FIXED, DT11 (both
+bare-string).** T1's two MINORS (latent non-JSON-LD-source + JSON-LD-target fallthrough;
+N3-exclusion guard untested) → **superseded by DT2's write-path rewrite** (the conversion arm the
+fallthrough minor described no longer exists under `--lws`; the N3-exclusion guard gained its
+test at DT2 step 4). The per-flag threading pattern (6 touch-points/rung, noted 3×) → **FIXED,
+DT4 (`--lws-config` + the shared `podConfig` instance).** The `/id/` dereference decision → **DESIGN,
+routed to L4** (unchanged disposition, now the round's single carryover pointer).
 
-**Fork-queue adds (2026-07-11, rate-limit review — best-practice check vs the pinned MCP spec +
-ecosystem):** the `/mcp` limiter is spec-sanctioned (pin: "rate limit tool invocations",
+**~~Fork-queue adds (2026-07-11, rate-limit review)~~ — DISPOSITIONED 2026-07-11 (debt-drain
+round).** The `/mcp` limiter is spec-sanctioned (pin: "rate limit tool invocations",
 server-tools §security) and already identity-tiered (authed 600/min by WebID, anon 60/min by IP)
-with a teaching 429 (`Retry-After` + "try again in N seconds"). Two refinements queued: (1)
-**advertise the anonymous budget** in the `McpService` hint / `pod-info` ("anonymous budget: N
-req/min — authenticate for more") — a cold agent currently discovers the wall only by hitting it;
-probe #7 Arm A tests whether the 429's own teaching suffices first. (2) **Cost-weighted /
-token-bucket refinement** — a `read_resource` costs the same budget as an `initialize`; also
-decide the JSON-RPC **batching** affordance (one batched POST = one request against the limiter —
-a budget loophole nothing advertises; 2025-03-26 supports batching, the later spec drops it).
+with a teaching 429 (`Retry-After` + "try again in N seconds"). (1) **advertise the anonymous
+budget** → **FIXED, DT6** (the McpService hint now names the budget). (2) **Cost-weighted /
+token-bucket refinement + the JSON-RPC batching-as-budget-loophole question** → **WON'T-FIX, spec
+§8** (the `x-ratelimit-*` headers already advertise the budget; two probes never approached the
+wall; revisit only on probe evidence).
 
 **▶ PROBE #7 — TWO ARMS, BOTH PASSED (2026-07-11, cold/unprimed/anonymous; pre-flight: pod
 residue swept — probe containers, conneg-mem, idx-docs, mcp-filter fixtures, dangling
@@ -210,10 +414,11 @@ linkset is thin (type only) — storage description compensates; minor. Positive
 keeping: the GET-405 hint, the START-HERE chain, teaching 406s, and hint fields all did exactly
 their job — three cold agents in a row now navigate without guessed paths.
 
-**▶▶ NEXT: the next fork round draws from the queue above** — B1 ttl-mislabel (spec-weight) + the
-MCP affordance batch (A1 guard parity, A2 alternates-in-links-carrier, A5/A8/A9 smalls, the
-`.meta` listing mediaType) + the rate-limit adds (budget hint, cost-weighting/batching decision) +
-the standing federation-hardening round. Scope the round deliberately; don't drain by reflex.
+**~~▶▶ NEXT: the next fork round draws from the queue above~~ — DONE (2026-07-11; see the "DEBT-DRAIN
+ROUND" block at the very top of this file).** Drained: B1 ttl-mislabel (DT2) + the MCP affordance
+batch (A1 guard parity DT5, A2 alternates-in-links-carrier DT6, A5/A8/A9 smalls DT6, the `.meta`
+listing mediaType DT7) + the rate-limit adds (budget hint DT6, cost-weighting/batching decided
+WON'T-FIX) + the standing federation-hardening round (DT8).
 
 **▶ FORK SERVING-PATH ROUND — DONE + LIVE-VERIFIED, FULL SWEEP GREEN (2026-07-10).** Executed
 2026-07-10, subagent-driven (15 tasks, per-task spec+quality reviews). Design of record
@@ -274,28 +479,27 @@ provisioning", recorded since the 2026-07-04 profile-mechanism round, still open
 before `test-profiles`/`test-dcat`/`test-graph`/`test-wiki` would pass. No code defect — rig
 provisioning, now done.
 
-**Carryovers (recorded, none block):** MCP `readContainerView` (`src/mcp/resources.js:95-104`) lists
-container membership **unfiltered** — same probe-#3 class as S1, but on the MCP surface, not HTTP
-(T6 finding, next MCP round). The `sourceContentType`-defaults-JSON-LD seam, BOTH faces (T3 +
-final review): stored non-JSON-LD RDF under `--lws` would 406 in its **own** format (close before
-any profile stores Turtle), AND `.lwstypes`/any stored plain-JSON enters the serving arm via
-`isRdfContentType('application/json')` and parses to **zero quads → 200 empty Turtle** — the
-probe-#4 signature reborn on the sidecar surface; one fix covers both (thread the stored type /
-narrow the arm's gate), next fork round; probe #6's battery should include a `.lwstypes`-as-Turtle
-case. Next-fork-round batch (final review): envelope-shape admission e2e pin (Turtle-PUT shape →
-non-conforming write still rejects through the `{@context,@graph}` store form — closure currently
-holds by composition, unpinned), container-HEAD quads parity (HEAD's directory branch calls
-`selectContentType` 2-arg — GET serves n-quads, HEAD reports ld+json), bare-`.acl` listing-filter
-test, `e.message` hardening in serve.js, extractCertKeys-JSDoc + url.js comment nits. S1 cache
-note: filtered listings vary by agent under one etag — a same-client auth-state flip can 304 a
-stale variant (fold into the S1 memoization follow-up).
+**~~Carryovers (recorded, none block)~~ — ALL DISPOSITIONED (most DONE 2026-07-11 at the fork
+gateway round, per the "next-fork-round batch" pointer below; the remainder DISPOSITIONED
+2026-07-11 at the debt-drain round, see the top block).** MCP `readContainerView`
+(`src/mcp/resources.js:95-104`) lists container membership **unfiltered** — same probe-#3 class
+as S1, but on the MCP surface, not HTTP (T6 finding) → **FIXED, fork gateway round T12.** The
+`sourceContentType`-defaults-JSON-LD seam, BOTH faces (T3 + final review) → **FIXED, fork gateway
+round T1 (HEAD-face) + T1-final-review.** Next-fork-round batch (final review): envelope-shape
+admission e2e pin → **FIXED, fork gateway round T11.** Container-HEAD quads parity → **FIXED,
+fork gateway round T9.** Bare-`.acl` listing-filter test, `e.message` hardening, JSDoc/comment
+nits → **FIXED, fork gateway round T13 (hygiene batch).** S1 cache note (filtered listings vary
+by agent under one etag) → **FIXED, fork gateway round T10 (ETag-per-variant).**
 Federation-hardening round (remote-arm size bound + SSRF guard, named at the model-driven-read
-round). Console-on-fork rewire (`app/seed/seed.mjs`'s `putViaProxy` + the stale
-`projection/triggers` path are dangling against the Phase-2 split). Seed hygiene (probe-#3/#5 residue
-in `/alice/`: dangling `good.links.jsonld`, `conneg-mem` 401 to cold readers,
-`plain-probe-*`/`shadow-probe-*`). Host-aware `urlToStoragePath` (S6 only refuses the combination;
-doesn't fix the mapping). `publish.mjs` still doesn't provision ACLs itself (recorded twice now —
-2026-07-04 and this round).
+round) → **FIXED, debt-drain round DT8.** Console-on-fork rewire (`app/seed/seed.mjs`'s
+`putViaProxy` + the stale `projection/triggers` path) → **rides with L4** (debt-drain's single
+carryover pointer, top block — targets the fork pod L4 is about to change). Seed hygiene
+(probe-#3/#5 residue in `/alice/`: dangling `good.links.jsonld`, `conneg-mem` 401 to cold
+readers, `plain-probe-*`/`shadow-probe-*`) → **CLOSED, probe #7's pre-flight sweep (2026-07-11):
+"pod residue swept … anon cold view = exactly the seven seed containers."** Host-aware
+`urlToStoragePath` → **WON'T-FIX, debt-drain spec §8** (S6's startup refusal IS the guard).
+`publish.mjs` not provisioning ACLs (recorded twice, 2026-07-04 + this round) → **FIXED,
+debt-drain round DT10** (now three-times-recorded-then-closed).
 
 **▶ PROBE #6 (2026-07-11, cold/unprimed/anonymous, pod URL + CA only, 63 reqs) — PASSED decisively:
 the serving-path behavioral flip CONFIRMED cold.** Zero zero-statement RDF responses, zero parse
@@ -420,11 +624,13 @@ aggregate → `index.md` → TypeSearch `conformsTo`); full regression zero-loss
 6/6, dcat 5/5, graph 6/6. **Fork asserted UNTOUCHED at `la3d/lws@d75a4dd`** — Phase 2 is entirely
 fork-empty.
 
-**Carryovers (recorded, none block):** console-on-fork rewire — `app/seed/seed.mjs`'s `putViaProxy`
-+ the stale `projection/triggers` path are dangling against the split; console e2e returns once the
-console targets the fork pod. Pre-existing `make test-app` ECONNREFUSED exit-1 flake
-(`wm-app.test.mjs`) — predates this round, not introduced by it. Fork-queue is otherwise unchanged by
-this round (still queued, see the Phase-1 block below).
+**~~Carryovers (recorded, none block)~~ — DISPOSITIONED 2026-07-11 (debt-drain round).**
+Console-on-fork rewire — `app/seed/seed.mjs`'s `putViaProxy` + the stale `projection/triggers`
+path are dangling against the split; console e2e returns once the console targets the fork pod →
+**rides with L4** (debt-drain's single carryover pointer, top block). Pre-existing `make test-app`
+ECONNREFUSED exit-1 flake (`wm-app.test.mjs`) — predates this round, not introduced by it →
+**still recorded, non-blocking** (counted-green precedent re-confirmed at the debt-drain
+close-out sweep, 2026-07-11).
 
 **▶ PROBE #5 (2026-07-10, cold/unprimed/read-only, pod URL + CA only) — PASSED decisively.** The
 agent discovered the ContentNegotiation capability + ProfileIndexService and walked BOTH families;

@@ -15,8 +15,8 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 |---|---|---|
 | 1 | Container boot / reset-with-volume | CONFORMS — survives `down`/`up` *(verified live)* |
 | 2 | Headless agent auth (`/idp/credentials`) | DIVERGES — RS256 JWT bearer, no DPoP *(verified live)* |
-| 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) *(MCP self-advertised 2026-07-10; listing WAC-filtered 2026-07-11)* |
-| 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage *(serving hardened, listings WAC-filtered 2026-07-10; teaching-406/gateway/VoID/ETag 2026-07-11)* |
+| 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) *(MCP self-advertised 2026-07-10; listing WAC-filtered + guard-parity/alternates/SSRF-hardened 2026-07-11)* |
+| 4 | Conneg + container traversal | CONFORMS to Solid · DIVERGES from LWS storage *(serving hardened, listings WAC-filtered 2026-07-10; teaching-406/gateway/VoID/ETag + representation-preservation/304-406-ordering/`--lws-config` 2026-07-11)* |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
 | 6 | LWS-CID identity | CONFORMS (RS-direct profile of the AS-mediated suite); `aud`+`exp` replay-guards enforced; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS — `.meta`/`constrainedBy` work, proxy ports *(verified live)* · GAP (in-process hooks) |
@@ -143,6 +143,40 @@ bypass — all 4 consumers verified, federation arm stays unreachable via bare o
 normalization test, and `localLinks` no longer emits a 404ing `up` for fixed `.well-known`
 resources. **Verified:** `make test-mcp-v2` **18/18** (was 16).
 
+**Debt-drain round (2026-07-11, `la3d/lws-drain` merge `4824fe2375d0959856e93bebf9878f9db9da099c`)
+— MCP read-path trust unified; conneg-by-profile discoverable from inside MCP; federation arm
+hardened.** Spec of record `docs/superpowers/specs/2026-07-11-debt-drain-round-design.md` §5-6.
+Probe #7 (Arm A) had claimed an injection-guard asymmetry between `resources/read` and the
+`read_resource`/`describe_resource` tools; a verify-first characterization (DT5) found the
+premise **wrong** — `resources/read` and `read_resource` already agreed exactly (both funnel
+through the shared `readBody`). The real gap was `describe_resource`, which unconditionally
+fenced JSON-LD bodies, destroying `@context`; extracted the shared trust decision into
+`sanitizeForTrust` (`src/mcp/read.js`) so all three read surfaces now treat a given resource's
+trust identically. **DT6** closes the "conneg-by-profile is undiscoverable from MCP" gap (probe
+#7 A2): `read_resource`/`describe_resource` now surface authz-filtered
+`canonical`/`alternate` representations plus a teaching sentence naming `Accept-Profile` — an
+agent no longer has to drop to raw HTTP to find a resource's alternate representations. Smalls:
+real `mimeType` (A5), a single "not found or not authorized" denial string across both the 403
+and 404 branches (A8, no oracle split), `lws_type_search`'s empty-args-means-full-inventory
+documented (A9), and the `McpService` hint now names the anonymous rate-limit budget. **DT7**
+fixes `items[]` mediaType for suffixed sidecars (`x.meta`/`x.acl`) via the Solid-aware
+`getContentType` instead of `mime.lookup`'s `octet-stream` fallback (closes the S3-family probe
+#7 finding). **DT8** closes the federation remote arm's two long-deferred hardening gaps (named
+at the model-driven-read round, 2026-07-06): a new `src/mcp/ssrf.js` blocks
+loopback/RFC-1918/link-local/cloud-metadata targets by default (`--lws-federation-private`
+opts a local rig back in), and the remote body read is now streamed-and-capped
+(`MAX_BODY_BYTES`) instead of buffered unbounded. An adversarial review found and closed 2
+Critical bypasses (redirect-follow to a blocked host was never rechecked; `new URL().hostname`'s
+bracketed IPv6 form made the entire IPv6 block-list dead code on the real fetch path, so
+`[::ffff:169.254.169.254]` reached cloud metadata) — DNS-rebinding and IPv4-compatible/NAT64
+literal addresses stay a recorded, explicit, out-of-scope limitation (checks the literal
+hostname, not a resolved address; documented in-code).
+
+**Verdict unchanged (EXTENDS)** — this round closes trust/discoverability/hardening gaps in the
+value-add surface, not a conformance-class change (MCP has no Solid/LWS spec to conform to).
+**Live-verified** (image `fork-drain`, merge `4824fe2375d0959856e93bebf9878f9db9da099c`): `make
+test-mcp-v2` **23/23** (was 18), full 15-gate sweep zero regression (`FOLLOWUP.md`).
+
 ## 4. Conneg round-trip; container `ldp:contains` Comunica-traversable
 
 **Spec — two different container models in play.**
@@ -256,6 +290,45 @@ verified** (image `fork-gateway`, merge `71da6f070a1e192ace99d49749d2f9c0694df6a
 test-conneg` **21/21** (was 11), new `make test-void` **4/4**, full 14-gate sweep zero regression
 (`FOLLOWUP.md`). Final whole-round review (2026-07-11) fixed a HEAD-face gap in the same
 `sourceContentType` seam (fork `be2ddba`) — verdict/counts above unaffected; see `FOLLOWUP.md`.
+
+**Debt-drain round (2026-07-11, `la3d/lws-drain` off `la3d/lws@be2ddba`, merge
+`4824fe2375d0959856e93bebf9878f9db9da099c`, `--lws` only) — representation preservation (B1
+root fix); the conditional-request family closed; the flag surface collapses to `--lws-config`.**
+Spec of record `docs/superpowers/specs/2026-07-11-debt-drain-round-design.md` §2-4. Probe #7 had
+found the root cause the serving-path/gateway rounds' `sourceContentType` fixes only patched
+downstream of: the **write** path converted submitted Turtle/N3/N-Triples/N-Quads into the
+JSON-LD envelope while the target kept its original extension, so a `.ttl` artifact served
+JSON-LD bytes labeled `text/turtle` — a direct conflict with the LWS read binding ("content is
+exactly the stored data", "Content-Type matching the stored media type") and the
+advertisement-consistency requirement (`items[].mediaType` must agree). Fixed **at the root, not
+the serving arm** (DT2): under `--lws`, the write path stops converting non-JSON-LD RDF bodies —
+the pod stores exactly what was submitted (JSON-LD keeps its self-describing `{@context,@graph}`
+envelope; Turtle is already self-describing as Turtle). A new write-time **name/type consistency
+gate** (`src/lws/write-consistency.js`) teaches a 400 on a name/body mismatch or an
+extension-less RDF write (would silently serve `octet-stream`) — so the stored type, the served
+`Content-Type`, and `items[].mediaType` can never disagree (`items[]` itself fixed via
+`getContentType`, DT7, axis 3). The hand-rolled RDF→JSON-LD serializer is retired for
+`jsonld@9.0.0`'s `fromRDF` per explicit user directive (fixes `@type`/`@list` flattening the
+hand-roll had introduced). **Conditional-request correctness** (DT3): the file/container/HEAD
+`If-None-Match` fast path now defers until the negotiation outcome (media F3 arm OR profile arm)
+is known — RFC 9110 §13.2.2's "preconditions apply only to requests that would otherwise
+succeed": a request that would 406 always 406s, never a stale 304; file-304 `Vary` gains
+`Accept-Profile`. 304 winning over a profile-303 stays deliberate, pre-existing, and now tested
+(not a bug). **Flag consolidation** (DT4): `--lws-profile-index`/`--lws-void` are **replaced, no
+aliases**, by `--lws-config <pod-path>` — one pod resource declaring `{profileIndex, void}` as
+data, read lazily with an mtime+size cache (absent = services off, no crash-loop on a fresh pod;
+malformed = logged, pod keeps serving; present = picked up on the next request, no restart). One
+shared `podConfig` instance threads both the HTTP routes and the MCP ctx, closing the per-flag
+threading pattern the gateway round's T7 flagged three times.
+
+**Verdict unchanged** (CONFORMS to Solid conneg · DIVERGES from LWS storage) — this round closes
+the LAST correctness gap in that conformance (the write-side root cause of every "own format
+lies" finding since probe #4), not the conformance class. **Live-verified** (image `fork-drain`,
+merge `4824fe2375d0959856e93bebf9878f9db9da099c`): new `make test-preservation` **6/6** (Turtle
+round-trip pinned to exact bytes, not a substring — tightened after a review finding), `make
+test-conneg` **27/27** (was 21, +6: 3 for 406-never-beats-304 GET+HEAD+Vary, 3 for
+`--lws-config`-driven service presence), `make test-void` **4/4** unchanged, full 15-gate sweep
+zero regression (`FOLLOWUP.md`).
 
 ## 5. Git: container clone-able; push materializes files as resources
 

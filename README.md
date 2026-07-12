@@ -121,9 +121,11 @@ for four families: the substrate floor, okf-base, llm-wiki (application #1), and
 written on failure), PUTs the tree, binds containers (`dct:conformsTo` +
 `powder:describedby`), and instantiates renderer-free representations (`--instantiate`).
 
-**ACL caveat:** JSS creates containers owner-only; `/alice/profiles/**` and bound containers
-need a public-read `.acl` before unauthenticated profile resolution works — the recipe is in
-[`docs/foundations/06-code-placement-audit.md`](docs/foundations/06-code-placement-audit.md).
+**ACLs are automatic.** JSS creates containers owner-only; `make publish-profiles` provisions
+public-read + owner-control ACLs by default (`isDefault: true` both) on the profiles container
+and every `--bind`/`--instantiate` target, via the pod's own MCP `write_acl` (`--no-acl` opts
+out). The old manual `write_acl` recipe (recorded as an open OPS gap three times since
+2026-07-04) is gone — a fresh reseed is one command: `POD_TOKEN=… make publish-profiles`.
 
 ### Derived-view freshness
 
