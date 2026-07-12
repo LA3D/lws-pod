@@ -41,7 +41,7 @@ modules `pod-config.js`/`write-consistency.js`/`ssrf.js`, image `fork-drain`).**
   `jsonld@9.0.0`'s `fromRDF` (already a transitive dep, zero download) — fixes `@type`/`@list`
   the hand-roll had been flattening. Closes probe #7's B1 finding (`.ttl`-named artifacts serving
   JSON-LD bytes labeled `text/turtle`) at the root, not the serving arm.
-- **406 never beats a 304** (DT3, `9d15efd`+`67c7d98`): the file/container/HEAD `If-None-Match`
+- **304 never beats a 406** (DT3, `9d15efd`+`67c7d98`): the file/container/HEAD `If-None-Match`
   fast path now defers until the negotiation outcome (media F3 arm OR profile arm) is known — a
   request that would 406 always 406s, never a stale 304 (RFC 9110 §13.2.2); file-304 `Vary`
   gains `Accept-Profile` (parity with the 200). **304 still wins over a profile-303** — a
@@ -164,7 +164,11 @@ path) rides along with L4 rather than standing alone — it targets the fork pod
 to change underneath it. **Inputs:** probe #6 (FOLLOWUP, serving-path-round block below), probe
 #7 both arms (FOLLOWUP, gateway-round block below), and this round's DT2/DT6 fixes — with
 representation preservation and MCP alternates now shipped, `/id/` and referent-type indexing are
-the LAST undiscoverable surfaces a cold agent hits.
+the LAST undiscoverable surfaces a cold agent hits. **Rider (final-review addition, still the
+same one item, not a new one):** plus a whole-history hygiene pass over pre-2026-06-28-pivot
+DONE/MERGED-block residue never promoted into the tracked carryover chain — e.g.
+`ldp:constrainedBy` co-emission (recorded 3×), L3-M2 POST-`Link:rel=Container` admission bypass,
+`resources/list` child pagination, L1 per-variant 304/ETag.
 
 **Everything else this round got FIX or WON'T-FIX — nothing else is open.**
 
@@ -190,8 +194,16 @@ the LAST undiscoverable surfaces a cold agent hits.
   case.
 - **SSRF residuals — IPv4-compatible (`::a.b.c.d`, deprecated) and NAT64 (`64:ff9b::/96`,
   IPv6-only-host-only) addresses** — already documented in-code (`src/mcp/ssrf.js`) as a
-  literal-IP-scope limitation (same class as DNS-rebinding); the rig is not dual-stack, so
-  neither is a live exposure — not re-opened here.
+  literal-IP-scope limitation; the rig is dual-stack, and NAT64/IPv4-compatible translation is
+  only a live vector on an IPv6-only host with a NAT64 gateway — not re-opened here.
+- **Plain-DNS-name-to-private-IP, under its own true name (NOT DNS-rebinding — rebinding is a
+  name that resolves benign-then-malicious; this is a public name that simply resolves straight
+  to a private IP)** — spec §6 says "deny ... after DNS resolution"; the guard checks the
+  literal hostname/IP in the URL and never performs that resolution step, so a public DNS name
+  resolving to `10.x`/`169.254.169.254` is not caught. Out of scope this round: federation reads
+  require `acl:Write` on the private federation gate, the rig is local, and default-deny already
+  covers every literal form. A `dns.lookup` pre-check on the public-rung gate list (alongside
+  `PATCH_CID_PRIVATE_IPS`) is queued for the next fork round.
 
 (The five items the plan named explicitly — host-aware `urlToStoragePath`, cost-weighted
 limiter, the public-mode `.acl` quirk, phantom `X-Cost`, thin root linkset — plus the two
@@ -210,6 +222,16 @@ times since 2026-07-04 (DT10); the `void:rootResource`/`uriSpace` shape inconsis
 mcp-v2 no-`afterAll` residue pile (DT12); derived-view staleness's freshness *story* documented
 (DT12 — the underlying staleness is a by-design build-product property, not a bug, per the
 serving-path round's finding).
+
+### Next fork round seeds (from the drain final review — NOT open carryovers; candidates to scope the next fork round, not this round's one item)
+
+- The 415 teaching-string `negotiate` fix + its positive `canAcceptInput` test (fork
+  `resource.js` ~1766 / `container.js` ~40 branch on bare `connegEnabled`, understating
+  capability on a `--lws`-without-`conneg` pod).
+- The `dns.lookup` SSRF pre-check on the public-rung gate list (alongside
+  `PATCH_CID_PRIVATE_IPS`) — see the plain-DNS-name-to-private-IP disposition above.
+- `ctx.public` threading (currently undefined→false, safe but unthreaded).
+- `docs/mcp.md`'s `read_resource`-vs-`describe_resource` field-naming note.
 
 ---
 

@@ -137,8 +137,8 @@ test-graph:
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-graph.test.mjs
 
 # Content-negotiation-by-profile live gate (DX-PROF-CONNEG cnpr:http) — neutral memory w/ array-@context
-# .meta (the parser-fix proof). Also carries the debt-drain-round live cases: 406-never-
-# beats-304 conditional ordering + --lws-config-driven VoidService/ProfileIndexService
+# .meta (the parser-fix proof). Also carries the debt-drain-round live cases: 304-never-
+# beats-406 conditional ordering + --lws-config-driven VoidService/ProfileIndexService
 # presence. Needs `make up-fork-tls` (fork-drain image) + `make cert`.
 test-conneg:
 	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }

@@ -326,7 +326,7 @@ the LAST correctness gap in that conformance (the write-side root cause of every
 lies" finding since probe #4), not the conformance class. **Live-verified** (image `fork-drain`,
 merge `4824fe2375d0959856e93bebf9878f9db9da099c`): new `make test-preservation` **6/6** (Turtle
 round-trip pinned to exact bytes, not a substring — tightened after a review finding), `make
-test-conneg` **27/27** (was 21, +6: 3 for 406-never-beats-304 GET+HEAD+Vary, 3 for
+test-conneg` **27/27** (was 21, +6: 3 for 304-never-beats-406 GET+HEAD+Vary, 3 for
 `--lws-config`-driven service presence), `make test-void` **4/4** unchanged, full 15-gate sweep
 zero regression (`FOLLOWUP.md`).
 
