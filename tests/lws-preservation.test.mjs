@@ -41,7 +41,10 @@ describe.skipIf(!hasConneg)('representation preservation (--lws, live)', () => {
     const body = await g.text()
     expect(body.trimStart().startsWith('{')).toBe(false)
     expect(body.trimStart().startsWith('[')).toBe(false)
-    expect(body).toContain('ex:p "o"')
+    // Exact bytes, not a substring: verified live (2026-07-11) the pod round-trips the
+    // PUT body byte-for-byte (no added/stripped trailing newline) — a reordered or
+    // dropped-triple regression must fail this, not just a missing-`ex:p "o"` regression.
+    expect(body).toBe(TTL)
   })
 
   it('the stored Turtle negotiates to JSON-LD via real conversion', async () => {

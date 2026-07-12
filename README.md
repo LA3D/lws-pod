@@ -104,7 +104,7 @@ Unit gates need no pod; live gates run against the fork TLS rig (`make cert && m
 | `make test-l3` | SHACL admission floor (teaching 400s) | fork rig |
 | `make test-typeindex`, `make test-indexed-relation` | Type Index/Search, indexed relations | fork rig |
 | `make test-graph` | named-graph JSON-LD storage + derived views | fork rig |
-| `make test-conneg` | content negotiation by profile (`cnpr:http`); 406-never-beats-304; `--lws-config`-driven service presence | fork rig |
+| `make test-conneg` | content negotiation by profile (`cnpr:http`); 304-never-beats-406; `--lws-config`-driven service presence | fork rig |
 | `make test-preservation` | Turtle stored/served as its own bytes (no JSON-LD envelope); write-time name/type teaching 400 | fork rig |
 | `make test-profiles` | the PROF walk + profile-index advertisement | fork rig + `make publish-profiles` |
 | `make test-dcat` | zero-code application onboarding (its setup IS the recipe) | fork rig |

@@ -11,7 +11,7 @@ RUN apt-get update \
 
 # Install the fork from a pinned git ref. Default = debt-drain-round merge rung
 # (representation preservation — Turtle stored raw, name/type teaching-400 gate;
-# 406-never-beats-304 conditional ordering; --lws-config replaces
+# 304-never-beats-406 conditional ordering; --lws-config replaces
 # --lws-profile-index/--lws-void; MCP alternates + guard parity; federation
 # SSRF hardening — spec 2026-07-11 debt-drain), la3d/lws HEAD.
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
