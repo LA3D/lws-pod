@@ -30,7 +30,11 @@
 > **conneg-by-profile** spec, whose **Phase 1 (fork pillar, DONE 2026-07-07)** and **Phase 2
 > (instantiation + wiki-memory re-derivation, DONE 2026-07-10)** shipped the engine demotion
 > (`projection/prof/` vs `apps/wiki-projector/`), the re-derived wiki-memory family, and the
-> `constrained-container/` retirement. **NEXT = the fork-queue serving-path round.** Current state:
+> `constrained-container/` retirement. The **serving-path (2026-07-10/11), gateway (2026-07-11),
+> and debt-drain (2026-07-11/12) rounds** then shipped in sequence (probes #6/#7 passed;
+> carryovers drained to one L4 pointer); a **post-drain code review (2026-07-12)** surfaced 15
+> findings, of which the **publish-hardening batch (A) shipped same day**. **NEXT = the fork
+> review-round (B, 12 findings) → then the L4 read-side design round.** Current state:
 > **FOLLOWUP.md** (authoritative over this doc's sequencing).
 
 
@@ -48,7 +52,8 @@ for the substrate evidence see `docs/foundations/`. This doc is the *sequencing*
 in what order, and what each phase depends on.
 
 Last updated: 2026-06-21 (pre-pivot); direction-change banner 2026-06-28; status banner refreshed
-2026-06-30 (L1+L2 shipped, L3 next). The body below is superseded "sidecar"-era history — the live
+2026-06-30 (L1+L2 shipped, L3 next) and 2026-07-12 (rounds through debt-drain + publish-hardening
+shipped; fork review-round next). The body below is superseded "sidecar"-era history — the live
 forward plan is the design doc §12 + `FOLLOWUP.md`.
 
 ---

@@ -271,6 +271,9 @@ modules `pod-config.js`/`write-consistency.js`/`ssrf.js`, image `fork-drain`).**
   every `--bind`/`--instantiate` target; idempotent; `--no-acl` opts out. **The OPS gap recorded
   three times (2026-07-04, serving-path round, gateway round) is DEAD** — the reseed runbook is
   now `POD_TOKEN=… make publish-profiles`, one command, zero manual `write_acl` calls.
+  **[⚠ 2026-07-12 review #1: "idempotent" was a clobber — the blind re-PUT re-opened
+  hand-tightened ACLs. FIXED same day (publish-hardening batch, `9c63c12`): `provisionAcls()`
+  probes first, existing `.acl`s untouched. See the review-backlog (A) block at top.]**
 - **`pod-config.jsonld` ships as publish data** (DT11, `c75e221`): the `{profileIndex, void}`
   pointer resource joins the manifest + a resolves-check; `buildVoid`'s `void:rootResource` now
   matches `uriSpace`'s bare-string shape (closes the T14 minor).

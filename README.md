@@ -121,11 +121,15 @@ for four families: the substrate floor, okf-base, llm-wiki (application #1), and
 written on failure), PUTs the tree, binds containers (`dct:conformsTo` +
 `powder:describedby`), and instantiates renderer-free representations (`--instantiate`).
 
-**ACLs are automatic.** JSS creates containers owner-only; `make publish-profiles` provisions
-public-read + owner-control ACLs by default (`isDefault: true` both) on the profiles container
-and every `--bind`/`--instantiate` target, via the pod's own MCP `write_acl` (`--no-acl` opts
-out). The old manual `write_acl` recipe (recorded as an open OPS gap three times since
-2026-07-04) is gone — a fresh reseed is one command: `POD_TOKEN=… make publish-profiles`.
+**ACLs are automatic — and probe-first.** JSS creates containers owner-only; `make
+publish-profiles` provisions public-read + owner-control ACLs by default (`isDefault: true`
+both) on the profiles container and every `--bind`/`--instantiate` target, via the pod's own MCP
+`write_acl` (`--no-acl` opts out). Provisioning only fires where no `.acl` exists yet (review #1,
+2026-07-12): an ACL you hand-tightened is left untouched by `publish-profiles`/`reinstantiate`,
+never silently re-opened. The owner WebID comes from the bearer's own `webid` claim (`--owner`
+overrides; nothing is written if neither resolves — review #11), so the CLI is pod-agnostic. The
+old manual `write_acl` recipe (recorded as an open OPS gap three times since 2026-07-04) is gone
+— a fresh reseed is one command: `POD_TOKEN=… make publish-profiles`.
 
 ### Derived-view freshness
 
@@ -136,9 +140,10 @@ writing, editing, or deleting a member does **not** auto-refresh them. A deleted
 can linger in `graph.jsonld` until the next instantiate.
 
 `make reinstantiate` is the refresh: it re-runs bind+instantiate for every manifest family
-(alias of `make publish-profiles` — re-PUTting the defs tree is idempotent, and bind+instantiate
-is the part that actually needs re-running). Run it after any batch of member writes/deletes
-where an aggregate view needs to reflect current state.
+(alias of `make publish-profiles` — re-PUTting the defs tree is idempotent, ACL provisioning
+skips targets that already have an `.acl`, and bind+instantiate is the part that actually needs
+re-running). Run it after any batch of member writes/deletes where an aggregate view needs to
+reflect current state.
 
 There is no CDC/watcher runtime keeping aggregates live-synced on every write — the wiki family
 ships a WebSocket trigger (`apps/wiki-projector/triggers/`) as an *application-level* option, but

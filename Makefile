@@ -191,6 +191,9 @@ test-projection:
 
 # Publish the profile definitions to the fork TLS pod + bind the demo container.
 # Needs `make up-fork-tls` running + `make cert`'s CA. POD_TOKEN via tests helper flow.
+# ACLs are probe-first (review #1): an existing .acl is never overwritten, so re-runs
+# can't re-open a hand-tightened container. Owner WebID = the token's webid claim
+# (review #11; --owner overrides).
 publish-profiles:
 	@[ -d projection/node_modules ] || ( cd projection && npm ci )
 	cd projection && NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem \
@@ -201,9 +204,10 @@ publish-profiles:
 # Derived-view refresh (README "Derived-view freshness"): re-runs bind+instantiate for every
 # manifest family. Aggregates (graph.jsonld, index.md, …) are BUILD PRODUCTS — deleting or
 # editing a member does not auto-refresh them; this target is the refresh. Alias of
-# publish-profiles: re-PUTting the defs tree is idempotent/harmless, and bind+instantiate
-# (publish.mjs steps 3-4, driven by the manifest's --bind/--instantiate flags) is the part that
-# actually needs re-running. Needs `make up-fork-tls` + `make cert` + POD_TOKEN.
+# publish-profiles: re-PUTting the defs tree is idempotent/harmless, ACL provisioning skips
+# targets that already have an .acl, and bind+instantiate (publish.mjs steps 3-4, driven by
+# the manifest's --bind/--instantiate flags) is the part that actually needs re-running.
+# Needs `make up-fork-tls` + `make cert` + POD_TOKEN.
 reinstantiate: publish-profiles
 
 # Wiki-memory app gate — unit tests (jsdom/node), e2e excluded (Task 10).
