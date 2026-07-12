@@ -9,14 +9,14 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = gateway-round merge rung
-# (sourceContentType seam both faces + non-RDF teaching 406, bare-200 alternates,
-# root-shadow escape, --lws-void rung, F1/F2/F7 smalls) PLUS the final-review
-# fix (HEAD legacy branch mirrors the non-RDF source gate — no 200 where GET
-# teaches 406), la3d/lws HEAD.
+# Install the fork from a pinned git ref. Default = debt-drain-round merge rung
+# (representation preservation — Turtle stored raw, name/type teaching-400 gate;
+# 406-never-beats-304 conditional ordering; --lws-config replaces
+# --lws-profile-index/--lws-void; MCP alternates + guard parity; federation
+# SSRF hardening — spec 2026-07-11 debt-drain), la3d/lws HEAD.
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=be2ddba5b3eda21d6b3e223cf96e102d912e202a
+ARG JSS_GIT_REF=4824fe2375d0959856e93bebf9878f9db9da099c
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).

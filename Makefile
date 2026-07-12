@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-void test-wiki test-projection publish-profiles reinstantiate test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-wiki test-projection publish-profiles reinstantiate test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -137,14 +137,24 @@ test-graph:
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-graph.test.mjs
 
 # Content-negotiation-by-profile live gate (DX-PROF-CONNEG cnpr:http) — neutral memory w/ array-@context
-# .meta (the parser-fix proof). Needs `make up-fork-tls` (fork-conneg image) + `make cert`.
+# .meta (the parser-fix proof). Also carries the debt-drain-round live cases: 406-never-
+# beats-304 conditional ordering + --lws-config-driven VoidService/ProfileIndexService
+# presence. Needs `make up-fork-tls` (fork-drain image) + `make cert`.
 test-conneg:
 	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-conneg.test.mjs
 
+# Representation-preservation live gate (spec 2026-07-11 §2, debt-drain round, B1 root
+# fix) — Turtle PUT is stored AS Turtle (no JSON-LD envelope), served as its own bytes,
+# items[].mediaType agrees, and the write-time name/type consistency gate teaches a 400
+# in both mismatch directions. Needs `make up-fork-tls` (fork-drain image) + `make cert`.
+test-preservation:
+	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-preservation.test.mjs
+
 # VoID gateway live gate (spec 2026-07-11 §5) — /.well-known/void 303s to the
 # pod-materialized void.jsonld; deref rail (every declared vocabulary carries
-# a pod-served dump). Needs `make up-fork-tls` (fork-gateway image, --lws-void)
+# a pod-served dump). Needs `make up-fork-tls` (fork-drain image, --lws-config)
 # + `make cert` + `make publish-profiles` (materializes void.jsonld).
 test-void:
 	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }

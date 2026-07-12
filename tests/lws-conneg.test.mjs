@@ -284,3 +284,69 @@ describe.skipIf(!hasConneg)('unified profile-406 (F5, live)', () => {
     expect(p.instance).toBe(`${BASE}/alice/wiki/a.md`)
   })
 })
+
+// Debt-drain round (spec 2026-07-11 §3): preconditions apply only to requests that
+// would otherwise succeed (RFC 9110 §13.2.2) — a conditional request that would 406
+// (the F3 non-RDF-source arm) answers the teaching 406, never a short-circuit 304,
+// regardless of the presented ETag. The satisfiable-Accept fast path (304) is
+// unchanged, and its Vary now names Accept-Profile (parity with the 200's Vary).
+describe.skipIf(!hasConneg)('406 wins over 304 (conditional ordering, live)', () => {
+  let auth, card, etag
+  beforeAll(async () => {
+    await ensurePod()
+    const { token } = await getToken()
+    auth = { Authorization: `Bearer ${token}` }
+    card = `${BASE}/alice/conditional-card.md`
+    await fetch(card, { method: 'PUT', headers: { 'Content-Type': 'text/markdown', ...auth }, body: '# card\n' })
+    const r = await fetch(card, { headers: auth })
+    etag = r.headers.get('etag')
+  })
+  afterAll(async () => { await fetch(card, { method: 'DELETE', headers: auth }) })
+
+  it('If-None-Match + unsatisfiable Accept (text/turtle) → 406, never 304', async () => {
+    const r = await fetch(card, { headers: { 'If-None-Match': etag, Accept: 'text/turtle', ...auth } })
+    expect(r.status).toBe(406)
+  })
+
+  it('If-None-Match + satisfiable Accept (text/markdown) → 304 (fast path unchanged), Vary names Accept-Profile', async () => {
+    const r = await fetch(card, { headers: { 'If-None-Match': etag, Accept: 'text/markdown', ...auth } })
+    expect(r.status).toBe(304)
+    expect(r.headers.get('vary') || '').toMatch(/Accept-Profile/)
+  })
+
+  it('HEAD parity: conditional + unsatisfiable Accept → 406', async () => {
+    const r = await fetch(card, { method: 'HEAD', headers: { 'If-None-Match': etag, Accept: 'text/turtle', ...auth } })
+    expect(r.status).toBe(406)
+  })
+})
+
+// Debt-drain round (spec 2026-07-11 §4): the two path flags (--lws-profile-index,
+// --lws-void) are GONE — one --lws-config pod resource ({ profileIndex, void })
+// drives both services, read lazily + mtime-cached. Live proof the rig's compose
+// command (no path flags at all now) still produces both service entries and the
+// /.well-known/void 303, sourced from the published pod-config.jsonld.
+describe.skipIf(!hasConneg)('--lws-config drives service presence (live)', () => {
+  it('storage description lists VoidService + ProfileIndexService (from pod-config.jsonld)', async () => {
+    const r = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+    const doc = await r.json()
+    const types = doc.service.map(s => s.type)
+    expect(types).toContain('VoidService')
+    expect(types).toContain('ProfileIndexService')
+    expect(doc.service.find(s => s.type === 'VoidService').serviceEndpoint).toBe(`${BASE}/.well-known/void`)
+    expect(doc.service.find(s => s.type === 'ProfileIndexService').serviceEndpoint).toBe(`${BASE}/alice/profiles/index.jsonld`)
+  })
+
+  it('/.well-known/void 303s to the pod-config-declared void document', async () => {
+    const r = await fetch(`${BASE}/.well-known/void`, { redirect: 'manual' })
+    expect(r.status).toBe(303)
+    expect(r.headers.get('location')).toBe(`${BASE}/alice/profiles/void.jsonld`)
+  })
+
+  it('pod-config.jsonld itself is readable anonymously (data, not a secret)', async () => {
+    const r = await fetch(`${BASE}/alice/profiles/pod-config.jsonld`)
+    expect(r.status).toBe(200)
+    const cfg = await r.json()
+    expect(cfg.profileIndex).toBe('/alice/profiles/index.jsonld')
+    expect(cfg.void).toBe('/alice/profiles/void.jsonld')
+  })
+})

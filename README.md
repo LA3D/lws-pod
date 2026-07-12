@@ -85,8 +85,11 @@ make up-tls && make cid-tls   # LWS-CID auth experiment — in-JSS-TLS pod on :8
 ```
 
 `Dockerfile.fork` builds the fork from a pinned git ref (override `JSS_GIT_REF`) with `--lws`
-(+ `--lws-profile-conneg`, `--lws-profile-index`) enabled. The rig runs under its own compose
-project (`lws-pod-forktls`), so it never disturbs the base `lws-pod-local` pod.
+`--lws-config /alice/profiles/pod-config.jsonld` enabled — one pod resource (published by `make
+publish-profiles`) declares the LWS service pointers as data, replacing the old
+`--lws-profile-index`/`--lws-void` path flags outright (no deprecation aliases). The rig runs
+under its own compose project (`lws-pod-forktls`), so it never disturbs the base `lws-pod-local`
+pod.
 
 ## Verification (the gates)
 
@@ -101,7 +104,8 @@ Unit gates need no pod; live gates run against the fork TLS rig (`make cert && m
 | `make test-l3` | SHACL admission floor (teaching 400s) | fork rig |
 | `make test-typeindex`, `make test-indexed-relation` | Type Index/Search, indexed relations | fork rig |
 | `make test-graph` | named-graph JSON-LD storage + derived views | fork rig |
-| `make test-conneg` | content negotiation by profile (`cnpr:http`) | fork rig |
+| `make test-conneg` | content negotiation by profile (`cnpr:http`); 406-never-beats-304; `--lws-config`-driven service presence | fork rig |
+| `make test-preservation` | Turtle stored/served as its own bytes (no JSON-LD envelope); write-time name/type teaching 400 | fork rig |
 | `make test-profiles` | the PROF walk + profile-index advertisement | fork rig + `make publish-profiles` |
 | `make test-dcat` | zero-code application onboarding (its setup IS the recipe) | fork rig |
 | `make test-wiki` | the wiki family end-to-end: bind → instantiate → negotiate | fork rig + `make publish-profiles` |

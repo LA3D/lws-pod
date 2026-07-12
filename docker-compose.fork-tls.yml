@@ -16,20 +16,20 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (gateway rung + final-review HEAD fix); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-be2ddba5b3eda21d6b3e223cf96e102d912e202a}"
-    image: lws-pod:fork-gateway
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (debt-drain-round merge rung); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-4824fe2375d0959856e93bebf9878f9db9da099c}"
+    image: lws-pod:fork-drain
     container_name: lws-pod-fork
-    # Same flags as the Dockerfile's default CMD, plus --lws-profile-index (opt-in,
-    # per-deployment: advertises the ProfileIndexService at this pod path — spec §10),
-    # --idp-issuer to advertise the public Caddy-fronted issuer (S2, zero fork code), and
-    # --lws-void pointing at the pod-materialized VoID document (Task 14's `publish.mjs`
-    # output) — the /.well-known/void 303 rung (spec 2026-07-11 §5).
+    # Same flags as the Dockerfile's default CMD, plus --idp-issuer to advertise the public
+    # Caddy-fronted issuer (S2, zero fork code), and --lws-config pointing at the ONE pod
+    # resource that declares the LWS service pointers as data ({ profileIndex, void }) —
+    # replaces the old --lws-profile-index/--lws-void path flags outright (spec 2026-07-11
+    # §4, no deprecation aliases). Read lazily + mtime-cached: absent before publish = both
+    # services off (no crash); appears live once `make publish-profiles` writes it, no restart.
     command: ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data",
       "--idp", "--mcp", "--conneg", "--mashlib-cdn", "--git", "--notifications", "--provision-keys",
       "--idp-issuer", "https://pod.vardeman.me",
-      "--lws", "--lws-profile-index", "/alice/profiles/index.jsonld",
-      "--lws-void", "/alice/profiles/void.jsonld"]
+      "--lws", "--lws-config", "/alice/profiles/pod-config.jsonld"]
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.
     expose:
       - "3000"
