@@ -142,3 +142,33 @@ describe('checkPodConfig — the pod-config.jsonld resolves rail (spec §4b/§7,
     expect(checkPodConfig('not json', manifest, allExist, CONTAINER).length).toBeGreaterThan(0)
   })
 })
+
+describe('checkPodConfig — uriSpaces plane-mapping (Task 7, the fork 303-referent resolver reads this)', () => {
+  const allExist = () => true
+  const manifest = { void: { rootResource: '/alice/', uriSpace: 'id/' } }
+  const CONTAINER = '/alice/profiles/'
+  const cfg = (o) => JSON.stringify({ profileIndex: '/alice/profiles/index.jsonld', void: '/alice/profiles/void.jsonld', ...o })
+  it('accepts a valid uriSpaces entry (pinned: /id/ -> /alice/wiki/ + .md suffix)', () => {
+    const fails = checkPodConfig(cfg({ uriSpaces: [{ pathPrefix: '/id/', container: '/alice/wiki/', suffix: '.md' }] }), manifest, allExist, CONTAINER)
+    expect(fails).toEqual([])
+  })
+  it('FAILS a uriSpaces entry missing container', () => {
+    const fails = checkPodConfig(cfg({ uriSpaces: [{ pathPrefix: '/id/' }] }), manifest, allExist, CONTAINER)
+    expect(fails.some((f) => f.includes('uriSpaces') && f.includes('container'))).toBe(true)
+  })
+  it('FAILS a uriSpaces entry whose pathPrefix lacks a trailing slash', () => {
+    const fails = checkPodConfig(cfg({ uriSpaces: [{ pathPrefix: '/id', container: '/alice/wiki/' }] }), manifest, allExist, CONTAINER)
+    expect(fails.some((f) => f.includes('uriSpaces') && f.includes('pathPrefix'))).toBe(true)
+  })
+  it('FAILS a uriSpaces pathPrefix that disagrees with the published manifest void.uriSpace', () => {
+    const fails = checkPodConfig(cfg({ uriSpaces: [{ pathPrefix: '/other/', container: '/alice/wiki/' }] }), manifest, allExist, CONTAINER)
+    expect(fails.some((f) => f.includes('uriSpaces') && f.includes('does not match'))).toBe(true)
+  })
+  it('FAILS a uriSpaces entry with a non-string suffix', () => {
+    const fails = checkPodConfig(cfg({ uriSpaces: [{ pathPrefix: '/id/', container: '/alice/wiki/', suffix: 3 }] }), manifest, allExist, CONTAINER)
+    expect(fails.some((f) => f.includes('uriSpaces') && f.includes('suffix'))).toBe(true)
+  })
+  it('passes a pod-config WITHOUT uriSpaces at all (optional field, back-compat)', () => {
+    expect(checkPodConfig(cfg(), manifest, allExist, CONTAINER)).toEqual([])
+  })
+})

@@ -1,1 +1,2 @@
-{ "profileIndex": "/alice/profiles/index.jsonld", "void": "/alice/profiles/void.jsonld" }
+{ "profileIndex": "/alice/profiles/index.jsonld", "void": "/alice/profiles/void.jsonld",
+  "uriSpaces": [{ "pathPrefix": "/id/", "container": "/alice/wiki/", "suffix": ".md" }] }

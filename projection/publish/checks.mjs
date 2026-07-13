@@ -159,5 +159,32 @@ export function checkPodConfig(cfgText, manifest, existsRel, container) {
     fails.push(`pod-config: profileIndex ${cfg.profileIndex} — not a defs-tree artifact under ${root}`)
   if (under(cfg.void) !== 'void.jsonld' || !manifest.void)
     fails.push(`pod-config: void ${cfg.void} — must be ${root}void.jsonld with a manifest.void to materialize it`)
+  if (cfg.uriSpaces !== undefined) fails.push(...checkUriSpaces(cfg.uriSpaces, manifest))
   return fails
+}
+
+// uriSpaces (Task 7): the plane-mapping [{pathPrefix, container, suffix?}] the
+// fork's 303 referent resolver reads to turn a minted /id/{slug}#it name back
+// into the storage resource holding it. Optional — absence is fine (back-compat);
+// when present each entry must be well-formed and its pathPrefix must agree
+// with the published VoID uriSpace — same "can never disagree" rail as the
+// rest of pod-config (spec §4b/§7, review #15, see checkPodConfig above).
+function checkUriSpaces(uriSpaces, manifest) {
+  if (!Array.isArray(uriSpaces)) return ['pod-config: uriSpaces must be an array']
+  const expectedPrefix = manifest.void?.uriSpace ? `/${manifest.void.uriSpace}` : undefined
+  const out = []
+  uriSpaces.forEach((entry, i) => {
+    const label = `pod-config: uriSpaces[${i}]`
+    const prefix = entry?.pathPrefix
+    if (typeof prefix !== 'string' || !prefix || !prefix.endsWith('/'))
+      out.push(`${label}: pathPrefix must be a non-empty string ending in '/' (got ${JSON.stringify(prefix)})`)
+    else if (expectedPrefix !== undefined && prefix !== expectedPrefix)
+      out.push(`${label}: pathPrefix ${prefix} does not match manifest void.uriSpace (expected ${expectedPrefix})`)
+    const cont = entry?.container
+    if (typeof cont !== 'string' || !cont || !cont.endsWith('/'))
+      out.push(`${label}: container must be a non-empty string ending in '/' (got ${JSON.stringify(cont)})`)
+    if (entry?.suffix !== undefined && typeof entry.suffix !== 'string')
+      out.push(`${label}: suffix must be a string when present (got ${JSON.stringify(entry.suffix)})`)
+  })
+  return out
 }
