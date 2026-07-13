@@ -9,15 +9,15 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = post-drain review-round merge rung
-# (2026-07-12: write-consistency gate at the applyLwsWrite choke point; NT/NQ read-conversion
-# + JSON-LD graph-capable; JSON-LD-arm variant ETag + pending-conversion 304-deferral, 406 no
-# ETag; dataset-level PATCH — N3/SPARQL/JSON-Merge-Patch, bodied-write-needs-Content-Type;
-# MCP altr/type-search sanitize; one SSRF table + per-hop redirect revalidation; application/json
-# first-class container label — review B1-B12 + P1-P3), la3d/lws HEAD.
+# Install the fork from a pinned git ref. Default = referent-identity-&-discovery round
+# (2026-07-13, la3d/lws HEAD): type enrichment (referent rdf:type into .lwstypes, enrich-not-
+# replace) + earned-conformsTo provenance (.lwsprov) + the 303 uriSpace resolver (algorithmic
+# name->container via pod-config uriSpaces {pathPrefix,container,suffix}, no-oracle, auth-gate
+# exemption) + URI-typed ReferentResolution capability; System-Managed sidecars hidden from
+# container listings; --test-force-exit on the suite runner. Merge a7a821c + suffix addendum.
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=b31510a3db64405982f03e2d785ef549f93d6209
+ARG JSS_GIT_REF=272d2ff32ba34a6c006648fdcb87424aa8879ac6
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
