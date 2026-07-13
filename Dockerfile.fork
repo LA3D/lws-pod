@@ -17,7 +17,7 @@ RUN apt-get update \
 # container listings; --test-force-exit on the suite runner. Merge a7a821c + suffix addendum.
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=db9cdaa5f72fea2880e4a3cfe826e37db1fa3f21
+ARG JSS_GIT_REF=16530a121098d97790c5f7b07b733432dfccfedf
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
