@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection app apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-wiki test-projection publish-profiles reinstantiate test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-wiki test-projection publish-profiles reinstantiate test-app shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -159,6 +159,17 @@ test-preservation:
 test-void:
 	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-void.test.mjs
+
+# Referent identity & discovery live gate (spec 2026-07-13 §8/§9) — the /id/
+# name-space resolver (algorithmic 303, no-oracle) + referent-type-search
+# enrichment (subject rdf:type indexed alongside lws#DataResource, never
+# replacing it), plus Task 8's read-semantics confirmations (container
+# conformsTo beats pod defaultProfile; governance edges on .meta, not the
+# member; plural conformsTo bindings preserved). Needs `make up-fork-tls`
+# (fork-referent image or later) + `make cert` + `make publish-profiles`.
+test-referent:
+	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-referent.test.mjs
 
 # Cold-agent affordance harness (experiments/agent-eval). -dry = plumbing smoke
 # (MCP handshake + read surface, no API key); full run needs ANTHROPIC_API_KEY.
