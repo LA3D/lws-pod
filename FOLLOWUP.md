@@ -23,8 +23,11 @@ cold-agent probe). Design of record
 already found an edge to.
 
 **Shipped, fork (`la3d/lws-referent` off `la3d/lws@b31510a`; merged `--no-ff` into `la3d/lws` =
-`a7a821c`, then a resolveReferent content-suffix addendum `272d2ff` (`la3d/lws` HEAD); pushed to
-GitHub; full fork suite **1573/0**, image `lws-pod:fork-referent`):**
+`a7a821c`, a resolveReferent content-suffix addendum `272d2ff`, then the final-review **C1 security
+fix `db9cdaa`** (`la3d/lws` HEAD — `*.lwstypes`/`*.lwsprov` direct GET now requires READ on the
+stripped subject, mirroring `*.acl`→CONTROL; closes a private-resource type/profile leak the listing
+fix left on the direct-GET surface); pushed to GitHub; full fork suite **1581/0**, image
+`lws-pod:fork-referent`):**
 - **Type enrichment** (`6d22f96`) — `src/lws/subject-types.js` (`subjectTypesFromBody`): at the
   single write choke point (`applyLwsWrite` — HTTP PUT/POST + all three MCP write tools), the
   body's primary-referent `rdf:type` is parsed (primary-subject-only rule: exactly one distinct
