@@ -105,9 +105,31 @@ The name/dereference separation above is now realized **in-band** via JSON-LD 1.
 
 §11 #4 (subject-IRI → dereferenceable stored representation) is now **[resolved]**, closed by
 conneg-by-profile Phase 1+2 (`docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md`,
-shipped through 2026-07-10). Three findings:
+shipped through 2026-07-10), plus the name-space deref hop closed by the referent-identity round
+(2026-07-13). Four findings:
 
-- **(a) Realized in-band.** A client resolves a memory by **GETting its canonical URL and negotiating
+- **(a) Name-space dereference — the missing earlier hop, now closed (referent-identity round,
+  2026-07-13).** (b)–(d) below assume the client already holds the resource's *canonical URL*. But a
+  minted subject IRI is `{authority}/id/{slug}#it`, and dereferencing the **name** itself — GET
+  `{authority}/id/{slug}` (fragment stripped) — is a *different*, earlier hop that was left unwired
+  until this round. It is now resolved by an **algorithmic 303 rewrite rule**, not a lookup index: the
+  pod's `--lws-config` pod-config declares `uriSpaces: [{pathPrefix, container, suffix?}]`; the fork
+  resolver strips the fragment, matches the path against a declared `pathPrefix`, and rewrites it to
+  `{container}{slug}{suffix}` (e.g. `/id/a` → `/alice/wiki/a.md` — the slug is extensionless but the
+  card is stored `.md`), then **303 See Other**s to it. This is the DBpedia `/resource/X` →
+  `/data/X` precedent (httpRange-14): the name is not the document, so 303 to where a representation
+  lives; from there the client falls into (b)'s conneg-by-profile to pick content vs links.
+  - **no-oracle.** The resolver 404-hides when the target is missing or unreadable by the requester —
+    never a 303-then-401 that leaks existence.
+  - **Rewrite rule, not an index — deliberately.** A reverse subject→location index is not built; it
+    is a named YAGNI escalation, deferred until a resource's location is *non-algorithmic* (relocated
+    outside its profile's plane-mapping) — spec §4 "What is deliberately NOT built"
+    (`docs/superpowers/specs/2026-07-13-referent-identity-discovery-design.md`).
+  - **Self-describing.** The identity policy (`pathPrefix`/`fragment`/plane-mapping) is now
+    first-class `lwsp:` vocabulary, and the pod advertises a URI-typed `ReferentResolution`
+    capability in its storage description — a cold agent reads the convention as RDF instead of
+    inferring it from server behavior.
+- **(b) Realized in-band.** A client resolves a memory by **GETting its canonical URL and negotiating
   the profile**: `Accept-Profile` on the canonical URL returns **200 self** when the canonical
   representation already matches (llm-wiki: `content`, markdown, `self: true`/`default: true`), or
   **303** to the materialized representation that does (e.g. `.links.jsonld` for the RDF-consuming
@@ -115,13 +137,13 @@ shipped through 2026-07-10). Three findings:
   dereference. `rel="up"`/`describedby`/type index remain the walk for discovering the profile and
   its shapes in the first place; conneg is the walk for landing on the right *representation* of a
   given resource once the profile is known.
-- **(b) Membership steering.** A linkset-only agent must **never** read container membership off the
+- **(c) Membership steering.** A linkset-only agent must **never** read container membership off the
   linkset (a container's linkset carries governance edges — `describedby`/`conformsTo` — not a member
   list). Members are enumerated via **`items[]`** (the L1 `lws+json` container representation) or
   **TypeSearch** (`/types/search`, authz-filtered). This is steering, not new machinery — recorded
   here because §11 #4 used to conflate "how do I find the container's profile" with "how do I find
   the container's members," and conneg-by-profile forced the two apart.
-- **(c) Read-side leanings — now design of record**, not a leaning under debate:
+- **(d) Read-side leanings — now design of record**, not a leaning under debate:
   - The **`up`-walk contract stands**: governance edges (`describedby`, `conformsTo`) live on the
     **container's** linkset, not the member's; a member reaches its profile via `rel="up"`.
   - **Container `conformsTo` beats the pod-wide `defaultProfile`** — a bound container's own
