@@ -3,6 +3,7 @@
 @prefix prof: <http://www.w3.org/ns/dx/prof/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 lwsp: a skos:ConceptScheme ;
   rdfs:label "lws-pod profile mechanism vocabulary"@en ;
@@ -31,4 +32,29 @@ lwspr:derived-view a prof:ResourceRole, skos:Concept ;
 lwspr:representation a prof:ResourceRole, skos:Concept ;
   skos:prefLabel "Profile representation"@en ;
   skos:definition "Config consumed by the instantiation step: one representation the application offers for content negotiation by profile (DX-PROF-CONNEG). Fields: conformsTo (the representation's profile IRI, resolved against the artifact URL) and format (media type), plus exactly one of — self (the canonical resource itself), suffix (a per-member materialized artifact at member URL + suffix), target (a container-level artifact an application renderer materializes), or named_graph/push_mode/mode with optional members (a container-level aggregate the neutral derived-view materializer builds). Instantiation materializes each declared representation and writes the altr: facts the server advertises and selects on. It carries no application vocabulary."@en ;
+  skos:inScheme lwsp: .
+
+lwsp:pathPrefix a rdf:Property, skos:Concept ;
+  skos:prefLabel "path prefix"@en ;
+  skos:definition "The uriSpace segment under the pod authority in which this profile mints subject IRIs (e.g. 'id/'). A GET of a minted name in this space 303-redirects to the backing resource via the plane container."@en ;
+  skos:inScheme lwsp: .
+
+lwsp:fragment a rdf:Property, skos:Concept ;
+  skos:prefLabel "fragment"@en ;
+  skos:definition "The fragment identifying the referent within a minted document IRI (default '#it'; httpRange-14: the document is the graph, the referent is the fragment)."@en ;
+  skos:inScheme lwsp: .
+
+lwsp:slugStrategy a rdf:Property, skos:Concept ;
+  skos:prefLabel "slug strategy"@en ;
+  skos:definition "How the slug is derived (e.g. filename-stem for flat spaces, bundle-path for hierarchical); content-derived, never the storage path."@en ;
+  skos:inScheme lwsp: .
+
+lwsp:versioning a rdf:Property, skos:Concept ;
+  skos:prefLabel "versioning"@en ;
+  skos:definition "Whether a version segment is included in minted IRIs (off by default)."@en ;
+  skos:inScheme lwsp: .
+
+lwsp:planeContainer a rdf:Property, skos:Concept ;
+  skos:prefLabel "plane container"@en ;
+  skos:definition "The storage container backing this profile's pathPrefix uriSpace — the 303 target base for name dereference (the read-side plane mapping)."@en ;
   skos:inScheme lwsp: .
