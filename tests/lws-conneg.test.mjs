@@ -350,3 +350,44 @@ describe.skipIf(!hasConneg)('--lws-config drives service presence (live)', () =>
     expect(cfg.void).toBe('/alice/profiles/void.jsonld')
   })
 })
+
+// Post-drain review round (2026-07-12, fork b31510a). Two live pins for the
+// standards-violation fixes the round closed on the RDF serving/patch path:
+// #7 (Solid #server-patch-n3-accept MUST — N3 Patch on a verbatim-stored
+// Turtle resource applies, applied at the dataset level per the owner
+// directive) and P3 (LWS media-type MUST — application/json is a first-class
+// container Content-Type label, same payload as ld+json).
+describe.skipIf(!hasConneg)('review round: N3-Patch on verbatim-stored Turtle + application/json label (live)', () => {
+  let auth, ttl
+  beforeAll(async () => {
+    await ensurePod()
+    const { token } = await getToken()
+    auth = { Authorization: `Bearer ${token}` }
+    ttl = `${BASE}/alice/review-patch.ttl`
+    await fetch(ttl, { method: 'PUT', headers: { 'Content-Type': 'text/turtle', ...auth },
+      body: '<#s> <http://ex/p> "original" .\n' })
+  })
+  afterAll(async () => { await fetch(ttl, { method: 'DELETE', headers: auth }) })
+
+  it('#7: text/n3 PATCH on a stored .ttl applies and the resource stays Turtle', async () => {
+    const patch = '@prefix solid: <http://www.w3.org/ns/solid/terms#>.\n'
+      + '_:p a solid:InsertDeletePatch; solid:inserts { <#s> <http://ex/q> "added" . }.'
+    const p = await fetch(ttl, { method: 'PATCH', headers: { 'Content-Type': 'text/n3', ...auth }, body: patch })
+    expect([200, 204]).toContain(p.status)
+    const back = await fetch(ttl, { headers: { Accept: 'text/turtle', ...auth } })
+    expect(back.status).toBe(200)
+    expect(back.headers.get('content-type').split(';')[0]).toBe('text/turtle')
+    const body = await back.text()
+    expect(body).toContain('"original"')   // original triple survives
+    expect(body).toContain('"added"')       // patch applied
+  })
+
+  it('P3: Accept: application/json on a container is labelled application/json, same body as ld+json', async () => {
+    const asJson = await fetch(`${BASE}/alice/`, { headers: { Accept: 'application/json', ...auth } })
+    const asLd = await fetch(`${BASE}/alice/`, { headers: { Accept: 'application/ld+json', ...auth } })
+    expect(asJson.status).toBe(200)
+    expect(asJson.headers.get('content-type').split(';')[0]).toBe('application/json')
+    expect(asLd.headers.get('content-type').split(';')[0]).toBe('application/ld+json')
+    expect(await asJson.json()).toEqual(await asLd.json())   // label-only: payload identical
+  })
+})

@@ -9,14 +9,15 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = debt-drain-round merge rung
-# (representation preservation — Turtle stored raw, name/type teaching-400 gate;
-# 304-never-beats-406 conditional ordering; --lws-config replaces
-# --lws-profile-index/--lws-void; MCP alternates + guard parity; federation
-# SSRF hardening — spec 2026-07-11 debt-drain), la3d/lws HEAD.
+# Install the fork from a pinned git ref. Default = post-drain review-round merge rung
+# (2026-07-12: write-consistency gate at the applyLwsWrite choke point; NT/NQ read-conversion
+# + JSON-LD graph-capable; JSON-LD-arm variant ETag + pending-conversion 304-deferral, 406 no
+# ETag; dataset-level PATCH — N3/SPARQL/JSON-Merge-Patch, bodied-write-needs-Content-Type;
+# MCP altr/type-search sanitize; one SSRF table + per-hop redirect revalidation; application/json
+# first-class container label — review B1-B12 + P1-P3), la3d/lws HEAD.
 # Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=4824fe2375d0959856e93bebf9878f9db9da099c
+ARG JSS_GIT_REF=b31510a3db64405982f03e2d785ef549f93d6209
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).

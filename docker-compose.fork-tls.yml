@@ -16,9 +16,9 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (debt-drain-round merge rung); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-4824fe2375d0959856e93bebf9878f9db9da099c}"
-    image: lws-pod:fork-drain
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (post-drain review-round merge rung); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-b31510a3db64405982f03e2d785ef549f93d6209}"
+    image: lws-pod:fork-review
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --idp-issuer to advertise the public
     # Caddy-fronted issuer (S2, zero fork code), and --lws-config pointing at the ONE pod
