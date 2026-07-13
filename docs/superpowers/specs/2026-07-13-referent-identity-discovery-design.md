@@ -1,8 +1,9 @@
 # Referent identity & discovery — design of record
 
 **Date:** 2026-07-13
-**Status:** design of record (brainstormed, approved section-by-section, then simplified after a
-size/idiomaticity sanity-check — 2026-07-13; pending implementation plan).
+**Status:** design of record (brainstormed, approved section-by-section, simplified after a
+size/idiomaticity sanity-check, then checked against the pinned `lws10-searchindex` spec — all
+2026-07-13; pending implementation plan).
 Governed by `docs/design-notes/layer-cake-principles.md` (P5/P9/**P13**),
 `docs/design-notes/iri-minting.md` (the three-plane identity + the read-side plane-mapping),
 `docs/superpowers/specs/2026-07-06-profile-conneg-instantiation-design.md` (representation roles,
@@ -120,10 +121,33 @@ regardless of this round; it scales with resource count the way any type search 
 is *which type it records*: the storage/LDP class (`lws#DataResource`) instead of the RDF **subject's**
 `rdf:type`.
 
-**The fix.** When deriving a stored **RDF** resource's indexed type, read the `rdf:type` of the
-resource's subject (the referent — the declared `fragment`, default `#it`) and record *that*,
-vocabulary-blind. A non-RDF resource (opaque markdown/blob) is unchanged — it has no subject to type,
-so it stays the storage class (correct; it is not a semantic entity).
+**The fix.** When deriving a stored **RDF** resource's indexed types, read the `rdf:type` of the
+resource's primary subject (the referent — the declared `fragment`, default `#it`) and record it
+**alongside** the native `lws#DataResource`, vocabulary-blind — a resource bears *both*. A non-RDF
+resource (opaque markdown/blob) is unchanged — it has no subject to type, so it stays the storage
+class (correct; it is not a semantic entity). **Enrich, never replace:** `?type=lws#DataResource`
+keeps matching (a legitimate LWS filter — "resources that are data resources") and `?type=skos:Concept`
+now also matches; replacing would break the native-class filter.
+
+**LWS conformance (checked against `lws10-searchindex`, 2026-07-13 — recorded so it is not
+re-litigated).** This is the spec's *encouraged* path, not a divergence:
+- §Type-and-Relation-Derivation ¶2 sanctions it outright — "Servers MAY additionally derive types
+  from the resource representation itself when they are able to parse it … richer type discovery
+  improves the utility of the Type Index and Type Search services" — and the section's own note
+  describes *this exact gap*: "a type exclusively within a resource's internal graph … may not be
+  discoverable" without a `rel="type"` header.
+- Content-derived types **MUST be treated identically** to Link-header-derived types (indexing,
+  search, authz) — which the fix does.
+- The examples type items `["DataResource", "schema:Person"]`; "a `type` filter always denotes the
+  type the matched resource itself bears" — the multi-type model item ① relies on.
+- **Two derivation paths, both spec-blessed — the plan decides:** *(a)* enrich from the
+  **already-parsed admission dataset** (free for governed writes — the SHACL floor already parses the
+  RDF), and/or *(b)* honor a **`rel="type"` Link header** the writer declares (the spec's SHOULD /
+  primary path, covering ungoverned or cold agentic PUTs that carry no admission parse). Whichever,
+  they are indexed identically per the spec.
+- **Unchanged:** the CNF query model, pagination, no-oracle authorization, and indexed relations are
+  defined independently of derivation — the fix only enriches *which* types populate an entry. The
+  search mechanism is used as intended, not broken.
 
 **Why this is general and dissolves the wiki "attribution" worry.** A stored RDF resource *is* its
 subject's description, so indexing it by its subject's type needs no application logic:
@@ -276,6 +300,15 @@ context, read-only). Baseline is probes #1–#7 (FOLLOWUP) — not re-run.
   **two structurally-different applications discovered by the same walk** = the affordance-level
   generality proof.
 
+**Utility, not just mechanics (Chuck's directive, 2026-07-13).** Both probes judge whether the chain
+serves an agent's **progressive disclosure into context**, not merely whether it returns 200s: does
+type-search return the *right granularity* (the semantic entity, not a wall of `DataResource`s); does
+the landed representation surface the **typed edges an agent needs to follow its nose onward** (a
+type-search that lands on the links representation should hand the agent its navigation structure);
+is the 303 legible as a redirect to *the same thing under a different name*. A mechanically-correct
+chain that does not help an agent orient is itself a finding — recorded as a utility observation, not
+a silent pass. This is the "does structure actually help agents" thesis measured on the read path.
+
 Frictions become surface fixes (probe → fix → re-probe), recorded as fork-queue or plan items.
 
 ---
@@ -294,9 +327,10 @@ Frictions become surface fixes (probe → fix → re-probe), recorded as fork-qu
 2. **Phase 2 consumers green** — wiki suite stays green; `/id/{slug}` deref + `skos:Concept`
    referent-search live; DCAT `dcat:Dataset` referent-search + clean degradation (no resolvable
    name-space) live.
-3. **Type derivation** — a stored RDF resource is indexed by its subject's `rdf:type` (declared
-   `fragment`, vocabulary-blind); non-RDF resources unchanged; optional earned `conformsTo` recorded
-   in `.lwstypes`.
+3. **Type derivation** — a stored RDF resource is indexed by its subject's `rdf:type` **alongside**
+   the native `lws#DataResource` (both filters match; enrich-not-replace), vocabulary-blind; content-
+   derived types treated identically to header-derived (`lws10-searchindex` §type-derivation); non-RDF
+   resources unchanged; optional earned `conformsTo` recorded in `.lwstypes`.
 4. **Resolver** — an algorithmic 303 from the profile plane-mapping; no reverse index built.
 5. **Discovery layer** — the `capability[]` entry advertised (URI-typed); B7 `lwsp:` terms minted and
    `identity.jsonld` self-describing RDF.
