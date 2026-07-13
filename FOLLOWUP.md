@@ -7,19 +7,83 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-06-29/07-11 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round + debt-drain-round shipped; probes #6 + #7 (two arms) PASSED; carryovers DRAINED to the single L4 read-side pointer; **a post-drain code review (2026-07-12) then surfaced 15 findings — see the review-backlog block below; the publish-hardening batch (A) SHIPPED same day (#1/#11/#15 FIXED, live-verified)** — NEXT = the fork review-round (B, 12 findings, one rebuild+repin) before the L4 read-side design round
+## ▶▶ 2026-06-29/07-12 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round + debt-drain-round + publish-hardening + **fork-review-round** shipped; probes #6 + #7 (two arms) PASSED; carryovers DRAINED to the single L4 read-side pointer; **the 2026-07-12 post-drain code review's 15 findings are ALL dispositioned — (A) publish-hardening + (B) 12 fork findings + (C) 3 pre-existing conformance violations all FIXED, live-verified** — NEXT = **the L4 read-side design round** (its own brainstorm → spec → plan)
 
 **▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
 
-**▶ 2026-07-12 — POST-DRAIN CODE-REVIEW BACKLOG — 15 findings; (A) FIXED same day, (B)/(C) NOT
-yet dispositioned.** High-effort multi-agent `/code-review` of the debt-drain round (fork
+**▶▶ FORK REVIEW-ROUND (B)+(C) — DONE + LIVE-VERIFIED (2026-07-12).** Subagent-driven (9 impl tasks,
+each TDD + per-task spec+quality review, several with fix rounds) + two opus whole-branch reviews +
+one final-review fix pass. **Design/plan of record:** `docs/superpowers/plans/2026-07-12-fork-review-round.md`.
+All 12 (B) findings + 3 (C) pre-existing violations closed; the two ⚠ falsified-claim markers below
+(DT2 "can never disagree", DT10 "idempotent ACL") are now TRUE by construction — the gate is really at
+the choke point, and publish-hardening #1 fixed the ACL clobber.
+
+**Shipped, fork (`la3d/lws` `4824fe2..b31510a`, merge `7b58b2c` pushed `--no-ff` + 2 final-review fix
+commits; 18 task commits; full fork suite `1545/0/1` — the 1 skip + the isolated `mcp-lws-read`
+open-handle file both pre-existing; new modules `src/patch/merge-patch.js`, image `lws-pod:fork-review`):**
+- **#2/#10 — write gate at the choke point** (`06aae62`+`e998a98`): `writeTypeConsistency` moved INTO
+  `applyLwsWrite` — HTTP PUT/POST + all three MCP write tools share ONE gate (the MCP bypass that
+  falsified "can never disagree" is closed); `application/json` gates as JSON-LD; a non-RDF body at an
+  RDF-extension name is refused; gate-reject `instance` = the resource URL.
+- **#9 — slug-less RDF POST** (`c0608ef`): the server derives an extension from the submitted type, so
+  it never mints a name its own gate rejects (JSON-LD stays extensionless by design).
+- **#6 — verbatim NT/NQ** (`f0e3c4d`): `toDataset` routes NT/NQ through the n3 parser; JSON-LD added to
+  `GRAPH_CAPABLE` — git/filesystem-seeded quads convert on read, named graphs lossless to JSON-LD.
+- **#5 — variant ETag** (`1296e8d`+`a44832a`): the JSON-LD conversion arm gets a `-json` variant ETag,
+  keyed on `negotiate = connegEnabled || lwsEnabled` (RFC 9110 §8.8.3; `--lws`-alone no longer collapses).
+- **#4 — 304-vs-406** (`cd6ad88`+`929badb`+`245b440`): a pending RDF conversion defers the early 304
+  (new `pendingConversion` predicate, GET + HEAD, mashlib-guarded); the serving arm re-checks after the
+  outcome; a 406 carries no ETag (RFC 9110 §13.2.2).
+- **#7/P1/P2 — PATCH** (`e2c20f4`+`6abba07`+`13514b9`+`d597277`): verbatim-stored Turtle-family PATCH
+  applies **at the dataset level** (rdf-ext/n3 DataFactory, default-graph-scoped — NO JSON-LD document
+  detour, owner directive; `n3-patch.js` untouched, legacy path byte-identical); `.nq` named graphs
+  preserved; JSON Merge Patch (RFC 7386, `merge-patch.js`); bodied write without `Content-Type` → 400.
+- **#3/#12/#13 — MCP trust** (`3f2d3ad`): `sanitizeRep`/`sanitizeReps` strip `href`/`format`/`profile`
+  at both model-bound altr sites; `lws_type_search` items sanitized; `read_resource` mimeType ext-derived
+  only when it resolves (containers → `lws+json`, `.md` → `text/markdown`). HTTP linkset stays raw.
+- **#8/#14 — federation** (`7bbfdef`+`8b44020`): `readRemote` uses a manual redirect loop re-running the
+  SSRF guard on EVERY hop (cap 3) — restores the pod's own 303 VoID rail cross-pod; `isPrivateIP` is now
+  the ONE range table (gained `embeddedV4` normalization, `fc00::/7`, `::`, `100.64/10`), `mcp/ssrf.js`
+  a thin delegating wrapper. Opus adversarial bypass hunt (31 forms) found none.
+- **P3 — application/json label** (`d7d808d`+`7165855`): first-class Content-Type label on the container
+  listing, the `index.html`-shadowed data-island branch, and the storage description; own ETag variant;
+  GET/HEAD agree; payload byte-identical to `ld+json`.
+- **Final-review fixes** (`af2c4df`+`b31510a`): SPARQL PATCH no longer mis-types URL-valued string
+  literals as IRIs (the `ambiguous` heuristic is now N3-Patch-only — the T6 roll-up had mis-triaged this
+  as cosmetic; it was data corruption); HEAD large-file 304 divergence documented; legacy PATCH-204
+  headers aligned with `lwsEnabled`.
+
+**Shipped, lws-pod (`main`, `14625d7`): rig repinned** to `la3d/lws @ b31510a`, image `lws-pod:fork-review`,
+data volume preserved. `tests/lws-conneg.test.mjs` grew 2 live pins (#7 text/n3 PATCH on a verbatim `.ttl`
+stays Turtle; P3 `application/json` container label = `ld+json` payload). **Full live sweep GREEN on the
+fork-review rig:** test-conneg **29/29** (incl. the 2 new pins), preservation 6/6, void 4/4, mcp-v2 23/23,
+graph 6/6, profiles 6/6, lws 6/6, l3 2/2, dcat 5/5, wiki 9/9. (Transient `429`s during back-to-back gate
+runs were the anonymous rate limiter — all cleared on spaced re-run, not a regression.)
+
+**Standing gotcha confirmed live this round:** the anonymous rate limit (~60/min) trips when you run the
+live gates back-to-back — space them ~40s apart, or authenticate. The `x-ratelimit-*` headers carry the
+budget (DT6). Not a defect.
+
+**▶▶ NEXT = the L4 read-side design round** — its own brainstorm → spec → plan (NOT a cold probe). Scope
+recorded in the "Carryovers" block below (unchanged by this round): `/id/` dereference (401s anon),
+referent-type indexing (`#it` subjects invisible to `lws_type_search`), earned-at-admission `conformsTo`,
+`defaultProfile` precedence, B7 identity-policy vocabulary, + the console-on-fork rewire and the pre-pivot
+hygiene-pass rider. **Seeds for the NEXT fork round after L4** (small, recorded, not urgent): the SSRF
+IPv6-range regexes could widen to full `fe80::/10` + `ff00::/8` (currently `fe80:`/`ff00:` literal-prefix
+only — pre-existing, non-SSRF-useful multicast, within the literal-hostname scope contract); `getNotFoundHeaders`
+404 `Accept-Patch` stays narrow (no `lwsEnabled` param); `resolvedFrom` emits on pure URL canonicalization
+with zero redirects (cosmetic); the ~55 lines of dataset-patch helpers in `resource.js` want a home in
+`src/patch/`; N3-Patch blank-node SUBJECTS + `solid:where` + unwired `validatePatch` (silent no-op deletes)
+are pre-existing Solid PATCH gaps to fold in whenever the PATCH handler is next opened.
+
+**▶ 2026-07-12 — POST-DRAIN CODE-REVIEW BACKLOG — 15 findings; ALL DISPOSITIONED (A FIXED same day, B+C
+FIXED by the review round above).** High-effort multi-agent `/code-review` of the debt-drain round (fork
 `be2ddba..4824fe2`, lws-pod `75cf0d0..HEAD`): 10 finder angles → verify-per-candidate → gap sweep.
 **15 confirmed, 2 refuted.** None of the 15 was in any existing FOLLOWUP disposition (seeds /
-WON'T-FIX / carryovers); two even contradict claims already in this file (finding #2 — see the ⚠
-markers at the DT2 bullet below and in the working-MCP block). **(A) below is dispositioned
-(FIXED); the (B)/(C) blocks remain the raw backlog.** Remaining scope: **(B) fork review-round
-[12 findings, one rebuild+repin] → then the L4 read-side design round.** Each finding =
-`file:line` + one-line repro + fix direction.
+WON'T-FIX / carryovers); two even contradicted claims already in this file (finding #2 — see the ⚠
+markers at the DT2 bullet below and in the working-MCP block, now resolved). **The (A)/(B)/(C) blocks
+below are the historical raw backlog — every item is DONE per the review-round record above; kept for
+the per-finding repro + fix-direction detail.**
 
 **(A) Publish-hardening batch — ALL THREE FIXED 2026-07-12 (`projection/publish/`, TDD red-green
 per finding, projection suite 116/116 + wiki-projector 28/28, live-verified on the fork-drain
@@ -53,7 +117,8 @@ rig):**
   `<container>void.jsonld`. Consequence: `--check` now needs the `--container` the pod-config
   actually points at (Makefile always passed it; a mismatch fails loud — that's the rail working).
 
-**(B) Fork review-round — `JavaScriptSolidServer/src/`, one rebuild+repin, sequence BEFORE L4:**
+**(B) Fork review-round — ✅ ALL 12 DONE (2026-07-12, `4824fe2..b31510a`; see the FORK REVIEW-ROUND
+block at the top for per-finding commits). Raw backlog kept below for the repro + fix-direction detail.**
 
 *Cluster 1 — write-consistency gate coverage (the DT2 gate is wired at 2 HTTP call sites only):*
 - **#2 MCP write path bypasses the name/type gate** (`src/mcp/tools.js:53`; gate at
@@ -135,9 +200,10 @@ rig):**
   Two divergent hand-rolled lists. **Fix:** consolidate the MCP guard onto the shared
   `utils/ssrf.js` range table (fold in the MCP guard's stronger IPv4-mapped-IPv6 handling).
 
-**(C) Pre-existing LWS/Solid violations — surfaced by the 2026-07-12 conformance audit, NOT
-round-attributable (the PATCH handler + write path are untouched by the drain round; scope these
-whenever the PATCH/write handlers are next opened):**
+**(C) Pre-existing LWS/Solid violations — ✅ ALL 3 DONE (2026-07-12; P1+P2 fixed in `e2c20f4`, P3 in
+`d7d808d`+`7165855` — the review round opened the PATCH/write handlers, so these rode along). Raw
+backlog kept below for the spec-citation detail.** Surfaced by the 2026-07-12 conformance audit, NOT
+round-attributable to the drain round:
 - **P1 — JSON Merge Patch MUST unmet** (`resource.js:2013-2022`) — **VIOLATES LWS core**
   `Operations/update-resource.md:35` ("LWS server MUST minimally support JSON Merge Patch
   (`application/merge-patch+json`)"). The PATCH handler 415s everything except `text/n3` and

@@ -16,7 +16,7 @@ pod on 2026-06-20 via `make smoke` (`smoke.sh` steps 7-11).
 | 1 | Container boot / reset-with-volume | CONFORMS — survives `down`/`up` *(verified live)* |
 | 2 | Headless agent auth (`/idp/credentials`) | DIVERGES — RS256 JWT bearer, no DPoP *(verified live)* |
 | 3 | Agent surface (`/mcp`, CRUD+ACL under WAC) | EXTENDS (WAC core CONFORMS) *(MCP self-advertised 2026-07-10; listing WAC-filtered + guard-parity/alternates/SSRF-hardened 2026-07-11)* |
-| 4 | Conneg + container traversal | CONFORMS to Solid conneg · DIVERGES from LWS storage · ⚠ **PATCH/ETag sub-conformance BROKEN** *(serving hardened, listings WAC-filtered 2026-07-10; teaching-406/gateway/VoID/ETag + representation-preservation/304-406-ordering/`--lws-config` 2026-07-11; **2026-07-12 conformance audit found 2 round-introduced violations — N3-Patch-on-Turtle 409, Turtle↔JSON-LD shared ETag — + 3 pre-existing (JSON-Merge-Patch, missing-Content-Type, json-label); see the §4 correction block**)* |
+| 4 | Conneg + container traversal | CONFORMS to Solid conneg · DIVERGES from LWS storage · ✅ **PATCH + ETag conformance RESTORED** *(serving hardened, listings WAC-filtered 2026-07-10; teaching-406/gateway/VoID/ETag + representation-preservation/304-406-ordering/`--lws-config` 2026-07-11; the 2026-07-12 audit's 2 round-introduced violations + 3 pre-existing — N3-Patch-on-Turtle, Turtle↔JSON-LD ETag, JSON-Merge-Patch, missing-Content-Type, json-label — all FIXED by the fork review round `4824fe2..b31510a`; see the §4 correction block)* |
 | 5 | Git clone/push as storage | EXTENDS — materializes, but bypasses conneg *(verified live)* |
 | 6 | LWS-CID identity | CONFORMS (RS-direct profile of the AS-mediated suite); `aud`+`exp` replay-guards enforced; provisioning WORKS headless, auth needs public-IP WebID *(verified live)* |
 | 7 | L2 port landing (SHACL / projection / git-commit) | CONFORMS — `.meta`/`constrainedBy` work, proxy ports *(verified live)* · GAP (in-process hooks) |
@@ -342,50 +342,52 @@ test-conneg` **27/27** (was 21, +6: 3 for 304-never-beats-406 GET+HEAD+Vary, 3 f
 `--lws-config`-driven service presence), `make test-void` **4/4** unchanged, full 15-gate sweep
 zero regression (`FOLLOWUP.md`).
 
-**⚠ Conformance-review correction (2026-07-12) — the "closed" claims above are over-broad; the round
-introduced two standards VIOLATIONS.** A post-round audit against the pinned LWS 1.0 core / Solid
-Protocol / RFC 9110 specs (`.claude/skills/{lws-protocol,solid-protocol}`) found that the
-"truthful-by-construction," "stale-variant risk closed," and "would-406 always 406s" claims in this
-section are each narrower in truth than stated, and that the round's DT2 store-verbatim change — whose
-downstream PATCH and ETag handlers were **not** made serialization-agnostic — introduced two genuine
-violations. This doc previously **did not track PATCH conformance at all**, which is why V1/P1 went
-unrecorded.
+**⚠ Conformance-review correction (2026-07-12) — the "closed" claims above were over-broad; the round
+introduced two standards VIOLATIONS. ✅ ALL RESOLVED the same day by the fork REVIEW ROUND (la3d/lws
+`4824fe2..b31510a`; see the "FORK REVIEW-ROUND" block in `FOLLOWUP.md`).** A post-round audit against
+the pinned LWS 1.0 core / Solid Protocol / RFC 9110 specs (`.claude/skills/{lws-protocol,solid-protocol}`)
+found that the "truthful-by-construction," "stale-variant risk closed," and "would-406 always 406s"
+claims in this section were each narrower in truth than stated, and that the round's DT2 store-verbatim
+change — whose downstream PATCH and ETag handlers were **not** made serialization-agnostic — introduced
+two genuine violations. This doc previously **did not track PATCH conformance at all**, which is why
+V1/P1 went unrecorded. **PATCH is now conformant and the ETag/negotiation path is now spec-correct** —
+each item below carries its resolving commit; the round was TDD-per-finding, two opus whole-branch
+reviews, live-verified on the fork-review rig.
 
-- **V1 (round-introduced VIOLATION) — N3-Patch on a verbatim-Turtle resource returns 409.** Violates
-  Solid `#server-patch-n3-accept` MUST ("Servers MUST accept a PATCH request with an N3 Patch body
-  when the target of the request is an RDF document"). `handlePatch` (`resource.js:2078-2162`)
-  `safeJsonParse`es the stored bytes; a verbatim Turtle body throws, the `catch` handles only
-  SPARQL-Update, and a plain N3-Patch falls to a 409. Pre-round, Turtle was transcoded to JSON-LD at
-  write, so the patch silently worked — the mandated format now fails on the commonest serialization
-  while the *non*-mandated SPARQL-Update is the only one that works. (FOLLOWUP backlog #7.)
-- **V2 (round-introduced VIOLATION) — one strong ETag shared across the Turtle and JSON-LD
-  representations → wrong-variant 304.** Violates RFC 9110 §8.8.3 (an ETag MUST differentiate
-  representations) + LWS core's ETag MUST (`Operations/read-resource.md`). `predictFileEtag`
-  variant-keys only quads targets (`VARIANT_KEYS`/`QUADS_OUTPUTS`), so a Turtle/N3 source served as
-  `application/ld+json` carries the bare `stats.etag` — identical to its own-format Turtle ETag; a
-  cross-format `If-None-Match` then 304s. Reachable in the deployed `--lws --conneg` config, on the
-  two Solid-mandated serializations. (FOLLOWUP backlog #5.)
+- **V1 (round-introduced VIOLATION) → ✅ FIXED (`e2c20f4`→`d597277`).** N3-Patch on a verbatim-Turtle
+  resource returned 409, violating Solid `#server-patch-n3-accept` MUST. `handlePatch` now dispatches
+  verbatim-stored Turtle-family resources through `patchTurtleFamilyResource`, which applies the parsed
+  N3/SPARQL patch triples **directly on the rdf-ext dataset** (n3 DataFactory terms, default-graph-scoped)
+  and serializes back in the stored format — no JSON-LD document detour (owner directive: real RDF libs).
+  N3-Patch on `.ttl`/`.n3`/`.nt`/`.nq` applies; `.nq` named graphs preserved. (FOLLOWUP backlog #7.)
+- **V2 (round-introduced VIOLATION) → ✅ FIXED (`1296e8d`).** One strong ETag was shared across the
+  Turtle and JSON-LD representations (wrong-variant 304), violating RFC 9110 §8.8.3 + LWS core's ETag
+  MUST. `predictFileEtag` now gives the JSON-LD conversion arm a `-json` variant ETag and keys the whole
+  predicate on the real negotiation surface (`negotiate = connegEnabled || lwsEnabled`, not
+  `connegEnabled` alone), so `--lws`-without-`--conneg` no longer collapses variants either. A cross-format
+  `If-None-Match` never 304s the wrong variant. (FOLLOWUP backlog #5.)
 
-Risky deviations (real, but NOT protocol-surface violations under the spec's scoping): **#4** the
-304-can-preempt-a-would-406 gap for RDF-source lossy conversions (RFC 9110 §13.2.2 — but the would-406
-representations emit no replayable validator, so ~unreachable); **#6** stored `.nt`/`.nq` sources 406
-on every conversion (`.nt`/`.nq` are 415-rejected on write, so the server never *creates* them via the
-protocol, and read-conversion of a non-written source is a MAY under LWS — though git-seeded sources,
-§5 below, are a live path for this project); **#9** slug-less RDF POST 400 (create-resource "server
-generates identifier" is declarative + Slug is a MAY). **#10** `application/json` name/type is
-SPEC-SILENT (JSON-LD 1.1 permits both the interpret-as-JSON-LD and serve-as-plain-JSON readings).
+Risky deviations the audit flagged → dispositioned this round: **#4** 304-preempts-a-would-406 →
+✅ FIXED (`cd6ad88`): a pending RDF conversion defers the early 304, the serving arm re-checks after the
+outcome is known, and a 406 carries no ETag (RFC 9110 §13.2.2). **#6** stored `.nt`/`.nq` 406 on every
+conversion → ✅ FIXED (`f0e3c4d`): `toDataset` routes NT/NQ through the n3 parser and JSON-LD is
+graph-capable, so git/filesystem-seeded quads convert on read (the live path §5 flagged). **#9**
+slug-less RDF POST 400 → ✅ FIXED (`c0608ef`): the server derives an extension from the submitted type
+so it never mints a name its own gate rejects. **#10** `application/json` name/type (spec-silent) →
+gated as JSON-LD at the write choke point (`06aae62`), matching how the rest of the pipeline reads it.
 
-Pre-existing violations the audit surfaced (NOT round-attributable — the PATCH handler + write path
-are untouched by the round):
-- **P1 — JSON Merge Patch MUST unmet** (`resource.js:2013-2022`): LWS core `Operations/update-resource.md`
-  ("LWS server MUST minimally support JSON Merge Patch (`application/merge-patch+json`)"). The handler
-  415s everything except `text/n3` and `application/sparql-update`. **Clean LWS-core VIOLATES.**
-- **P2 — bodied write with no `Content-Type` not 400'd** (`conneg.js:191`, `canAcceptInput('')`
-  returns true): Solid `#server-content-type-missing` MUST. Candidate violation — confirm no upstream
-  Fastify guard catches it first.
-- **P3 — `Accept: application/json` on a container returns `application/ld+json`**: LWS media-type
-  label MUST. Body identity is met (the payload-identity MUST holds); only the `Content-Type` label
-  is wrong.
+Pre-existing violations the audit surfaced (were NOT round-attributable) → all resolved this round when
+the PATCH/write handlers were opened:
+- **P1 — JSON Merge Patch MUST → ✅ FIXED (`e2c20f4`).** `application/merge-patch+json` is now accepted
+  under `--lws` (RFC 7386, `src/patch/merge-patch.js`), 415-teaches on a non-JSON stored resource, and
+  is advertised in `Accept-Patch` (the `--lws`-off value stays byte-identical).
+- **P2 — bodied write with no `Content-Type` not 400'd → ✅ FIXED (`e2c20f4`).** Confirmed empirically
+  that Fastify's wildcard parser buffers such bodies with no upstream guard; PUT/POST/PATCH with content
+  and no `Content-Type` now answer 400 problem+json under `--lws` (Solid `#server-content-type-missing`).
+- **P3 — `Accept: application/json` on a container returned `application/ld+json` → ✅ FIXED
+  (`d7d808d`+`7165855`).** `application/json` is now a first-class Content-Type label on the container
+  listing, the `index.html`-shadowed data-island branch, and the storage description, with its own ETag
+  variant and byte-identical payload (GET/HEAD agree — the shadowed path was the fix-round catch).
 
 **The cornerstone is unaffected.** The same audit pass confirmed profile content negotiation (exact
 W3C `altr:` vocabulary + the registered `profile`/`canonical`/`alternate` relations + spec-shaped
