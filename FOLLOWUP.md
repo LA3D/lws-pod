@@ -117,7 +117,15 @@ references corrected; the design intent (System-Managed provenance, distinct fro
 `.meta conformsTo`) is unchanged.
 
 **▶▶ NEXT.** The single L4 read-side carryover is now DRAINED — this round did it. What remains
-is next-fork-round seeds (small, recorded, not urgent) + this round's own backlog:
+is next-fork-round seeds (small, recorded, not urgent) + this round's own backlog.
+
+**Recommended order (Chuck-approved 2026-07-13):** the `.meta` security A-triage+fix is DONE (below);
+next is a single **next-fork round** batching the fork seeds (headline: structured-`void:uriSpace`-on-
+capability + PATCH type-reindex) — one merge/repin/rebuild for all of them; then the lws-pod config
+items (Makefile bind, plural-binding fixture); then the **console-on-fork rewire** (independent of the
+fork work — can jump ahead if making the pod human-usable is the priority, since the curation console
+is currently broken against the live substrate).
+
 - **Structured `void:uriSpace` on the `ReferentResolution` capability** (probe finding #2) —
   surface it as structured data on the capability object, not prose-only in the hint, so a cold
   agent recognizes minted IRIs on the first request instead of confirming the prefix from VoID
@@ -126,11 +134,17 @@ is next-fork-round seeds (small, recorded, not urgent) + this round's own backlo
   have outbound edges from leaves; a cold agent backtracks.
 - **PATCH type-reindex** (Task-1 round review) — HTTP PATCH bypasses `applyLwsWrite`, so a PATCH
   mutating `rdf:type` leaves `.lwstypes` stale.
-- **DT7 `.acl`/`.meta`-in-`items[]` private-name-leak question** (pre-existing, NOT this round's
-  vector) — does listing `.acl`/`.meta` suffix sidecars in `items[]` itself leak a private
-  resource's name if the sidecar is anon-readable by container inheritance rather than following
-  the resource's own restrictive ACL? The round only fixed the System-Managed
-  `.lwstypes`/`.lwsprov` vector; this DT7 question is separate and still open.
+- **Sidecar direct-GET leaks — the `.meta` half was TRIAGED + FIXED this session** (`16530a1`,
+  live-verified): the A-triage confirmed a private member's `.meta` (`conformsTo`/`describedby` +
+  existence) leaked to anon GET, same class as C1; fixed — `*.meta` GET/HEAD now require READ on the
+  stripped subject; the container `.meta` governance up-walk stays readable; `.acl` was already safe.
+  **Still open from this family:** (a) member `.meta` **WRITES** still bind the container-default ACL,
+  not the member's tighter `.acl` (write-side, pre-existing — a client with container-write could
+  overwrite a private member's `.meta`); (b) the DT7 **`items[]`-LISTING** surface — whether a private
+  member's `.acl`/`.meta` sidecar still appears as a member in an anonymous `items[]`/`ldp:contains`
+  listing (the S1 WAC-filter's per-member `checkAccess` on a sidecar entry may resolve to
+  container-default, a DIFFERENT surface than the now-fixed direct-GET); (c) cosmetic: the
+  `.lwstypes`/`.lwsprov` authz dispatch is method-agnostic while the `.meta` branch is GET/HEAD-scoped.
 - **Makefile publish `--bind /alice/concepts/` vs manifest/VoID `/alice/wiki/`** inconsistency
   (pre-existing) — the plane-mapping this round pinned uses `/alice/wiki/` (VoID-consistent, the
   cold-agent path); the Makefile bind target still says `/alice/concepts/`.
