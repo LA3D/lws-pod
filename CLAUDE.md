@@ -130,6 +130,11 @@ Never force-push to `main`, skip hooks, or `git add -A`. Stage specific files.
 
 ## Known state & gotchas
 
+- **The L4 read-side round (referent identity & discovery) is DONE (2026-07-13)** — was "NEXT = the
+  L4 read-side design round"; minted subject-IRI names now dereference (algorithmic 303 uriSpace
+  resolver) and typed referents are now type-searchable (`.lwstypes` enriched by the body's
+  `rdf:type`, not just the storage class). The single L4 read-side carryover the debt-drain round
+  routed forward is drained. See the top block of `FOLLOWUP.md` for the round detail and NEXT.
 - **`apps/wiki-projector/` suite is RE-DERIVED GREEN** (conneg-by-profile Phase 2, 2026-07-10) — the
   old RED fence (`okf/red-fence.test.mjs`) is deleted with the legacy `projection/okf/` floor it
   guarded; see `FOLLOWUP.md` for the round detail.

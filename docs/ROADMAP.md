@@ -33,9 +33,14 @@
 > `constrained-container/` retirement. The **serving-path (2026-07-10/11), gateway (2026-07-11),
 > and debt-drain (2026-07-11/12) rounds** then shipped in sequence (probes #6/#7 passed;
 > carryovers drained to one L4 pointer); a **post-drain code review (2026-07-12)** surfaced 15
-> findings, of which the **publish-hardening batch (A) shipped same day**. **NEXT = the fork
-> review-round (B, 12 findings) → then the L4 read-side design round.** Current state:
-> **FOLLOWUP.md** (authoritative over this doc's sequencing).
+> findings, of which the **publish-hardening batch (A) shipped same day** and the **fork
+> review-round (B+C, 15 findings) shipped 2026-07-12**, draining the review backlog to the single
+> L4 read-side pointer. The **referent identity & discovery round (L4 read-side) shipped
+> 2026-07-13**: minted subject-IRI names now dereference (algorithmic 303 uriSpace resolver) and
+> typed referents are type-searchable (`.lwstypes` enriched by the referent's `rdf:type`); a
+> cold-agent utility probe passed. **The single L4 read-side carryover is now DRAINED — NEXT = the
+> recorded next-fork-round seeds + the console-on-fork rewire rider (both small, non-blocking).**
+> Current state: **FOLLOWUP.md** (authoritative over this doc's sequencing).
 
 
 > **DIRECTION CHANGE (2026-06-28).** The project re-founded as a **general, standards-based memory
@@ -52,9 +57,10 @@ for the substrate evidence see `docs/foundations/`. This doc is the *sequencing*
 in what order, and what each phase depends on.
 
 Last updated: 2026-06-21 (pre-pivot); direction-change banner 2026-06-28; status banner refreshed
-2026-06-30 (L1+L2 shipped, L3 next) and 2026-07-12 (rounds through debt-drain + publish-hardening
-shipped; fork review-round next). The body below is superseded "sidecar"-era history — the live
-forward plan is the design doc §12 + `FOLLOWUP.md`.
+2026-06-30 (L1+L2 shipped, L3 next), 2026-07-12 (rounds through debt-drain + publish-hardening
+shipped; fork review-round next), and 2026-07-13 (fork review-round + the referent identity &
+discovery / L4 read-side round both shipped; carryover drained). The body below is superseded
+"sidecar"-era history — the live forward plan is the design doc §12 + `FOLLOWUP.md`.
 
 ---
 

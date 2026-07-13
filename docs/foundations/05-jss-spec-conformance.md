@@ -177,6 +177,29 @@ value-add surface, not a conformance-class change (MCP has no Solid/LWS spec to 
 **Live-verified** (image `fork-drain`, merge `4824fe2375d0959856e93bebf9878f9db9da099c`): `make
 test-mcp-v2` **23/23** (was 18), full 15-gate sweep zero regression (`FOLLOWUP.md`).
 
+**Referent identity & discovery round (2026-07-13, `la3d/lws-referent` merged into `la3d/lws` at
+`a7a821c`+`272d2ff`) — `lws_type_search` (and its HTTP twin `/types/search`) now index the
+referent's real `rdf:type`, not just the storage class.** Spec of record
+`docs/superpowers/specs/2026-07-13-referent-identity-discovery-design.md`. At the write choke
+point (`applyLwsWrite` — HTTP PUT/POST + all three MCP write tools, the DT2 gate funnel), the
+body's primary-referent `rdf:type` (parsed once, primary-subject-only rule — an aggregate with
+more than one typed subject is skipped, the deferred secondary-subjects extension) is UNIONED into
+the `.lwstypes` sidecar alongside the native `lws#DataResource` class — enrich, never replace
+(`lws10-searchindex` §Type-and-Relation-Derivation ¶2's own sanctioned content-derivation path;
+`?type=lws#DataResource` keeps matching, `?type=skos:Concept`/`?type=dcat:Dataset`/… now also
+match). Vocabulary-blind, no application term in the mechanism (P13). Optional earned-`conformsTo`
+provenance (the profile that actually validated an admitted member) is recorded alongside in a
+sibling `.lwsprov` sidecar — distinct from the client-managed `.meta conformsTo` (declared binding
+intent); the `up`-walk stays the discovery contract.
+
+**Verdict unchanged (EXTENDS)** — a value fix to the type-derivation input, not a new mechanism;
+the CNF query model, pagination, and no-oracle authz-filtering this axis already covers are
+untouched. A regression this round introduced and fixed in the same pass (type-enrichment firing
+on `.acl`/`.meta` writes, leaking private resource names into anonymous listings via
+`<name>.acl.lwstypes`) is recorded in `FOLLOWUP.md`, not here — it never reached a conformance
+verdict, only a listing-authz bug. **Live-verified** (image `fork-referent`): `make test-referent`
+**9/9 (NEW)**, full 15-gate sweep zero regression (`FOLLOWUP.md`).
+
 ## 4. Conneg round-trip; container `ldp:contains` Comunica-traversable
 
 **Spec — two different container models in play.**
@@ -399,6 +422,29 @@ cosmetic item: the storage-description vendor service types (`ProfileIndexServic
 `McpService`) are bare tokens where the LWS extension convention is a URI (the pod already uses a URI
 for its conneg capability, `http://www.w3.org/ns/dx/connegp/profile/http`). Full findings + fix
 directions: the "2026-07-12 POST-DRAIN CODE-REVIEW BACKLOG" block in `FOLLOWUP.md`.
+
+**Referent identity & discovery round (2026-07-13) — minted subject-IRI names now dereference; the
+`void:uriSpace` rail completed.** Spec of record
+`docs/superpowers/specs/2026-07-13-referent-identity-discovery-design.md`. A minted name in any
+pod-declared `pathPrefix` uriSpace (pod-config-driven, per-profile opt-in — never a literal `/id/`
+constant in the server) was a **name, not a storage location**, so an agent following a subject IRI
+to it 401'd/404'd — the already-published `/.well-known/void` `void:uriSpace` was unfollowable past
+its first hop. Fixed as a canonical linked-data **303** (`src/lws/referent-resolver.js`,
+`resolveReferent`): an algorithmic `pathPrefix→container` rewrite rule read from pod-config
+(`request.podConfig`), NOT a stored reverse index (DBpedia `/resource/`→`/data/` precedent;
+httpRange-14-correct — the name is not the document). `handleGet`/`handleHead`'s `!stats` seam
+emits the 303 + `Link: rel="canonical"`; **no-oracle** — a missing or unreadable target 404-hides
+(never 303-then-401, never leaks existence), proven via an OPUS-adversarially-reviewed auth-gate
+exemption (fail-closed on every traced path). A URI-typed `ReferentResolution` capability (parallel
+to the `DX-PROF-CONNEG` capability) advertises the affordance in the storage description.
+`--lws`-gated, additive, default LDP path byte-identical (negative controls).
+
+**Verdict unchanged** (CONFORMS to Solid conneg · DIVERGES from LWS storage) — the resolver is a
+value-add discovery mechanism (EXTENDS, no Solid/LWS MUST at stake) completing the VoID surface's
+own already-published `void:uriSpace`, not a conformance-class change. **Live-verified** (image
+`fork-referent`, fork merge `a7a821c` + resolver addendum `272d2ff`): `GET /id/a` (anonymous) → 303
+→ `/alice/wiki/a.md`; `GET /id/nonexistent` → 404; `make test-referent` **9/9 (NEW)**, full 15-gate
+sweep zero regression (`FOLLOWUP.md`).
 
 ## 5. Git: container clone-able; push materializes files as resources
 

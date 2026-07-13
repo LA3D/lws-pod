@@ -249,8 +249,10 @@ Most read-side questions are already **design of record** in `iri-minting.md` "r
 
 **Earned-at-admission `conformsTo` (the one open item — DECIDED this round: record it).** The type
 derivation (§2) already runs at admission, so also stamp each validated member with the profile that
-actually validated it, as **optional System-Managed provenance** in `.lwstypes` (a per-resource fact
-the sidecar already holds — no new structure). This:
+actually validated it, as **optional System-Managed provenance** in a sibling `.lwsprov` sidecar
+(**correction, recorded at close-out:** implemented as its own sidecar, not folded into `.lwstypes`
+— `.lwstypes` is a plain type-URI array, and overloading it would have broken that shape; a separate
+sidecar keeps both simple). This:
 - **keeps the `up`-walk as the discovery contract** — the earned fact is provenance ("this member was
   validated against profile P"), never the mechanism a client uses to find governance;
 - **stays distinct from the client-managed `.meta conformsTo`** — that is the *declared binding
@@ -330,7 +332,8 @@ Frictions become surface fixes (probe → fix → re-probe), recorded as fork-qu
 3. **Type derivation** — a stored RDF resource is indexed by its subject's `rdf:type` **alongside**
    the native `lws#DataResource` (both filters match; enrich-not-replace), vocabulary-blind; content-
    derived types treated identically to header-derived (`lws10-searchindex` §type-derivation); non-RDF
-   resources unchanged; optional earned `conformsTo` recorded in `.lwstypes`.
+   resources unchanged; optional earned `conformsTo` recorded in a sibling `.lwsprov` sidecar (see the
+   §6 correction — not folded into `.lwstypes`).
 4. **Resolver** — an algorithmic 303 from the profile plane-mapping; no reverse index built.
 5. **Discovery layer** — the `capability[]` entry advertised (URI-typed); B7 `lwsp:` terms minted and
    `identity.jsonld` self-describing RDF.

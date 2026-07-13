@@ -33,6 +33,10 @@ mechanism/onboarding (code iff data-driven, zero app vocabulary) — **3** appli
 | `apps/wiki-projector/renderers.mjs` (the wiki family's content/links/index/graph renderer functions) | 3 | keep — application tooling, correctly outside the substrate mechanism | keep |
 | `app/` curation console | 3 | app client, correctly outside the machinery | keep |
 | `experiments/agent-eval/` | 3 | eval harness (R&D for operating skills) | keep |
+| Fork `src/lws/subject-types.js` (referent-type enrichment: `.lwstypes` unions the body's primary-referent `rdf:type` alongside `lws#DataResource`) | 1 | keep — Bucket 1, application-neutral (indexes whatever `rdf:type` a subject declares; no app vocabulary named) | keep |
+| Fork `src/lws/referent-resolver.js` + the `handleGet`/`handleHead` `!stats` seam + the auth-gate exemption (algorithmic `pathPrefix→container` 303 resolver, OPUS-reviewed fail-closed) | 1 | keep — Bucket 1, application-neutral (serves whatever uriSpaces pod-config declares; no literal `/id/` constant in the server) | keep |
+| Fork `ReferentResolution` capability (`src/lws/storage-description.js`, URI-typed, parallel to DX-PROF-CONNEG) | 1 | keep — Bucket 1, application-neutral | keep |
+| Fork System-Managed-sidecar listing filter (container renderers hide `.lwstypes`/`.lwsprov` only, narrowed from all-suffix-sidecars to preserve DT7's `.meta`/`.acl` in `items[]`) | 1 | keep — Bucket 1, application-neutral (regression fix, referent identity & discovery round) | keep |
 
 ## Zero-code onboarding recipe
 

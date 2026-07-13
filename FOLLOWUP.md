@@ -7,9 +7,144 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
+## ▶▶ 2026-07-13 — referent identity & discovery (L4 read-side) round DONE + LIVE-VERIFIED; cold-agent utility probe PASSED, thesis re-validated on the read path; the single L4 read-side carryover is DRAINED — NEXT = next-fork-round seeds + the console-on-fork rewire rider + this round's own backlog (below)
+
+**▶ START HERE.** Supersedes the 2026-06-29/07-12 pointer below (that block's own "NEXT = the L4
+read-side design round" is now DONE — this block).
+
+**▶▶ REFERENT IDENTITY & DISCOVERY ROUND — DONE + LIVE-VERIFIED (2026-07-13).** Subagent-driven
+(Phase 1 fork: 4 tasks + fork-suite/merge; Phase 2 lws-pod: 9 tasks incl. live gate + rig repin +
+cold-agent probe). Design of record
+`docs/superpowers/specs/2026-07-13-referent-identity-discovery-design.md`; plan
+`docs/superpowers/plans/2026-07-13-referent-identity-discovery.md`; ledger
+`.superpowers/sdd/progress.md`. Closes the L4 read-side carryover the debt-drain round routed here
+(2026-07-11): `/id/` dereference 401ing anonymous, and typed `#it` referents invisible to
+`lws_type_search` — the two hops a cold agent needed before this round to LOCATE a memory it had
+already found an edge to.
+
+**Shipped, fork (`la3d/lws-referent` off `la3d/lws@b31510a`; merged `--no-ff` into `la3d/lws` =
+`a7a821c`, then a resolveReferent content-suffix addendum `272d2ff` (`la3d/lws` HEAD); pushed to
+GitHub; full fork suite **1573/0**, image `lws-pod:fork-referent`):**
+- **Type enrichment** (`6d22f96`) — `src/lws/subject-types.js` (`subjectTypesFromBody`): at the
+  single write choke point (`applyLwsWrite` — HTTP PUT/POST + all three MCP write tools), the
+  body's primary-referent `rdf:type` is parsed (primary-subject-only rule: exactly one distinct
+  typed named subject, else skip) and UNIONED into `.lwstypes` alongside the native
+  `lws#DataResource` — enrich, never replace (LWS `lws10-searchindex`
+  §Type-and-Relation-Derivation ¶2's own sanctioned content-derivation path).
+- **Earned-`conformsTo` provenance** (`0943b1d`+`c524863`) — a sibling `.lwsprov` sidecar (NOT
+  folded into `.lwstypes` — see the spec-correction item below) records the profile that actually
+  validated an admitted member at admission time, distinct from the client-managed `.meta
+  conformsTo` (declared binding intent); the `up`-walk stays the discovery contract.
+- **303 uriSpace resolver + auth-gate exemption** (`bd6b230`+`f37af22`, OPUS-adversarially-reviewed,
+  fail-closed on every traced path) — `src/lws/referent-resolver.js` (`resolveReferent`): an
+  algorithmic `pathPrefix→container` rewrite rule read from pod-config (`request.podConfig`), NOT
+  a stored reverse index (DBpedia `/resource/`→`/data/` precedent, httpRange-14-correct).
+  `handleGet`/`handleHead`'s `!stats` seam emits a 303 + `Link: rel="canonical"`; no-oracle
+  (missing/unreadable target 404-hides, never 303-then-401). Per-profile opt-in (only profiles
+  declaring a `pathPrefix` uriSpace resolve).
+- **`ReferentResolution` capability** (`f7e194f`) — URI-typed, parallel to the DX-PROF-CONNEG
+  capability; byte-identity verified via a key-absence test; threaded to both HTTP and MCP from
+  one builder.
+- **`--test-force-exit`** (`e24def8`) — closes the fork's slow-exit test-runner wedge; VERIFIED it
+  does NOT mask exit codes (a single failing file still exits 1).
+- **Sidecar-leak regression found + fixed** (`5cc1774`+`e16708b`) — see "the regression lesson"
+  below.
+- **Resolver content-suffix addendum** (`272d2ff`, pushed) — Task-7 pinning surfaced a Phase-1
+  gap: `resolveReferent` only mapped name→container, 404ing when the content lives at
+  `container+slug+suffix` (e.g. wiki cards at `/alice/wiki/{slug}.md`). Fixed: an optional
+  content-file `suffix` param. Resolver suite 12/12.
+
+**Shipped, lws-pod (`main`, `f2c05f5..dd61c64`):**
+- **B7 `lwsp:` identity-policy vocabulary** (`f2c05f5`) — `lwsp:pathPrefix`/`fragment`/
+  `slugStrategy`/`versioning`/`planeContainer` minted as `rdf:Property`+`skos:Concept` in
+  `lwsp.ttl`; identity `.jsonld` artifacts stay plain minter config (controller decision — the
+  vocabulary is the readable self-description, not an artifact-shape change).
+- **pod-config `uriSpaces` + `checkPodConfig` extension** (`6ff970f`) — the real minted-IRI→
+  container plane-mapping (`{pathPrefix:'/id/', container:'/alice/wiki/', suffix:'.md'}`, pinned
+  by inspection against the live wiki minting); `checkPodConfig` validates it against the manifest
+  `void:uriSpace`.
+- **Live gate + Makefile** (`b866240`) — `tests/lws-referent.test.mjs` + `make test-referent`
+  (+ `.PHONY`); 9/9 stable across 4 runs, no 429s.
+- **`iri-minting.md` read-side update** (`db7c6b4`) — a new "name-space dereference" finding: the
+  algorithmic 303 rewrite rule, the DBpedia precedent, no-oracle, the reverse-index YAGNI
+  deferral, self-description.
+- **Rig repin** (`dd61c64`) — `Dockerfile.fork`/`docker-compose.fork-tls.yml` → `272d2ff`/
+  `fork-referent`.
+
+**Full live sweep GREEN, zero regression:** test-lws 6/6, test-l3 2/2, test-typeindex 7/7,
+test-indexed-relation 4/4, test-graph 6/6, test-conneg 29/29, test-void 4/4, test-preservation
+6/6, test-mcp-v2 23/23, test-projection 128/128+28/28, test-app 40/40, test-wiki 9/9, **test-referent
+9/9 (NEW)**, test-dcat 5/5, test-profiles 6/6.
+
+**Live-proven end-to-end:** `GET /id/a` (anon) → 303 → `/alice/wiki/a.md`; `ReferentResolution`
+capability advertised; type-search `llm-wiki-colab:Project` → items typed `[DataResource,
+Project]` (enrich-not-replace); `GET /id/nonexistent` → 404 (no-oracle).
+
+**Cold-agent utility probe PASSED (unprimed — pod + CA cert only, zero project context,
+read-only):** discovered the `ReferentResolution` capability + `TypeSearch` from
+`/.well-known/void`; dereferenced a bare `/id/a#it` IRI found inside the returned data (303 →
+card); followed the `up` edge to a 2nd typed memory. Verdict (the agent's own words): "self-
+description genuinely earned progressive disclosure rather than brute force." **THESIS VALIDATED
+live on the read path.** Friction findings, recorded as next-fork-round seeds below (not
+blocking): (1) leaf-vs-edge-bearing types indistinguishable, cold backtrack cost; (2)
+`void:uriSpace` is prose-only on the `ReferentResolution` capability hint, not structured — the
+agent confirmed the prefix from VoID two hops later than it could have.
+
+**The regression lesson (worth recording — process, not just result).** A full-suite run
+surfaced 3 `*-listing-authz` failures Task 3 had mis-labeled "pre-existing" (its git-stash check
+only reverted Task-3's own uncommitted changes, leaving Tasks 1-2 in place — so the stash
+comparison was against the WRONG baseline). Bisected (systematic + solo x3 deterministic) to Task
+1: type-enrichment fires on `.acl`/`.meta` WRITES too — an ACL body has a typed
+`acl:Authorization` subject, so `applyLwsWrite` creates `<name>.acl.lwstypes`; the
+container-listing renderers hid only bare dotfiles, not suffix sidecars, so `<name>.acl.lwstypes`
+(public-read by container inheritance, name containing the private resource) leaked into
+anonymous listings. Fixed: (A) skip `subjectTypesFromBody` for auxiliary writes; (B) container
+renderers hide System-Managed `.lwstypes`/`.lwsprov` sidecars ONLY (narrowed — must NOT reverse
+DT7, which deliberately lists `.meta`/`.acl` in `items[]` with correct mediaTypes). Full-suite
+re-run GREEN (1574 tests / 1573 pass / 0 fail).
+
+**Spec correction (this close-out).**
+`docs/superpowers/specs/2026-07-13-referent-identity-discovery-design.md` §6/§9 said earned
+`conformsTo` is recorded "in `.lwstypes`" — it was actually implemented as a separate `.lwsprov`
+sidecar (folding it into `.lwstypes`, a plain type-URI array, would have broken that shape). Both
+references corrected; the design intent (System-Managed provenance, distinct from client-managed
+`.meta conformsTo`) is unchanged.
+
+**▶▶ NEXT.** The single L4 read-side carryover is now DRAINED — this round did it. What remains
+is next-fork-round seeds (small, recorded, not urgent) + this round's own backlog:
+- **Structured `void:uriSpace` on the `ReferentResolution` capability** (probe finding #2) —
+  surface it as structured data on the capability object, not prose-only in the hint, so a cold
+  agent recognizes minted IRIs on the first request instead of confirming the prefix from VoID
+  two hops later.
+- **Leaf-vs-edge-bearing types** (probe finding #1) — nothing distinguishes types whose instances
+  have outbound edges from leaves; a cold agent backtracks.
+- **PATCH type-reindex** (Task-1 round review) — HTTP PATCH bypasses `applyLwsWrite`, so a PATCH
+  mutating `rdf:type` leaves `.lwstypes` stale.
+- **DT7 `.acl`/`.meta`-in-`items[]` private-name-leak question** (pre-existing, NOT this round's
+  vector) — does listing `.acl`/`.meta` suffix sidecars in `items[]` itself leak a private
+  resource's name if the sidecar is anon-readable by container inheritance rather than following
+  the resource's own restrictive ACL? The round only fixed the System-Managed
+  `.lwstypes`/`.lwsprov` vector; this DT7 question is separate and still open.
+- **Makefile publish `--bind /alice/concepts/` vs manifest/VoID `/alice/wiki/`** inconsistency
+  (pre-existing) — the plane-mapping this round pinned uses `/alice/wiki/` (VoID-consistent, the
+  cold-agent path); the Makefile bind target still says `/alice/concepts/`.
+- **Plural-binding AND-vs-OR live fixture gap** — needs two profiles with DISTINCT `sh:Violation`
+  shapes (current wiki+dcat both gate only on `dct:title`); can't discriminate AND-compose from OR
+  live without it.
+- **Console-on-fork rewire (Task 13) — DEFERRED**, as planned (droppable rider, rig-test-dependent;
+  do in a follow-up).
+- **Prior next-fork-round seeds still stand** (unchanged by this round): SSRF IPv6-range widening
+  (`fe80::/10`/`ff00::/8` full range vs literal-prefix), `getNotFoundHeaders` 404 `Accept-Patch`
+  narrowness, `dns.lookup` SSRF pre-check, the ~55-line dataset-patch helpers in `resource.js`
+  wanting a home in `src/patch/`, N3-Patch blank-node subjects/`solid:where`/unwired
+  `validatePatch`.
+
+---
+
 ## ▶▶ 2026-06-29/07-12 — substrate RESOLVED (fork JSS); L1 + L2 + L3 + L2.5 + hardening + indexed-relation + working-MCP + MCP-v2 + MCP-v2-review-fixes + MCP-affordance-surface + profile-mechanism + model-driven-read + ld+json-500-fix + L4a-neutrality + L4b-Phase-A + conneg-by-profile-Phase-1 + conneg-by-profile-Phase-2 + serving-path-round + gateway-round + debt-drain-round + publish-hardening + **fork-review-round** shipped; probes #6 + #7 (two arms) PASSED; carryovers DRAINED to the single L4 read-side pointer; **the 2026-07-12 post-drain code review's 15 findings are ALL dispositioned — (A) publish-hardening + (B) 12 fork findings + (C) 3 pre-existing conformance violations all FIXED, live-verified** — NEXT = **the L4 read-side design round** (its own brainstorm → spec → plan)
 
-**▶ START HERE.** Supersedes the 2026-06-28 "execute Plan 2" pointer below.
+**Superseded by the 2026-07-13 referent-identity-discovery-round pointer above** (that round's own
+"NEXT" is now DONE). Kept below for history/detail — not the current entry point.
 
 **▶▶ FORK REVIEW-ROUND (B)+(C) — DONE + LIVE-VERIFIED (2026-07-12).** Subagent-driven (9 impl tasks,
 each TDD + per-task spec+quality review, several with fix rounds) + two opus whole-branch reviews +
