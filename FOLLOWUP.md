@@ -81,11 +81,26 @@ way, only the status changes and the old silent-204 was wrong; adjudicated in re
 never applies unconditionally; System-Managed sidecar client writes → 405.
 
 **▶▶ NEXT (Chuck-approved order, 2026-07-13, unchanged):** the recorded fork seeds are drained, so
-next is the **console-on-fork rewire** — independent of the fork work and can jump ahead because the
-curation console is currently BROKEN against the live substrate (making the pod human-usable is the
-priority). Then the remaining **lws-pod config items** (plural-binding AND-vs-OR live fixture — needs
-two profiles with DISTINCT `sh:Violation` shapes). Then a **next fork round** batching this round's
-own seeds (below).
+next is the **console-on-fork rewire** — making the pod human-usable. **SCOPED + GROUNDED 2026-07-14:
+`docs/design-notes/console-on-fork-rewire.md`** (file:line breakage map + work-areas + open design
+questions — the brainstorm's starting point; verified against the live tree). It is a **real round**
+(brainstorm → spec → plan → implement), NOT the one-line "droppable rider" earlier FOLLOWUPs called
+it: the console (`app/`) was written against the pre-refactor substrate and is broken on several
+independent axes now that the wiki family moved to the **llm-wiki profile** under **`/alice/wiki/`**
+with conneg-by-profile + a fork-native L3 admission floor. Headline breakages (all verified
+file:line): (1) targets a **retired `:8080` proxy** (`pod.js:43`, `wm-login.js:8`) — the
+constrained-container proxy is gone, admission is fork-native; (2) fetches **`graph.ttl`/Turtle**
+(`graph.js:29,41`) but the fork emits **`graph.jsonld`/JSON-LD** → worklist/graph/backlinks silently
+dead; (3) hardcodes **`/alice/concepts/`** (`wm-app.js:32`, `seed.mjs:42-43`), not `/alice/wiki/`; (4)
+seed PUTs **`.meta` as `text/turtle`** (`seed.mjs:93-99`) → the fork write-consistency gate **400s**
+it; (5) seed's projection CLI path **`projection/triggers/cli.mjs` is dead** (`seed.mjs:145`; moved
+to `apps/wiki-projector/triggers/`); (6) the teaching channel is **422** (`wm-editor`, `e2e.test.mjs:43`)
+but the fork teaches **400**, and governance moved from the card content to the derived **links** rep.
+The scoping note's §4 lists the OPEN design questions (biggest: does the console adopt the llm-wiki
+data model or keep its own `Concepts`/`Implementations`?) for the brainstorm to decide — do NOT
+pre-commit them here. Then the remaining **lws-pod config items** (plural-binding AND-vs-OR live
+fixture — needs two profiles with DISTINCT `sh:Violation` shapes). Then a **next fork round** batching
+this round's own seeds (below).
 
 **This round's own seeds (recorded, not urgent — for the next fork round):**
 - **`put_typed_resource` inner `.meta` sub-write** still resolves container-default (a false-negative /

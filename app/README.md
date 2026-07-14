@@ -1,5 +1,15 @@
 # wiki-memory app
 
+> **⚠ STATUS (2026-07-14): BROKEN against the live fork pod — rewire pending.** This README describes
+> the console as built against the **pre-refactor** substrate (a `:8080` constrained-container proxy,
+> `/alice/concepts/`, `graph.ttl`/Turtle, a 422 teaching channel, and `projection/triggers/`). Two
+> rounds since moved the wiki family to the **llm-wiki profile** under **`/alice/wiki/`** with
+> conneg-by-profile (`graph.jsonld`), a **fork-native L3 admission floor (400, not 422)**, and the
+> triggers to `apps/wiki-projector/triggers/`. The proxy is retired. So the **Run it / seed / e2e**
+> instructions below do NOT work against the current fork pod. The **console-on-fork rewire** (next
+> round) fixes this — scope + the file:line breakage map + open design questions live in
+> **`docs/design-notes/console-on-fork-rewire.md`**. Read that before touching `app/`.
+
 A static Solid/LWS **curation console**: a human browses agent-written knowledge cards, traverses
 their typed graph across containers, and corrects them through the SHACL admission floor (the 422
 `sh:message` is the teaching channel). Vanilla custom elements, no build step, no runtime CDN — the
