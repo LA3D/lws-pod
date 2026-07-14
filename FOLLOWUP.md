@@ -7,10 +7,118 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-07-13 — referent identity & discovery (L4 read-side) round DONE + LIVE-VERIFIED; cold-agent utility probe PASSED, thesis re-validated on the read path; the single L4 read-side carryover is DRAINED — NEXT = next-fork-round seeds + the console-on-fork rewire rider + this round's own backlog (below)
+## ▶▶ 2026-07-14 — NEXT-FORK ROUND DONE + LIVE-VERIFIED (sidecar authz, PATCH choke point, federation SSRF, structured uriSpace); the recorded fork seeds are DRAINED — NEXT = the console-on-fork rewire (the pod is human-usable priority; console currently broken against the live substrate), then the lws-pod config items, then the next fork round's own seeds (below)
 
-**▶ START HERE.** Supersedes the 2026-06-29/07-12 pointer below (that block's own "NEXT = the L4
-read-side design round" is now DONE — this block).
+**▶ START HERE.** Supersedes the 2026-07-13 referent-identity-discovery pointer below (that block's
+own "NEXT = next-fork-round seeds" is now DONE — this block).
+
+**▶▶ NEXT-FORK ROUND — DONE + LIVE-VERIFIED (2026-07-14).** Subagent-driven (13 tasks, each TDD +
+per-task spec+quality review) + an opus whole-branch review that CAUGHT TWO MCP security-parity
+twins (fixed) + a nit. Design of record
+`docs/superpowers/specs/2026-07-13-next-fork-round-design.md`; plan
+`docs/superpowers/plans/2026-07-13-next-fork-round.md`; ledger `.superpowers/sdd/progress.md`
+(next-fork section). Drains the fork-side seeds the 2026-07-13 close-out recorded.
+
+**Shipped, fork (`la3d/lws-nextfork` off `la3d/lws@16530a1`; 14 task/fix commits `60299af..ed24a0d`;
+merged `--no-ff` into `la3d/lws` = `32398c1`, pushed; full fork suite 1626/0/1; image
+`lws-pod:fork-nextfork`), by cluster:**
+- **Cluster 1 — sidecar authz completion (security).** (a) Member `.meta` WRITES now bind
+  WRITE-on-stripped-subject (`authorizeSidecarAccess` gains a `mode` param via `getRequiredMode`;
+  the `.meta` dispatch covers all methods) — closes the delegated-container-writer escalation the
+  HTTP direct-GET fixes left on the write side; container bare `.meta` stays container-bound
+  (governance up-walk preserved). (b) The container LISTING filter resolves `name.meta` (+
+  defensively `.lwstypes`/`.lwsprov`) via the stripped subject — closes the private-member-`.meta`
+  NAME leak into anonymous `items[]`. (c) System-Managed `.lwstypes`/`.lwsprov` are READ-ONLY to
+  clients: a 405 at the `applyLwsWrite` choke point (all 5 write surfaces) + mirrored
+  `handleDelete`/`handlePatch` guards (the PATCH guard was a whole-branch-review Critical — PATCH
+  bypasses the gate). **MCP twins closed for parity** (whole-branch review I1/I2, below).
+- **Cluster 3 — federation SSRF.** IPv6 link-local/multicast widened to full CIDR ranges
+  (`/^fe[89ab]/`, `/^ff/`; was `fe80:`/`ff00:` literal-prefix); a per-hop DNS resolve-and-check
+  (`resolvesToBlockedHost`) wired into `readRemote`'s hop loop — a public name resolving to a
+  private IP is now blocked (was literal-only), fail-closed, honoring `--lws-federation-private`.
+- **Cluster 2 — PATCH.** PATCH routes through `applyLwsWrite` (SHACL admission now holds on the
+  PATCH surface — a shape-violating PATCH → 400; `.lwstypes`/`.lwsprov` re-derive; HTML-data-island
+  + legacy-SPARQL branches stay direct, reviewer-confirmed they can't carry a governed resource);
+  dataset-patch helpers rehomed to `src/patch/dataset-patch.js`; **N3-Patch conformance** —
+  delete-of-nonexistent → 409 (validatePatch wired + patchDeletesExist), `solid:where` (FULL
+  single-solution BGP matching on the dataset path, sanctioned 409 floor on the JSON-LD-doc path —
+  silent unconditional apply closed on both), blank-node subjects; 404 `Accept-Patch` parity under
+  `--lws`.
+- **Cluster 4 — discovery.** Structured `uriSpace` prefixes on the `ReferentResolution` capability
+  (= the VoID `void:uriSpace` values) so a cold agent recognizes minted IRIs on its FIRST
+  storage-description read (probe #2). Threaded identically to HTTP + MCP; flag-off byte-identical.
+
+**Whole-branch review (opus) earned its keep — caught two Important MCP security-parity twins the
+per-task reviews couldn't see (both PRE-EXISTING; the round closed the HTTP twins only), fixed in
+`68b018a`:**
+- **I1:** MCP `write_resource` to a private member's `.meta` bound the container-default ACL — the
+  exact Task-1 escalation on the MCP write path. Fixed: subject-stripped WRITE-on-subject (shared
+  `sidecarSubject`/`SIDECAR_SUFFIX` helper in `src/utils/url.js`, used by HTTP + MCP). `create_resource`/
+  `put_typed_resource` confirmed NOT vectors.
+- **I2:** MCP `read_resource` of a private member's `.lwstypes`/`.lwsprov` bound the container-default —
+  the read-twin of C1. Fixed: `readSidecarView` requires READ-on-stripped-subject. Adversarial
+  re-review confirmed both closed at the ACL-resolution level with no over-block.
+
+**Shipped, lws-pod (`main`, `699a168`): rig repinned** to `la3d/lws @ 32398c1`, image `fork-nextfork`,
+rebuilt + reseeded with the corrected `--bind /alice/wiki/`, VoID-consistent with the pod-config
+`uriSpaces` `id/`→`/alice/wiki/` mapping). **Full live sweep GREEN on the fork-nextfork rig:** lws
+6/6, l3 2/2, typeindex 7/7, indexed-relation 4/4, graph 6/6, conneg 29/29, void 4/4, preservation
+6/6, mcp-v2 23/23, referent 9/9, dcat 5/5, profiles 6/6, wiki 9/9, projection 28/28, app 40/40,
+**test-nextfork 5/5 (NEW gate)**. Headline behaviors live-curl-verified: capability `uriSpace`
+`['https://pod.vardeman.me/id/']`; `.lwstypes` PUT → 405; `/id/a` (anon) → 303 →
+`/alice/wiki/a.md`; 404 `Accept-Patch` carries `application/merge-patch+json`.
+
+**Live-sweep finding (Task-5 consequence, the fork suite structurally could NOT catch it — the test
+lives in the lws-pod repo):** `tests/mcp-v2.test.mjs`'s owner-remote-arm case expected
+`/remote unreachable/`, but the per-hop DNS pre-check now fail-closes a non-resolving `.invalid`
+host at the pre-check (`"federation blocked"`) BEFORE the fetch. Assertion updated to accept either
+(both prove the owner passed the WebID gate). This is exactly what the live sweep exists to surface.
+
+**Behavior changes shipped (all intentional, spec-required, documented):** shape-violating PATCH →
+400 (admission floor now on the PATCH surface, symmetric with PUT); N3-Patch delete-of-nonexistent →
+409 (Solid protocol invariant — UNCONDITIONAL, `--lws`-agnostic: stored bytes are identical either
+way, only the status changes and the old silent-204 was wrong; adjudicated in review); `solid:where`
+never applies unconditionally; System-Managed sidecar client writes → 405.
+
+**▶▶ NEXT (Chuck-approved order, 2026-07-13, unchanged):** the recorded fork seeds are drained, so
+next is the **console-on-fork rewire** — independent of the fork work and can jump ahead because the
+curation console is currently BROKEN against the live substrate (making the pod human-usable is the
+priority). Then the remaining **lws-pod config items** (plural-binding AND-vs-OR live fixture — needs
+two profiles with DISTINCT `sh:Violation` shapes). Then a **next fork round** batching this round's
+own seeds (below).
+
+**This round's own seeds (recorded, not urgent — for the next fork round):**
+- **`put_typed_resource` inner `.meta` sub-write** still resolves container-default (a false-negative /
+  too-strict, NEVER an escalation — the primary `wac(path, WRITE)` on the subject precedes it). Left
+  out of scope; close for full MCP `.meta`-write parity when the MCP write path is next opened.
+- **PATCH drops out-of-band `Link: rel=type` types** (M1): `.lwstypes` re-derives from the patched
+  BODY only (`declaredTypes:[]`), so a type declared only via a `Link rel=type` header on the original
+  PUT is lost on a later PATCH — matches bodied-PUT replace semantics, strictly better than the prior
+  stale-`.lwstypes` seed; fix only if Link-declared PATCH-type preservation becomes a requirement.
+- **`resolvesToBlockedHost` uses `dns.resolve4/6`** (real DNS), not `getaddrinfo`, so a host resolvable
+  only via `/etc/hosts` fails closed (masked on the rig by `--lws-federation-private`) — M3, one-line
+  comment already added; acceptable for public deployments.
+- **Blank-node OBJECTS on the JSON-LD N3-Patch path** still pass through malformed (`convertToJsonLd`);
+  the dataset/Turtle path handles them correctly — out of scope this round (subjects only).
+- **`evalWhere` is plain-BGP only** (no OPTIONAL/FILTER) — a non-BGP `solid:where` resolves to
+  zero/multiple → 409, never a silent apply.
+- **`db/index.js`'s 404 `Accept-Patch`** stays narrow (that MongoDB plugin's 200 path never threads
+  `lwsEnabled` either — patching only its 404 would MANUFACTURE the mismatch Task 9 closes; separate
+  subsystem, separate round).
+- **Prior next-fork seeds still stand where not addressed this round:** connect-time TOCTOU DNS
+  rebinding (needs an undici dispatcher the global `fetch` doesn't take); NAT64/IPv4-compatible SSRF
+  ranges (WON'T-FIX); the N3-Patch `validatePatch` now WIRED (was a seed — done); the `~55-line`
+  dataset-patch helpers now REHOMED to `src/patch/` (was a seed — done).
+- **Test hygiene (Minors, fold on contact):** T1 owner+anon assertions packed in one `it()`; T2
+  sidecar-of-a-sidecar strip corner (unreachable — `write.js` AUX_SUFFIX guard); the two shape-of-
+  where docs.
+
+---
+
+## ▶▶ 2026-07-13 — referent identity & discovery (L4 read-side) round DONE + LIVE-VERIFIED; cold-agent utility probe PASSED, thesis re-validated on the read path; the single L4 read-side carryover is DRAINED — superseded by the 2026-07-14 next-fork pointer above
+
+**Kept below for history/detail — not the current entry point. Supersedes the 2026-06-29/07-12 pointer below (that block's own "NEXT = the L4
+read-side design round" is DONE).**
 
 **▶▶ REFERENT IDENTITY & DISCOVERY ROUND — DONE + LIVE-VERIFIED (2026-07-13).** Subagent-driven
 (Phase 1 fork: 4 tasks + fork-suite/merge; Phase 2 lws-pod: 9 tasks incl. live gate + rig repin +

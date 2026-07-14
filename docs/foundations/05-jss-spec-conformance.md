@@ -446,6 +446,45 @@ own already-published `void:uriSpace`, not a conformance-class change. **Live-ve
 → `/alice/wiki/a.md`; `GET /id/nonexistent` → 404; `make test-referent` **9/9 (NEW)**, full 15-gate
 sweep zero regression (`FOLLOWUP.md`).
 
+**Next-fork round (2026-07-14) — N3-Patch SEMANTIC conformance completed + sidecar-authz hardened.**
+Fork merge `32398c1`, image `fork-nextfork`; spec
+`docs/superpowers/specs/2026-07-13-next-fork-round-design.md`. Prior rounds made PATCH
+*serialization*-conformant (V1/P1 above); this round adds the N3-Patch *semantic* MUSTs plus a
+governance extension of admission to the PATCH surface:
+- **N3-Patch delete-of-nonexistent → 409 (Solid `#n3-patch` MUST).** `validatePatch` (previously
+  imported-but-never-called on the JSON-LD path) is now wired, and `patchDeletesExist` gates the
+  dataset/Turtle path — a delete triple absent from the target is a 409, not the prior silent no-op.
+  **UNCONDITIONAL** (`--lws`-agnostic): it is a Solid-protocol invariant, not LWS machinery — stored
+  bytes are identical either way (a no-op re-wrote unchanged; a 409 writes nothing), only the response
+  status changes, and the old silent-204 was simply non-conformant. (Adjudicated in the whole-branch
+  review; the one-line `request.lwsEnabled` escape hatch is documented if legacy silence is ever wanted.)
+- **`solid:where` implemented (was parsed then IGNORED — a conditional patch applied
+  *unconditionally*).** Dataset/Turtle path: FULL single-solution BGP matching (zero/multiple → 409).
+  JSON-LD-document path: the sanctioned 409 floor (a `where`-carrying patch → teaching 409, "store as
+  a Turtle-family resource to use solid:where"). Silent unconditional application — the one forbidden
+  outcome — is closed on both paths.
+- **Blank-node subjects** on the JSON-LD N3-Patch path fixed (insert mints/reuses `_:`, delete
+  structural-match). Blank-node *objects* on that path remain a scoped gap (the dataset path handles
+  them).
+- **Admission now holds on the PATCH surface.** PATCH routes through `applyLwsWrite` — a PATCH whose
+  RESULT violates the governing SHACL shape → **400** (symmetric with PUT; the admission floor was
+  previously bypassable via PATCH). `.lwstypes`/`.lwsprov` re-derive from the patched bytes. HTML
+  data-island + legacy-SPARQL-fallback branches stay direct writes (reviewer-confirmed neither can
+  carry a SHACL-governed resource).
+- **404 `Accept-Patch` parity.** `getNotFoundHeaders` now threads `lwsEnabled`, so a `--lws` pod
+  advertises `application/merge-patch+json` on the 404 path, matching the 200 path (was narrow).
+- **Sidecar authz (Solid WAC, cross-surface).** Member `.meta` writes and `.lwstypes`/`.lwsprov`
+  reads now bind the subject's own ACL (not the container-default up-walk), on BOTH the HTTP and MCP
+  surfaces; System-Managed `.lwstypes`/`.lwsprov` are client-read-only (405 at the write choke point).
+  Closes a private-member governance-metadata write-escalation and a type/profile read-leak.
+
+**Verdict unchanged** (CONFORMS to Solid conneg · DIVERGES from LWS storage) — the N3-Patch fixes
+move JSS *toward* Solid conformance (previously non-conformant MUSTs); admission-on-PATCH and the
+capability `uriSpace` are LWS-extension value-adds. **Live-verified** (image `fork-nextfork`, merge
+`32398c1`): shape-violating PATCH → 400; `.lwstypes` PUT → 405; `/id/a` → 303 → `/alice/wiki/a.md`;
+404 `Accept-Patch` carries merge-patch; full 16-gate live sweep GREEN incl. `test-nextfork` **5/5
+(NEW)** (`FOLLOWUP.md`).
+
 ## 5. Git: container clone-able; push materializes files as resources
 
 **Spec.** No Solid/LWS requirement — git-as-storage is entirely an extension.
