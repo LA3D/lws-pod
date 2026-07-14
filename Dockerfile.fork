@@ -9,15 +9,17 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = referent-identity-&-discovery round
-# (2026-07-13, la3d/lws HEAD): type enrichment (referent rdf:type into .lwstypes, enrich-not-
-# replace) + earned-conformsTo provenance (.lwsprov) + the 303 uriSpace resolver (algorithmic
-# name->container via pod-config uriSpaces {pathPrefix,container,suffix}, no-oracle, auth-gate
-# exemption) + URI-typed ReferentResolution capability; System-Managed sidecars hidden from
-# container listings; --test-force-exit on the suite runner. Merge a7a821c + suffix addendum.
-# Pin to a full SHA for reproducibility; override at build time with --build-arg JSS_GIT_REF=...
+# Install the fork from a pinned git ref. Default = next-fork round (2026-07-14, la3d/lws HEAD):
+# sidecar-authz completion (member .meta writes bind WRITE-on-subject; container listing filter
+# resolves sidecars via the stripped subject; System-Managed .lwstypes/.lwsprov read-only to
+# clients — 405 at the write choke point + DELETE/PATCH guards; MCP twins closed for parity) +
+# federation SSRF (IPv6 link-local/multicast range widening; per-hop DNS resolve-and-check) +
+# PATCH through applyLwsWrite (SHACL admission holds; sidecar reindex; shape-violating PATCH ->
+# 400) + N3-Patch conformance (delete-of-nonexistent -> 409, solid:where, blank-node subjects) +
+# 404 Accept-Patch parity + structured uriSpace prefixes on the ReferentResolution capability.
+# Merge 32398c1 (next-fork round). Pin to a full SHA; override with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=16530a121098d97790c5f7b07b733432dfccfedf
+ARG JSS_GIT_REF=32398c18be09c84b8021c7a2aaf3d85f192786e2
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).

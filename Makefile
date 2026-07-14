@@ -160,6 +160,15 @@ test-void:
 	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-void.test.mjs
 
+# Next-fork round live gate (merge 32398c1): headline discovery + sidecar-integrity
+# behaviors through the full TLS/Caddy stack — structured capability uriSpace (= VoID
+# void:uriSpace), System-Managed sidecar write 405, 404 merge-patch parity, /id/ 303.
+# The security/PATCH/N3-Patch conformance behaviors are covered in-process by the fork
+# suite (1626 tests). Needs `make up-fork-tls` (fork-nextfork image) + `make cert` + publish.
+test-nextfork:
+	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls' first"; exit 1; }
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-nextfork.test.mjs
+
 # Referent identity & discovery live gate (spec 2026-07-13 §8/§9) — the /id/
 # name-space resolver (algorithmic 303, no-oracle) + referent-type-search
 # enrichment (subject rdf:type indexed alongside lws#DataResource, never
@@ -209,7 +218,7 @@ publish-profiles:
 	@[ -d projection/node_modules ] || ( cd projection && npm ci )
 	cd projection && NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem \
 	  node publish/publish.mjs --base https://pod.vardeman.me --container /alice/profiles/ \
-	  --bind /alice/concepts/=llm-wiki \
+	  --bind /alice/wiki/=llm-wiki \
 	  --bind /alice/datasets/=dcat-catalog --instantiate /alice/datasets/=dcat-catalog --token $${POD_TOKEN}
 
 # Derived-view refresh (README "Derived-view freshness"): re-runs bind+instantiate for every

@@ -158,7 +158,13 @@ describe.skipIf(!hasResources)('model-driven read tools (spec 2026-07-06)', () =
     const anon = (await rpc('tools/call', { name: 'read_resource', arguments: { uri: 'https://nonexistent.invalid/x' } })).body.result
     expect(toolText(anon)).toMatch(/federation requires a local WebID/)
     const owner = (await rpc('tools/call', { name: 'read_resource', arguments: { uri: 'https://nonexistent.invalid/x' } }, token)).body.result
-    expect(toolText(owner)).toMatch(/remote unreachable/)   // gate passed -> remote arm, DNS-dead host
+    // gate passed -> remote arm. The next-fork round (Task 5) added a per-hop DNS
+    // resolve-and-check that fail-closes on a non-resolving host, so a `.invalid`
+    // TLD (RFC-6761 guaranteed non-resolving) is now blocked at the DNS pre-check
+    // ("federation blocked") rather than failing later at fetch ("remote unreachable").
+    // Either outcome proves the owner got PAST the WebID gate (the anon case above
+    // never reaches the remote arm at all).
+    expect(toolText(owner)).toMatch(/federation blocked|remote unreachable/)
   })
 
   it('list_resources returns the entry resources + real-URI template', async () => {
