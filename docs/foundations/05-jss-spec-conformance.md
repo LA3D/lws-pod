@@ -485,6 +485,24 @@ capability `uriSpace` are LWS-extension value-adds. **Live-verified** (image `fo
 404 `Accept-Patch` carries merge-patch; full 16-gate live sweep GREEN incl. `test-nextfork` **5/5
 (NEW)** (`FOLLOWUP.md`).
 
+**Navigator round extension (2026-07-15, merge `9b084e9`, image `fork-navigator`).** The fork adds
+a `text/html` dispatch layer neither spec addresses (both are silent on human-facing HTML): under
+`--lws`, a browser-shaped request (`Accept: text/html`, `sec-fetch-dest` document/empty) for a
+resource with a **declared `text/html` alternate** (an `altr:` representation whose `dct:format` is
+`text/html`) is **303-redirected to the face** — mirroring the profile-conneg redirect model —
+with `?view=nav` opting out; a **missing** face falls through rather than 303→404. Resources with
+no face get server-rendered **navigator views** built purely from LWS self-description
+(WAC-filtered `items[]` + `.lwstypes`/`.lwsprov`/`.meta` + `altr:` + the storage description):
+container listing, generic entity face (data types only — media/binary/stored-HTML serve natively;
+`?view=nav` shows metadata for any type), and a root storage view at `/?view=nav`. **mashlib is
+retired under `--lws`** (still served when `--lws` is off — byte-identical legacy). Variant ETags
+are predicted before conditional checks (`-nav`, `-navroot`; the mashlib `-html` pattern
+generalized), GET/HEAD share the decision predicates, and a container's materialized `index.html`
+member is served to browsers by the pre-existing A2 shadow (bound-container dispatch needs no new
+mechanism). Live gate: `make test-viewer` **11/11 (NEW)**, incl. the private-member face-ACL
+mirror (anon 401 on `priv.md.html`, listing omits it) and the stale-`-nav`-ETag → 303 lifecycle
+pin (`FOLLOWUP.md` 2026-07-15 block).
+
 ## 5. Git: container clone-able; push materializes files as resources
 
 **Spec.** No Solid/LWS requirement — git-as-storage is entirely an extension.

@@ -59,6 +59,7 @@ make reset              # wipe ./data, rebuild, restart (deletes the local pod b
 make test               # substrate e2e (needs the pod up): create -> bearer -> write/read -> MCP -> git
 make test-projection    # projection unit + e2e (see "known state" below)
 make test-wiki          # live gate — re-derived wiki family (needs make up-fork-tls; see README)
+make test-viewer        # live gate — human viewing surface: faces + navigator (needs up-fork-tls)
 ```
 
 `make up` and `make test*` self-heal a missing `.env.local` and `node_modules`, so they work even if
@@ -94,8 +95,8 @@ fork lives only in the `*.fork*` files + `caddy/`. Full rig notes: `README.md` "
   the card itself, `links` = flat `#it` JSON-LD, `index` = the OKF channel, `graph` = the dataset
   aggregate) + `triggers/` (CLI one-shot + WebSocket CDC watcher, now driven by `instantiate()`).
 - **Human surface** — server-side now, not a client app: llm-wiki HTML faces materialized by
-  `apps/wiki-projector` + the fork's navigator (Drive-shell browsing UI) (navigator lands on the
-  rig with this round's repin — see FOLLOWUP). Design of record
+  `apps/wiki-projector` + the fork's navigator (Drive-shell browsing UI), live on the fork rig
+  (`make test-viewer` is the gate). Design of record
   `docs/superpowers/specs/2026-07-15-human-viewing-surface-design.md`; the curation console
   (`app/`) it superseded is retired (git history keeps it).
 - **`experiments/`** — spikes (`headless-cid/` LWS-CID auth probe, `keycloak-jss/` authz spike).
@@ -132,11 +133,16 @@ Never force-push to `main`, skip hooks, or `git add -A`. Stage specific files.
 
 ## Known state & gotchas
 
-- **The L4 read-side round (referent identity & discovery) is DONE (2026-07-13)** — was "NEXT = the
-  L4 read-side design round"; minted subject-IRI names now dereference (algorithmic 303 uriSpace
-  resolver) and typed referents are now type-searchable (`.lwstypes` enriched by the body's
-  `rdf:type`, not just the storage class). The single L4 read-side carryover the debt-drain round
-  routed forward is drained. See the top block of `FOLLOWUP.md` for the round detail and NEXT.
+- **The human-viewing-surface round is DONE + LIVE-VERIFIED (2026-07-15)** — llm-wiki html faces
+  (`a.md.html` / `index.html` / `viz.html`) materialize via the projector; the fork serves the
+  face dispatch (303) + navigator views (container/entity/root) with mashlib retired under
+  `--lws`; a private member's face carries the member's ACL (mirrorAcl). `app/` is retired.
+  **NEXT = the curator round** (agentic skill, own brainstorm). See the top block of
+  `FOLLOWUP.md` for the round detail, residuals (aggregate leak class is recorded, not fixed),
+  and seeds.
+- **The L4 read-side round (referent identity & discovery) is DONE (2026-07-13)** — minted
+  subject-IRI names dereference (algorithmic 303 uriSpace resolver) and typed referents are
+  type-searchable (`.lwstypes` enriched by the body's `rdf:type`, not just the storage class).
 - **`apps/wiki-projector/` suite is RE-DERIVED GREEN** (conneg-by-profile Phase 2, 2026-07-10) — the
   old RED fence (`okf/red-fence.test.mjs`) is deleted with the legacy `projection/okf/` floor it
   guarded; see `FOLLOWUP.md` for the round detail.

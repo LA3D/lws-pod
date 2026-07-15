@@ -7,6 +7,134 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
+## ▶▶ 2026-07-15 — HUMAN-VIEWING-SURFACE ROUND DONE + LIVE-VERIFIED (the console-on-fork rewire, twice reframed: viewing-surface/curator split + the Drive inversion); `app/` RETIRED; NEXT = the CURATOR ROUND (agentic skill, own brainstorm), then the recorded seeds
+
+**▶ START HERE.** Supersedes the 2026-07-14 pointer below (its "NEXT = console-on-fork rewire" is
+DONE — this block).
+
+**The round reframed itself twice during brainstorm (both Chuck-approved, recorded in the spec §0a/§0b
+so they are not re-litigated):** (1) the console's two jobs split — a **human viewing surface**
+(this round) vs a **curator** (an agentic skill with rules — corrects errors + enriches links; how the
+Obsidian vault curates today; NEXT round, own brainstorm); (2) the **Drive inversion** — LWS ≈
+standards-compliant Google Drive; the **navigator is the neutral Drive shell** (fork-level,
+request-time, self-description-driven), the **wiki faces are application #1** registered with it.
+Grounded by three research sweeps (`docs/design-notes/research/2026-07-15-*.md`; synthesis
+`docs/design-notes/lws-navigator.md`): the pod-browser field is EMPTY where we built (no server-side,
+no self-description-consuming navigator exists; no JSON-LD→HTML library exists), the dispatch
+registry is the convergent pattern (Drive "open with" / PodOS `selectToolsForTypes` / SolidOS panes /
+Nextcloud Viewer), and MCP Apps (`io.modelcontextprotocol/ui`) + Claude Science set the direction
+(server-side rendering reaches every harness channel; client SPA reaches none). Design of record
+`docs/superpowers/specs/2026-07-15-human-viewing-surface-design.md` (incl. grounded-deviations
+block); plan `docs/superpowers/plans/2026-07-15-human-viewing-surface.md`; ledger
+`.superpowers/sdd/progress.md` (this round's section).
+
+**Shipped, fork (`la3d/lws-navigator` off `32398c1`, 15 commits, merged `--no-ff` = `9b084e9`,
+PUSHED; image `lws-pod:fork-navigator`; full fork suite 1673/0/1):**
+- **Face dispatch (T4):** browser-shaped GET/HEAD of a bare name with a declared `text/html`
+  alternate → **303 to the face** (the fork's alternates model is redirect-based — grounded
+  deviation from the spec's assumed bare-200), before the mashlib intercept, `?view=nav` opt-out,
+  WAC-filtered (`filterReadableAlternates`), `--lws`-gated; `browserWantsHtml` extracted from
+  `shouldServeMashlib` behavior-preserving. Final-review additions: stale pre-face `-nav` 304
+  DEFERRED past dispatch (I1 — a newly materialized face is reachable by revalidating browsers) and
+  `faceHrefIsLive` existence gate (I3 — deleted face → entity face, never a 303→404 loop).
+- **Navigator container view (T5):** replaces mashlib for containers under `--lws` — WAC-filtered
+  rows + per-member `.lwstypes` type badges + "open with" face links + `conformsTo` badge;
+  **predictive `-nav` variant ETag** (folded in BEFORE the deferred If-None-Match, mirroring
+  `getMashlibEtag`; 304s work, machine conditionals can't cross-validate). `willMashlib` rescoped
+  `!lwsEnabled` (grounded deviation).
+- **Generic entity face (T6):** sidecar metadata + machine-view links + size-gated escaped excerpt
+  (`DATA_ISLAND_MAX_BYTES`) for **data types only** (`entityFaceViewable` — media/binary/html serve
+  natively; `?view=nav` = metadata for ANY type); follow-the-303 e2e pin (a declared face renders as
+  itself). HEAD parity.
+- **Root/storage view (T7):** `/?view=nav` renders the storage description (services, capabilities
+  incl. `uriSpace`, WAC-filtered top-level containers); seeded root landing stays the default for
+  `GET /` (grounded deviation); own `-navroot` ETag variant (a `/` container-view validator can
+  never 304 the root view). `resolveStorageDescriptionInputs` shared with the well-known route.
+- **Parity close-out (T8):** container HEAD/GET parity (HEAD predicts the navigator response — was
+  mashlib-shaped `-html`); HEAD `?view=nav` shadow-escape; shared
+  `willServeNavigatorView`/`willServeRootStorageView` predicates (predict/serve can't drift); Vary
+  traced correct (no conneg.js change needed); "nothing serves mashlib under `--lws`" + legacy
+  byte-identity pins.
+
+**Shipped, lws-pod (`main` `00f51e9..e082d95`):**
+- **Three new llm-wiki representations** (T1-T3, `projection/profiles/defs/llm-wiki/` +
+  `apps/wiki-projector/html-face.mjs`, `viewer/viz-template.mjs`): `html` (suffix → **`a.md.html`**,
+  mechanism-verbatim naming) — breadcrumb, type badge, **full-frontmatter metadata block** (typed
+  edges as face links, scalars/tags), markdown-it `html:false` body, injection-pinned;
+  `index-html` (target → literal **`index.html`**, whose materialization means the fork's EXISTING
+  A2 shadow serves it to browsers = **bound-container dispatch with zero fork code**); `viz`
+  (target `viz.html`, ONE self-contained file, cytoscape inlined + `</script`-guarded, live-fetches
+  `graph.jsonld`, client-side esc'd detail panel with backlinks + `<article>` preview fetched **by
+  the `.html` suffix directly** — in-page fetch can't pass `browserWantsHtml`
+  (`Sec-Fetch-Dest: empty`), the Accept-header route 406s in real browsers; I2).
+- **C1 (final-review Critical, fable): a private member's materialized face was WORLD-READABLE**
+  (faces PUT with no ACL → container-default). Fixed: `mirrorAcl` in `instantiate()` — source
+  `.acl` mirrored onto every suffix-rep face, **ACL-before-body, fail-closed** (refused mirror
+  blocks that face only; skip-not-throw), routed through the **`write_acl` MCP tool** (raw `.acl`
+  PUT hits the SHACL admission gate on governed containers — live-discovered; the parse is
+  grant-monotonic, never weaker) + a fail-closed guard on MCP error envelopes/unparseable bodies
+  (empirically probed both ways). Spec §5's "a private member's face 401s like the member" is now
+  TRUE and live-verified (viewer gate item 9, non-vacuous form).
+- **`discoverBinding` subject-scoping** (`projection/prof/profile-loader.mjs`): per-representation
+  `conformsTo` advertisements on `.meta` no longer conflate with the CONTAINER binding (P13-clean
+  subject filter; live-discovered once materialized alternates existed).
+- **`app/` deleted wholesale** (T9 — editor dropped: correction moves to the curator round;
+  `make test-app` + `NPM_DIRS` plumbing removed; CLAUDE.md/README/ROADMAP updated).
+- **Rig repinned** (T10, `5651721` + `e082d95`): `Dockerfile.fork` + compose → `9b084e9`, image
+  `fork-navigator`, **`--mashlib-cdn` OFF the rig**; reseeded; **`make test-viewer` 11/11 NEW gate**
+  (faces 200; bare-name 303; `/id/a` browser chain → rendered card; navigator container + root
+  views; **private-member-in-bound-container: anon face 401 + listing omits + owner 200**; stale
+  pre-face `-nav` etag → 303; anon graph.jsonld 200). **FULL LIVE SWEEP GREEN, idempotent** (lws
+  6/6, l3 2/2, typeindex 7/7, indexed-relation 4/4, graph 6/6, conneg 29/29 re-derived, void 4/4,
+  preservation 6/6, mcp-v2 23/23, referent 9/9, nextfork 5/5, dcat 5/5, profiles 6/6 re-homed to
+  `/alice/profile-mech/`, wiki 9/9, projection 134+36, viewer 11/11). Browser-verified live:
+  `/id/a` → rendered card; `/?view=nav` → root view; `/alice/wiki/` → index face; `viz.html` →
+  graph.
+
+**Review record:** 9 task reviews (sonnet, adversarial, per-task fix loops — highlights: T5
+predictive-ETag ordering, T6 entity-face type gate (Critical, plan-defect) + `text/html`
+self-exclusion, T7 `-navroot` collision (live-reproduced), T9 `NPM_DIRS` make-setup break) + a
+**fable whole-branch final review** that caught what task gates structurally couldn't: **C1** (face
+ACL leak), **I1** (stale-304 masks new face — the round's NORMAL lifecycle), **I2** (viz preview
+dead in every real browser while every automated gate passes), **I3** (303-to-missing-face). All
+fixed + re-verified; verdict READY TO MERGE, then merged.
+
+**Accepted deviations (recorded):** task-implementer commits on the fork branch lack the
+`[Agent: Claude]` prefix (T5-T8 initial commits; trailer correct; merge commit proper — rewriting
+unpushed SHAs would have invalidated the round's ledger/review packages).
+
+**Known residuals (recorded, NOT bugs introduced this round):**
+- **Aggregate leak class (CONFIRMED LIVE, flag-only):** a private member's title/edges still appear
+  in the world-readable `index.md`/`index.html`/`graph.jsonld`/viz backlinks — container-level
+  aggregates are not per-member WAC-filtered (pre-existing since conneg Phase 2; now includes
+  rendered content). Needs its own design round (per-member filtering at aggregate-render time vs
+  uniform-visibility rule per bound container).
+- ACL mirror is point-in-time one-way (tighten-after-face needs `make reinstantiate`; loosening
+  never auto-propagates — fail-safe direction).
+- `publish-profiles`' `--bind` step may no longer be exercised by any live gate (suites self-bind).
+- `discoverBinding` now requires the binding subject to be the `.meta` document node (`@id: ''`) —
+  all production binders comply; convention narrowing to document in foundations on next touch.
+
+**Seeds (recorded, not built):** **curator round = NEXT** (agentic skill: rules, worklist sources,
+enrichment, adjudication, git-diff channel over `--git`; design memory-inspection views WITH it —
+row-per-memory lifecycle list, pinned-vs-archival planes, `.lwsprov` provenance timeline). Fork
+seeds: `conformsToTargets` subject-scoping twin (`src/lws/constraint.js:10-29` is predicate-only —
+feeds linkset/earned-conformsTo/`?conformsTo=` search; diverges from the projection-side fix);
+`AUX_SUFFIX` admission exemption (root cause that forced `write_acl` routing). Navigator/face
+seeds: type-first collections view; browser login (cookie session or via MCP-Apps);
+**MCP-Apps `ui://` rung** (viz is already template-shaped); shacl-form / W3C SHACL 1.2 UI
+shapes-driven generic-face upgrade; PodOS elements as progressive enhancement; embedded-snapshot
+viz; small spec-drifts recorded (container-row provenance hint + governance links, index entry
+counts + external-link affordance, entity-face force-raw escape).
+
+**Human acceptance (spec §7):** T10 browser-verified the core paths (above). **Remaining for
+Chuck:** the full walk — root → orient → wiki → card → metadata block → follow an edge → graph
+view → **click a node and check the detail-panel preview renders** (the I2 fix's only end-to-end
+verification) → backlink; plus one mid-pipeline revalidation (view a card, `make reinstantiate`,
+plain reload → lands on the face).
+
+---
+
 ## ▶▶ 2026-07-14 — NEXT-FORK ROUND DONE + LIVE-VERIFIED (sidecar authz, PATCH choke point, federation SSRF, structured uriSpace); the recorded fork seeds are DRAINED — NEXT = the console-on-fork rewire (the pod is human-usable priority; console currently broken against the live substrate), then the lws-pod config items, then the next fork round's own seeds (below)
 
 **▶ START HERE.** Supersedes the 2026-07-13 referent-identity-discovery pointer below (that block's

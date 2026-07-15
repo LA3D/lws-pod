@@ -40,11 +40,15 @@
 > typed referents are type-searchable (`.lwstypes` enriched by the referent's `rdf:type`); a
 > cold-agent utility probe passed. **The single L4 read-side carryover is now DRAINED — NEXT was the
 > recorded next-fork-round seeds + the console-on-fork rewire rider; the next-fork round shipped
-> 2026-07-14, and the rider was reframed 2026-07-15 into the human-viewing-surface design** — the
-> curation console (`app/`) is retired, superseded by server-side llm-wiki HTML faces
-> (`apps/wiki-projector`) + the fork's navigator (design of record
-> `docs/superpowers/specs/2026-07-15-human-viewing-surface-design.md`); curator round next.
-> Current state: **FOLLOWUP.md** (authoritative over this doc's sequencing).
+> 2026-07-14, and the rider was reframed 2026-07-15 into the human-viewing-surface design, which
+> **SHIPPED + LIVE-VERIFIED the same day** (fork merge `9b084e9`, image `fork-navigator`,
+> `make test-viewer` 11/11 NEW, full live sweep green) — the curation console (`app/`) is retired,
+> superseded by server-side llm-wiki HTML faces (`apps/wiki-projector`: `a.md.html`/`index.html`/
+> `viz.html`) + the fork's navigator (Drive-shell: face dispatch 303, container/entity/root views,
+> mashlib retired under `--lws`); design of record
+> `docs/superpowers/specs/2026-07-15-human-viewing-surface-design.md`. **NEXT = the curator round**
+> (agentic skill, own brainstorm). Current state: **FOLLOWUP.md** (authoritative over this doc's
+> sequencing).
 
 
 > **DIRECTION CHANGE (2026-06-28).** The project re-founded as a **general, standards-based memory
