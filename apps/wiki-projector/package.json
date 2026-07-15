@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Application #1: the wiki-memory projector — OKF-family card tooling + renderers + triggers over the neutral projection/prof mechanism.",
   "scripts": { "start": "node triggers/notifications.mjs", "test": "vitest run" },
-  "dependencies": { "gray-matter": "^4.0.3", "markdown-it": "^14.1.0", "n3": "^1.17.4", "ws": "^8.18.0" },
+  "dependencies": { "cytoscape": "^3.30.0", "gray-matter": "^4.0.3", "markdown-it": "^14.1.0", "n3": "^1.17.4", "ws": "^8.18.0" },
   "devDependencies": { "vitest": "^3.2.0" },
   "allowScripts": { "esbuild@0.27.7": true, "fsevents@2.3.3": true }
 }

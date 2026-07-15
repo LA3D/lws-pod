@@ -8,6 +8,7 @@ import { cardToQuads } from './card.mjs'
 import { makeEngineProfile } from './engine-profile.mjs'
 import { renderIndex } from './index-channel.mjs'
 import { renderCardHtml, renderIndexHtml } from './html-face.mjs'
+import { renderViz } from './viewer/viz-template.mjs'
 import { loadNamespaces } from '../../projection/prof/namespaces.mjs'
 import { quadsToFlat } from '../../projection/prof/jsonld-graph.mjs'
 
@@ -19,6 +20,7 @@ export function makeRenderers(loaded, authority) {
   const ns = loadNamespaces(profile.context)
   const policy = profile.identityPolicy
   const ctx = profile.context['@context']
+  const edgeKeys = Object.entries(ns.term).filter(([, t]) => typeof t === 'object' && t?.['@type'] === '@id').map(([k]) => k)
 
   const cardOf = (src) => {
     if (!isMarkdown(src)) return null
@@ -43,6 +45,7 @@ export function makeRenderers(loaded, authority) {
       'index-html': async (containerUrl, sources, members) =>
         renderIndexHtml(containerUrl, sources.map(cardOf).filter(Boolean),
           members.map((m) => ({ url: m.url, isContainer: m.isContainer }))),
+      viz: async () => { try { return renderViz({ edgeKeys }) } catch (e) { console.warn(`[viz] ${e.message}`); return null } },
     },
   }
 }
