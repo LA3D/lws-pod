@@ -1,6 +1,8 @@
 # Multi-tenant storage model — scoping note
 
-**Status:** pre-brainstorm grounding (2026-07-15). NOT a spec — this is the spec-grounded problem
+**Status:** SUPERSEDED by the design of record
+`docs/superpowers/specs/2026-07-15-multi-tenant-storage-design.md` (brainstorm done 2026-07-15).
+Kept as the grounding trail. NOT a spec — this is the spec-grounded problem
 statement + touched-surfaces map + open questions a future "multi-tenant storage" round's
 `brainstorming` skill should start from. Exploratory per `docs/design-notes/` convention.
 **Trigger:** Chuck's 2026-07-15 concern (post-navigator-round): *"I'm a bit worried our design has
