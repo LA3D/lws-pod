@@ -31,4 +31,12 @@ describe('html card face', () => {
     expect(await renderers.html({ url: `${C}x.md`, body: 'no frontmatter', contentType: 'text/markdown' })).toBeNull()
     expect(await renderers.html({ url: `${C}x.jsonld`, body: '{}', contentType: 'application/ld+json' })).toBeNull()
   })
+  it('escapes HTML-significant characters in frontmatter fields', async () => {
+    const EVIL = `---\ntype: llm-wiki-colab:Concept\ntitle: 'A"><img src=x onerror=alert(1)>'\nstatus: '<b>bold</b>'\nup: 'b.md" onclick="alert(1)'\n---\nBody.`
+    const html = await renderers.html({ url: `${C}evil.md`, body: EVIL, contentType: 'text/markdown' })
+    expect(html).not.toContain('<img src=x')                 // title escaped
+    expect(html).not.toContain('<b>bold</b>')                // scalar escaped
+    expect(html).not.toContain('onclick="alert(1)"')         // edge href attribute stays well-formed
+    expect(html).toContain('&quot;')                          // quotes rendered as entities somewhere
+  })
 })
