@@ -16,6 +16,7 @@
     { "@id": "#rep-content", "hasRole": "lwspr:representation", "hasArtifact": "content.rep.jsonld", "format": "application/ld+json" },
     { "@id": "#rep-links",   "hasRole": "lwspr:representation", "hasArtifact": "links.rep.jsonld",   "format": "application/ld+json" },
     { "@id": "#rep-index",   "hasRole": "lwspr:representation", "hasArtifact": "index.rep.jsonld",   "format": "application/ld+json" },
-    { "@id": "#rep-graph",   "hasRole": "lwspr:representation", "hasArtifact": "graph.rep.jsonld",   "format": "application/ld+json" }
+    { "@id": "#rep-graph",   "hasRole": "lwspr:representation", "hasArtifact": "graph.rep.jsonld",   "format": "application/ld+json" },
+    { "@id": "#rep-html",  "hasRole": "lwspr:representation", "hasArtifact": "html.rep.jsonld",  "format": "application/ld+json" }
   ]
 }

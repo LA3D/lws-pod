@@ -7,6 +7,7 @@ import { parseFrontmatter, isConformant } from './frontmatter.mjs'
 import { cardToQuads } from './card.mjs'
 import { makeEngineProfile } from './engine-profile.mjs'
 import { renderIndex } from './index-channel.mjs'
+import { renderCardHtml } from './html-face.mjs'
 import { loadNamespaces } from '../../projection/prof/namespaces.mjs'
 import { quadsToFlat } from '../../projection/prof/jsonld-graph.mjs'
 
@@ -33,6 +34,7 @@ export function makeRenderers(loaded, authority) {
         const { quads } = cardToQuads(src.body, src.url, ns, policy)
         return quads.length ? JSON.stringify(await quadsToFlat(quads, ctx), null, 2) : null
       },
+      html: async (src) => renderCardHtml(src, ns, policy),
       index: async (containerUrl, sources, members) => {
         const cards = sources.map(cardOf).filter(Boolean)
           .map((c) => ({ ...c, frontmatter: { ...c.frontmatter, type: localName(c.frontmatter.type ?? 'Concept') } }))
