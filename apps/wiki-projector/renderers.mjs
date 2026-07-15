@@ -7,7 +7,7 @@ import { parseFrontmatter, isConformant } from './frontmatter.mjs'
 import { cardToQuads } from './card.mjs'
 import { makeEngineProfile } from './engine-profile.mjs'
 import { renderIndex } from './index-channel.mjs'
-import { renderCardHtml } from './html-face.mjs'
+import { renderCardHtml, renderIndexHtml } from './html-face.mjs'
 import { loadNamespaces } from '../../projection/prof/namespaces.mjs'
 import { quadsToFlat } from '../../projection/prof/jsonld-graph.mjs'
 
@@ -40,6 +40,9 @@ export function makeRenderers(loaded, authority) {
           .map((c) => ({ ...c, frontmatter: { ...c.frontmatter, type: localName(c.frontmatter.type ?? 'Concept') } }))
         return renderIndex(containerUrl, cards, members.map((m) => ({ ...m, type: m.isContainer ? 'container' : 'data' })))
       },
+      'index-html': async (containerUrl, sources, members) =>
+        renderIndexHtml(containerUrl, sources.map(cardOf).filter(Boolean),
+          members.map((m) => ({ url: m.url, isContainer: m.isContainer }))),
     },
   }
 }

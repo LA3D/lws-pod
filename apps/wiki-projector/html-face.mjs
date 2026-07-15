@@ -17,7 +17,8 @@ const isAbsolute = (v) => /^[a-z][a-z0-9+.-]*:\S*$/i.test(String(v))
 // In-bundle edge target ("b.md") -> its face; absolute IRIs pass through.
 const edgeHref = (v) => isAbsolute(v) ? String(v) : `${String(v)}.html`
 
-const badge = (type) => `<span class="badge" style="--h:${hueOf(localName(type))}">${esc(localName(type))}</span>`
+const badgeHtml = (t) => `<span class="badge" style="--h:${hueOf(t)}">${esc(t)}</span>`
+const badge = (type) => badgeHtml(localName(type))
 
 export const PAGE_CSS = `
 :root{color-scheme:light dark;--fg:#1a1a1a;--bg:#fff;--muted:#666;--line:#ddd}
@@ -34,12 +35,12 @@ dl.meta dt{float:left;clear:left;width:9rem;color:var(--muted)}dl.meta dd{margin
 footer{margin-top:2rem;border-top:1px solid var(--line);padding-top:.5rem;font-size:.9rem}
 article{margin-top:1.5rem}`
 
-const page = (title, crumb, main) => `<!doctype html>
+const pageHtml = (title, crumb, main) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title><style>${PAGE_CSS}</style></head>
 <body><nav class="crumb">${crumb}</nav>\n${main}\n</body></html>`
 
-const crumbFor = (url) => {
+const crumbHtml = (url) => {
   const u = new URL(url)
   const segs = u.pathname.split('/').filter(Boolean)
   const parts = [`<a href="${esc(u.origin)}/?view=nav">pod</a>`]
@@ -68,6 +69,28 @@ export function renderCardHtml(src, ns, policy) {
 <dl class="meta">${metaRows(fm, ns)}\n<dt>source</dt><dd><a href="${esc(src.url)}?view=nav">${esc(src.url)}</a> · <a href="${esc(subject)}">${esc(subject)}</a></dd></dl>
 <article>${md.render(body)}</article>
 <footer><a href="index.html">↑ index</a> · <a href="viz.html#focus=${encodeURIComponent(subject)}">⚯ graph</a></footer>`
-    return page(title, crumbFor(src.url), main)
+    return pageHtml(title, crumbHtml(src.url), main)
   } catch (e) { console.warn(`[html-face] card render failed for ${src.url}: ${e.message}`); return null }
+}
+
+export function renderIndexHtml(containerUrl, cards, members) {
+  try {
+    const name = new URL(containerUrl).pathname.split('/').filter(Boolean).pop() ?? 'pod'
+    const rel = (u) => u.startsWith(containerUrl) ? u.slice(containerUrl.length) : u
+    const byType = new Map()
+    for (const c of cards) {
+      const t = localName(Array.isArray(c.frontmatter.type) ? c.frontmatter.type[0] : c.frontmatter.type)
+      if (!byType.has(t)) byType.set(t, [])
+      byType.get(t).push(c)
+    }
+    const groups = [...byType.entries()].map(([t, cs]) => `<h2>${esc(t)}s</h2><ul>` + cs.map((c) =>
+      `<li><a href="${esc(rel(c.url))}.html">${esc(c.frontmatter.title ?? rel(c.url))}</a> ${badgeHtml(t)}` +
+      (c.frontmatter.description ? ` — ${esc(c.frontmatter.description)}` : '') + '</li>').join('') + '</ul>').join('\n')
+    const subs = members.filter((m) => m.isContainer || m.type === 'container')
+    const subsHtml = subs.length ? `<h2>Subdirectories</h2><ul>` + subs.map((m) =>
+      `<li><a href="${esc(rel(m.url))}">${esc(rel(m.url))}</a></li>`).join('') + '</ul>' : ''
+    const main = `<header><h1>${esc(name)}</h1></header>\n${subsHtml}\n${groups}
+<footer><a href="viz.html">⚯ graph</a> · <a href="?view=nav">navigator view</a></footer>`
+    return pageHtml(name, crumbHtml(containerUrl), main)
+  } catch (e) { console.warn(`[html-face] index render failed for ${containerUrl}: ${e.message}`); return null }
 }

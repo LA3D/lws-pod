@@ -40,3 +40,19 @@ describe('html card face', () => {
     expect(html).toContain('&quot;')                          // quotes rendered as entities somewhere
   })
 })
+
+describe('index-html container face', () => {
+  const CARD_B = `---\ntype: llm-wiki-colab:MOC\ntitle: Beta\n---\nBeta.`
+  it('renders grouped cards with face links and child containers', async () => {
+    const html = await renderers['index-html'](C,
+      [{ url: `${C}a.md`, body: CARD, contentType: 'text/markdown' },
+       { url: `${C}b.md`, body: CARD_B, contentType: 'text/markdown' }],
+      [{ url: `${C}sub/`, isContainer: true }])
+    expect(html).toContain('href="a.md.html"')
+    expect(html).toContain('Alpha')
+    expect(html).toContain('href="sub/"')                    // child container -> its default view
+    expect(html).toContain('viz.html')                       // graph link in chrome
+    expect(html).toContain('?view=nav')                      // navigator escape hatch
+    expect(html).toContain('MOC')                            // type badge
+  })
+})
