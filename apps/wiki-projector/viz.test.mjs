@@ -24,4 +24,17 @@ describe('viz face', () => {
     expect((html.match(/<\/script>/g) || []).length).toBe(2)         // exactly the two intended closers
     expect(html).not.toMatch(/innerHTML = `[^`]*\$\{n\.label\}/)     // no unescaped label interpolation remains
   })
+
+  // I2 (final-review): the detail panel's preview fetch used
+  // `Accept: 'text/html'` to ask the fork for the entity face — but an
+  // in-page fetch() sends Sec-Fetch-Dest: empty, which the fork's
+  // browserWantsHtml rejects outright, so the face dispatch never fires and
+  // the fetch 406s silently (caught, preview stays empty). Fix: fetch the
+  // face directly via its own `.html` suffix (the wiki family's own
+  // materialized-face convention), no Accept header needed at all.
+  it('detail panel preview fetches the face by its .html suffix, not an Accept: text/html header', async () => {
+    const html = await renderers.viz('https://pod.example/alice/wiki/', [], [])
+    expect(html).toContain("+ '.html'")                      // fetch targets the materialized face directly
+    expect(html).not.toContain("Accept: 'text/html'")        // in-page fetch() can never win this Accept path (Sec-Fetch-Dest: empty)
+  })
 })

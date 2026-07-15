@@ -103,6 +103,45 @@ describe('instantiate', () => {
     expect(advertised).toEqual([`${C}a.md.meta`, `${C}b.md.meta`])
   })
 
+  it('C1: mirrors a source member ACL onto its materialized face, ACL written BEFORE the face body (private member protected)', async () => {
+    const acl = JSON.stringify({
+      '@context': { acl: 'http://www.w3.org/ns/auth/acl#' },
+      '@graph': [{
+        '@id': '#owner', '@type': 'acl:Authorization', 'acl:agent': { '@id': 'https://alice.example/#me' },
+        'acl:accessTo': { '@id': `${C}a.md` },
+        'acl:mode': [{ '@id': 'acl:Read' }, { '@id': 'acl:Write' }, { '@id': 'acl:Control' }],
+      }],
+    })
+    const { store, fetchFn: baseFetch } = podMock({ [`${C}a.md.acl`]: { body: acl, ct: 'application/ld+json' } })
+    const calls = []
+    const fetchFn = async (url, init = {}) => { calls.push({ url, method: init.method ?? 'GET' }); return baseFetch(url, init) }
+    const renderers = { links: async (src) => (src.url.endsWith('a.md') ? '{"@id":"x"}' : null) }
+    await instantiate(C, 't', { representations: [SELF, LINKS], context: {} }, { fetchFn, renderers })
+
+    expect(store.has(`${C}a.md.links.jsonld.acl`)).toBe(true)
+    const mirrored = JSON.parse(store.get(`${C}a.md.links.jsonld.acl`).body)
+    expect(mirrored['@graph'][0]['acl:accessTo']['@id']).toBe(`${C}a.md.links.jsonld`)
+    expect(mirrored['@graph'][0]['acl:accessTo']['@id']).not.toBe(`${C}a.md`)
+
+    const aclPutIdx = calls.findIndex((c) => c.method === 'PUT' && c.url === `${C}a.md.links.jsonld.acl`)
+    const bodyPutIdx = calls.findIndex((c) => c.method === 'PUT' && c.url === `${C}a.md.links.jsonld`)
+    expect(aclPutIdx).toBeGreaterThanOrEqual(0)
+    expect(bodyPutIdx).toBeGreaterThanOrEqual(0)
+    expect(aclPutIdx).toBeLessThan(bodyPutIdx)
+  })
+
+  it('C1: a source member with no ACL (inherits the container default) writes no ACL onto its face', async () => {
+    const { store, fetchFn: baseFetch } = podMock()
+    const calls = []
+    const fetchFn = async (url, init = {}) => { calls.push({ url, method: init.method ?? 'GET' }); return baseFetch(url, init) }
+    const renderers = { links: async (src) => (src.url.endsWith('a.md') ? '{"@id":"x"}' : null) }
+    await instantiate(C, 't', { representations: [SELF, LINKS], context: {} }, { fetchFn, renderers })
+    expect(store.has(`${C}a.md.links.jsonld.acl`)).toBe(false)
+    expect(calls.some((c) => c.method === 'PUT' && c.url === `${C}a.md.links.jsonld.acl`)).toBe(false)
+    // the face body must still be written normally
+    expect(store.has(`${C}a.md.links.jsonld`)).toBe(true)
+  })
+
   it('missing renderer: throws by default, skips + reports when onMissingRenderer=skip', async () => {
     const { fetchFn } = podMock()
     await expect(instantiate(C, 't', { representations: [LINKS], context: {} }, { fetchFn })).rejects.toThrow(/links/)

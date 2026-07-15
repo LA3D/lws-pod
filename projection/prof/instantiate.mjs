@@ -24,6 +24,35 @@ async function readMembers(containerUrl, token, fetchFn) {
 
 const repEntry = (href, rep) => ({ '@id': href, 'dct:format': rep.format, 'dct:conformsTo': { '@id': rep.conformsTo } })
 
+// Final-review C1: mirror a source member's own ACL onto every materialized
+// suffix-rep face — spec §5 claims a face 401s like its member; before this,
+// a member tightened to owner-only (an `<member>.acl` exists) got a
+// WORLD-READABLE face under the container's default ACL (and the face
+// showed as a row in anon container listings). Mechanical, format-agnostic:
+// this module never parses the ACL (same P13 discipline as the rest of
+// instantiate()) — it fetches the source's .acl as raw text and
+// string-replaces every occurrence of the source URL with the target URL
+// (the ACL's own acl:accessTo/acl:default target IRIs are the only
+// plausible occurrence of that string in a small owner/private ACL doc).
+// ORDERING: called BEFORE the face body PUT (see the member-rep loop below)
+// — a crash between the two leaves, at worst, an ACL with no body yet
+// (safe: nothing world-readable), never a world-readable body with no ACL.
+// Never-throw, but fail CLOSED: a source WITH an .acl whose mirror can't be
+// read/written blocks the face body PUT for that rep — a face is only as
+// safe as its ACL, so we refuse to publish one we couldn't secure. A source
+// with NO .acl (inherits the container default, same as before this fix)
+// is the common case and costs one extra GET, mirroring nothing.
+async function mirrorAcl(sourceUrl, targetUrl, token, fetchFn) {
+  const srcAclUrl = sourceUrl + '.acl'
+  const r0 = await fetchFn(srcAclUrl, { headers: { accept: 'application/ld+json', ...authH(token) } })
+  if (r0.status === 404) return { ok: true, mirrored: false }
+  if (!r0.ok) { console.warn(`[instantiate] ACL mirror: GET ${srcAclUrl} -> ${r0.status}, refusing to publish ${targetUrl} unprotected`); return { ok: false } }
+  const body = (await r0.text()).split(sourceUrl).join(targetUrl)
+  const put = await fetchFn(targetUrl + '.acl', { method: 'PUT', headers: { 'content-type': 'application/ld+json', ...authH(token) }, body })
+  if (!put.ok) { console.warn(`[instantiate] ACL mirror: PUT ${targetUrl}.acl -> ${put.status}, refusing to publish ${targetUrl} unprotected`); return { ok: false } }
+  return { ok: true, mirrored: true }
+}
+
 // Read-merge-write the altr: facts into a client-managed .meta; the bind's
 // conformsTo/describedby members are preserved.
 async function advertise(resourceUrl, token, dflt, alternates, fetchFn) {
@@ -77,6 +106,12 @@ export async function instantiate(containerUrl, token, profile, { renderers = {}
       const body = await renderers[rep.id](src)
       if (body == null) continue
       const target = src.url + rep.suffix
+      // C1: mirror the source's ACL onto the face BEFORE writing the face
+      // body (see mirrorAcl's docstring for the ordering argument). A
+      // source with its own .acl whose mirror fails blocks this face
+      // entirely — never publish a face we couldn't secure.
+      const acl = await mirrorAcl(src.url, target, token, fetchFn)
+      if (!acl.ok) { results.push({ rep: rep.id, target, status: 0 }); continue }
       const put = await fetchFn(target, { method: 'PUT',
         headers: { 'content-type': rep.format, link: `<${rep.conformsTo}>; rel="profile"`, ...authH(token) }, body })
       results.push({ rep: rep.id, target, status: put.status })

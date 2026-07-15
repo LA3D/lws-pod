@@ -54,7 +54,10 @@ fetch('graph.jsonld').then((r) => { if (!r.ok) throw new Error('graph.jsonld ' +
     panel.innerHTML = \`<h2>\${esc(n.label)}</h2><p><span style="background:hsl(\${hueOf(n.type)} 60% 88%);border-radius:1rem;padding:0 .5rem">\${esc(n.type)}</span></p>
       <p><a href="\${esc(n.id)}">open card</a></p><h3>Cited by</h3><ul>\${bl || '<li>—</li>'}</ul><div id="prev">…</div>\`;
     // <article> comes from the server-rendered html face, which already sanitizes its output — inject as-is.
-    fetch(docOf.get(n.id) ?? n.id, { headers: { Accept: 'text/html' } }).then((r) => r.ok ? r.text() : '')
+    // I2 fix: fetch the face directly via its own '.html' suffix (the wiki family's materialized-face convention) —
+    // an in-page fetch() sends Sec-Fetch-Dest: empty, which the fork's browserWantsHtml always rejects, so an
+    // Accept: text/html request here can never win the face-dispatch 303 and just 406s silently.
+    fetch((docOf.get(n.id) ?? n.id) + '.html').then((r) => r.ok ? r.text() : '')
       .then((t) => { const m = t.match(/<article>([\\s\\S]*?)<\\/article>/); if (m) document.getElementById('prev').innerHTML = m[1]; })
       .catch(() => {});
   };
