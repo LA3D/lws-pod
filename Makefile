@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-wiki test-projection publish-profiles reinstantiate shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-nextfork test-wiki test-projection test-viewer publish-profiles reinstantiate shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -200,6 +200,18 @@ test-wiki:
 	@[ -d projection/node_modules ] || ( cd projection && npm ci )
 	@[ -d apps/wiki-projector/node_modules ] || ( cd apps/wiki-projector && npm ci )
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-wiki.test.mjs
+
+# Human-viewing-surface live gate (spec 2026-07-15 §7, navigator round) — text/html
+# face dispatch (303 to a materialized `.html` face) + container/entity/root
+# navigator views + the C1 (member-ACL mirrored onto its face) and I1 (stale
+# pre-face -nav ETag falls through to 303, not a bogus 304) final-review fixes.
+# Needs up-fork-tls (fork-navigator image) + make cert + make publish-profiles.
+test-viewer:
+	@echo "== viewer live gate (needs up-fork-tls + publish-profiles + reinstantiate) =="
+	@[ -f certs/rootCA.pem ] || { echo "certs/rootCA.pem missing — run 'make cert && make up-fork-tls' first"; exit 1; }
+	@[ -d projection/node_modules ] || ( cd projection && npm ci )
+	@[ -d apps/wiki-projector/node_modules ] || ( cd apps/wiki-projector && npm ci )
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/viewer.test.mjs
 
 # Projection unit gates — both the neutral PROF mechanism (projection/) and the
 # app-#1 wiki projector (apps/wiki-projector/) suites.

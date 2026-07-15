@@ -13,6 +13,27 @@ function podMock(extra = {}) {
     ...extra,
   }))
   const fetchFn = async (url, init = {}) => {
+    // Simulates the fork's write_acl MCP tool (bypasses SHACL admission by
+    // design — see instantiate.mjs's mirrorAcl docstring): builds an ACL doc
+    // with accessTo computed from the target path (same as the real tool),
+    // stores it at `<target>.acl`, and reports success via JSON-RPC.
+    if ((init.method ?? 'GET') === 'POST' && url.endsWith('/mcp')) {
+      const req = JSON.parse(init.body)
+      const { name, arguments: args } = req.params
+      if (name !== 'write_acl') return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ jsonrpc: '2.0', id: req.id, result: { isError: true } }) }
+      const targetUrl = 'https://pod.example' + args.path
+      const doc = {
+        '@context': { acl: 'http://www.w3.org/ns/auth/acl#' },
+        '@graph': args.authorizations.map((a, i) => ({
+          '@id': `#auth${i}`, '@type': 'acl:Authorization', 'acl:accessTo': { '@id': targetUrl },
+          'acl:mode': (a.modes || []).map((m) => ({ '@id': `acl:${m}` })),
+          ...(a.agents?.length ? { 'acl:agent': a.agents.map((x) => ({ '@id': x })) } : {}),
+          ...(a.agentClasses?.length ? { 'acl:agentClass': a.agentClasses.map((x) => ({ '@id': x })) } : {}),
+        })),
+      }
+      store.set(`${targetUrl}.acl`, { body: JSON.stringify(doc), ct: 'application/ld+json' })
+      return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ jsonrpc: '2.0', id: req.id, result: { isError: false } }) }
+    }
     if ((init.method ?? 'GET') === 'PUT') {
       store.set(url, { body: init.body, ct: init.headers['content-type'], link: init.headers.link })
       return { ok: true, status: 201, headers: { get: () => null } }
@@ -103,7 +124,14 @@ describe('instantiate', () => {
     expect(advertised).toEqual([`${C}a.md.meta`, `${C}b.md.meta`])
   })
 
-  it('C1: mirrors a source member ACL onto its materialized face, ACL written BEFORE the face body (private member protected)', async () => {
+  it('C1: mirrors a source member ACL onto its materialized face via write_acl, BEFORE the face body (private member protected)', async () => {
+    // NOT a raw PUT of the source's own .acl bytes (task-10 live-gate finding,
+    // navigator round): a raw JSON-LD PUT to `.acl` lands on the same SHACL
+    // admission path as any other write, and the substrate's base floor shape
+    // ("every rdf:type'd subject needs a title") rejects an acl:Authorization
+    // node on any real profile-bound container. mirrorAcl now routes through
+    // write_acl (admission-exempt by design) instead — this fixture's source
+    // ACL shape is exactly what the real fork's write_acl tool produces.
     const acl = JSON.stringify({
       '@context': { acl: 'http://www.w3.org/ns/auth/acl#' },
       '@graph': [{
@@ -122,12 +150,14 @@ describe('instantiate', () => {
     const mirrored = JSON.parse(store.get(`${C}a.md.links.jsonld.acl`).body)
     expect(mirrored['@graph'][0]['acl:accessTo']['@id']).toBe(`${C}a.md.links.jsonld`)
     expect(mirrored['@graph'][0]['acl:accessTo']['@id']).not.toBe(`${C}a.md`)
+    expect(mirrored['@graph'][0]['acl:agent'][0]['@id']).toBe('https://alice.example/#me')
+    expect(mirrored['@graph'][0]['acl:mode'].map((m) => m['@id']).sort()).toEqual(['acl:Control', 'acl:Read', 'acl:Write'])
 
-    const aclPutIdx = calls.findIndex((c) => c.method === 'PUT' && c.url === `${C}a.md.links.jsonld.acl`)
+    const aclCallIdx = calls.findIndex((c) => c.method === 'POST' && c.url.endsWith('/mcp'))
     const bodyPutIdx = calls.findIndex((c) => c.method === 'PUT' && c.url === `${C}a.md.links.jsonld`)
-    expect(aclPutIdx).toBeGreaterThanOrEqual(0)
+    expect(aclCallIdx).toBeGreaterThanOrEqual(0)
     expect(bodyPutIdx).toBeGreaterThanOrEqual(0)
-    expect(aclPutIdx).toBeLessThan(bodyPutIdx)
+    expect(aclCallIdx).toBeLessThan(bodyPutIdx)
   })
 
   it('C1: a source member with no ACL (inherits the container default) writes no ACL onto its face', async () => {
@@ -137,9 +167,21 @@ describe('instantiate', () => {
     const renderers = { links: async (src) => (src.url.endsWith('a.md') ? '{"@id":"x"}' : null) }
     await instantiate(C, 't', { representations: [SELF, LINKS], context: {} }, { fetchFn, renderers })
     expect(store.has(`${C}a.md.links.jsonld.acl`)).toBe(false)
-    expect(calls.some((c) => c.method === 'PUT' && c.url === `${C}a.md.links.jsonld.acl`)).toBe(false)
+    expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/mcp'))).toBe(false)
     // the face body must still be written normally
     expect(store.has(`${C}a.md.links.jsonld`)).toBe(true)
+  })
+
+  it('C1: a source ACL with no recognizable acl:Authorization entries fails closed (no face published)', async () => {
+    const acl = JSON.stringify({ '@context': { acl: 'http://www.w3.org/ns/auth/acl#' }, '@graph': [] })
+    const { store, fetchFn: baseFetch } = podMock({ [`${C}a.md.acl`]: { body: acl, ct: 'application/ld+json' } })
+    const calls = []
+    const fetchFn = async (url, init = {}) => { calls.push({ url, method: init.method ?? 'GET' }); return baseFetch(url, init) }
+    const renderers = { links: async (src) => (src.url.endsWith('a.md') ? '{"@id":"x"}' : null) }
+    await instantiate(C, 't', { representations: [SELF, LINKS], context: {} }, { fetchFn, renderers })
+    expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/mcp'))).toBe(false)
+    expect(store.has(`${C}a.md.links.jsonld`)).toBe(false)          // face refused, not published unprotected
+    expect(store.has(`${C}a.md.links.jsonld.acl`)).toBe(false)
   })
 
   it('missing renderer: throws by default, skips + reports when onMissingRenderer=skip', async () => {

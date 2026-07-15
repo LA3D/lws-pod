@@ -9,17 +9,17 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = next-fork round (2026-07-14, la3d/lws HEAD):
-# sidecar-authz completion (member .meta writes bind WRITE-on-subject; container listing filter
-# resolves sidecars via the stripped subject; System-Managed .lwstypes/.lwsprov read-only to
-# clients — 405 at the write choke point + DELETE/PATCH guards; MCP twins closed for parity) +
-# federation SSRF (IPv6 link-local/multicast range widening; per-hop DNS resolve-and-check) +
-# PATCH through applyLwsWrite (SHACL admission holds; sidecar reindex; shape-violating PATCH ->
-# 400) + N3-Patch conformance (delete-of-nonexistent -> 409, solid:where, blank-node subjects) +
-# 404 Accept-Patch parity + structured uriSpace prefixes on the ReferentResolution capability.
-# Merge 32398c1 (next-fork round). Pin to a full SHA; override with --build-arg JSS_GIT_REF=...
+# Install the fork from a pinned git ref. Default = navigator round (2026-07-15, la3d/lws HEAD):
+# text/html face dispatch (browser Accept on a card with a materialized face -> 303 to the face;
+# without a face -> navigator entity view) + container/entity/root navigator views (server-side,
+# no client JS required for orientation) + mashlib retired under --lws (the fork's own HTML
+# rendering replaces the CDN-loaded mashlib UI) + final-review fixes (stale -nav ETag deferred
+# past face dispatch; missing-face 303 falls through to the entity view; GET/HEAD navigator
+# parity; root storage view gets its own -navroot ETag variant).
+# Merge 9b084e9 (navigator round, onto 32398c1 next-fork). Pin to a full SHA; override with
+# --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=32398c18be09c84b8021c7a2aaf3d85f192786e2
+ARG JSS_GIT_REF=9b084e9323f6d4dc4b36a9213e302c3fa91e2099
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
@@ -35,7 +35,8 @@ RUN mkdir -p /data
 VOLUME ["/data"]
 EXPOSE 3000
 
-# Same surfaces as the committed image PLUS --lws (the layer under test).
+# Same surfaces as the committed image PLUS --lws (the layer under test). mashlib-cdn dropped:
+# the navigator round's server-side HTML views replace the CDN-loaded mashlib UI under --lws.
 ENTRYPOINT ["tini", "--"]
 CMD ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data", \
-     "--idp", "--mcp", "--conneg", "--mashlib-cdn", "--git", "--notifications", "--provision-keys", "--lws"]
+     "--idp", "--mcp", "--conneg", "--git", "--notifications", "--provision-keys", "--lws"]

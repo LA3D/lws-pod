@@ -16,9 +16,9 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (next-fork round); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-32398c18be09c84b8021c7a2aaf3d85f192786e2}"
-    image: lws-pod:fork-nextfork
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (navigator round); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-9b084e9323f6d4dc4b36a9213e302c3fa91e2099}"
+    image: lws-pod:fork-navigator
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --idp-issuer to advertise the public
     # Caddy-fronted issuer (S2, zero fork code), and --lws-config pointing at the ONE pod
@@ -26,8 +26,9 @@ services:
     # replaces the old --lws-profile-index/--lws-void path flags outright (spec 2026-07-11
     # §4, no deprecation aliases). Read lazily + mtime-cached: absent before publish = both
     # services off (no crash); appears live once `make publish-profiles` writes it, no restart.
+    # mashlib-cdn dropped (navigator round): server-side HTML views replace the CDN mashlib UI.
     command: ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data",
-      "--idp", "--mcp", "--conneg", "--mashlib-cdn", "--git", "--notifications", "--provision-keys",
+      "--idp", "--mcp", "--conneg", "--git", "--notifications", "--provision-keys",
       "--idp-issuer", "https://pod.vardeman.me",
       "--lws", "--lws-config", "/alice/profiles/pod-config.jsonld"]
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.

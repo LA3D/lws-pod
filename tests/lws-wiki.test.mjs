@@ -95,12 +95,21 @@ describe.skipIf(!hasConneg)('LWS wiki family — instantiation + conneg-by-profi
     expect([200, 201]).toContain(good.status)
   })
 
-  it('member linkset advertises canonical(content/okf-base) + alternate(links/llm-wiki)', async () => {
+  it('member linkset advertises canonical(content/okf-base) + alternate(links/llm-wiki, html/okf-base)', async () => {
+    // Navigator round (2026-07-15): llm-wiki's profile gained a member-level
+    // `html` representation (the card face) alongside `links` — a.md now
+    // materializes TWO suffix reps, so the alternate array carries both.
+    // Order is an instantiate() implementation detail, not a spec claim —
+    // compared sorted-by-href instead of pinning array order.
     const r = await fetch(`${BASE}${WIKI}a.md`, { headers: { Accept: 'application/linkset+json', ...auth } })
     expect(r.status).toBe(200)
     const link = (await r.json()).linkset[0]
     expect(link.canonical).toEqual([{ href: `${BASE}${WIKI}a.md`, type: 'text/markdown', formats: OKF_BASE }])
-    expect(link.alternate).toEqual([{ href: `${BASE}${WIKI}a.md.links.jsonld`, type: 'application/ld+json', formats: LLM_WIKI }])
+    const sortedAlts = [...link.alternate].sort((a, b) => a.href.localeCompare(b.href))
+    expect(sortedAlts).toEqual([
+      { href: `${BASE}${WIKI}a.md.html`, type: 'text/html', formats: OKF_BASE },
+      { href: `${BASE}${WIKI}a.md.links.jsonld`, type: 'application/ld+json', formats: LLM_WIKI },
+    ])
   })
 
   it('Accept-Profile selects: okf-base -> 200 markdown self; llm-wiki -> 303 to links', async () => {

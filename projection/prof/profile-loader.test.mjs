@@ -223,4 +223,29 @@ describe('discoverBinding', () => {
     const out = await discoverBinding('https://pod.example/c/x', { fetchFn })
     expect(out.sort()).toEqual(['https://pod.example/p/a.jsonld', 'https://pod.example/p/b.jsonld'])
   })
+
+  // Task-10 finding (navigator round, live gate): a bound container's .meta
+  // ALSO carries `altr:hasRepresentation` entries once instantiate() has
+  // materialized container-level alternates (conneg-by-profile Phase 2) —
+  // each entry is its own JSON-LD node (explicit @id = the represented
+  // resource's URL) with its OWN dct:conformsTo (which profile that FACE
+  // conforms to — unrelated to what the container is BOUND to). An
+  // unscoped predicate-only filter swept those in too, turning a single
+  // binding into a duplicated, wrong array.
+  it('ignores dct:conformsTo on altr:hasRepresentation entries (own node only, not every node in the doc)', async () => {
+    const meta = JSON.stringify({
+      '@context': { dct: 'http://purl.org/dc/terms/', altr: 'http://www.w3.org/ns/dx/connegp/altr#' },
+      '@id': '',
+      'dct:conformsTo': { '@id': `${B}/llm-wiki/profile.jsonld` },
+      'altr:hasRepresentation': [
+        { '@id': 'https://pod.example/c/graph.jsonld', 'dct:conformsTo': { '@id': `${B}/llm-wiki/profile.jsonld` } },
+        { '@id': 'https://pod.example/c/index.html', 'dct:conformsTo': { '@id': `${B}/okf-base.jsonld` } },
+      ],
+    })
+    const fetchFn = async (url) => url.endsWith('/x.meta')
+      ? { ok: true, text: async () => meta, headers: {} }
+      : { ok: false, headers: {} }
+    const out = await discoverBinding('https://pod.example/c/x', { fetchFn })
+    expect(out).toEqual([`${B}/llm-wiki/profile.jsonld`])
+  })
 })

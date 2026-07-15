@@ -76,7 +76,19 @@ async function conformsToFromMeta(metaUrl, fetchFn) {
   // Plural on purpose (B6): a resource may conform to several profiles; the
   // substrate's linkset layer is plural (conformsToTargets) and this API must
   // not collapse it. Which profile GOVERNS a read is an L4b read-side question.
-  return quads.filter((q) => q.predicate.value === DCT_CONFORMS).map((q) => q.object.value)
+  //
+  // Subject-scoped to the .meta document's OWN node (task-10 finding,
+  // navigator round): `.meta`'s `@id: ''` expands against `metaUrl` (the
+  // base IRI passed to jsonldToQuads), so the container/resource's own
+  // binding triple has subject === metaUrl. `altr:hasRepresentation`
+  // entries (conneg-by-profile Phase 2) are SEPARATE JSON-LD nodes with
+  // their OWN explicit `@id` (the represented resource's URL) and carry
+  // their OWN per-representation `dct:conformsTo` — a different fact
+  // (which profile a MATERIALIZED FACE conforms to, not what the
+  // container/resource is BOUND to). An unscoped predicate-only filter
+  // swept those in too, inflating a single binding into a duplicated,
+  // wrong array once a bound container also had materialized alternates.
+  return quads.filter((q) => q.predicate.value === DCT_CONFORMS && q.subject.value === metaUrl).map((q) => q.object.value)
 }
 
 // Binding discovery (spec §4/§6): every dct:conformsTo target at the FIRST level

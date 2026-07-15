@@ -208,14 +208,17 @@ describe.skipIf(!hasConneg)('teaching 406 on non-RDF sources (F3, live)', () => 
     expect(r.headers.get('content-type').split(';')[0]).toBe('application/problem+json')
   })
 
-  it('browser Accept → 200 unchanged (no F3 406 regression; mashlib-cdn wraps markdown as html on this rig)', async () => {
+  it('browser Accept → 200 unchanged (no F3 406 regression; navigator entity face renders markdown as html on this rig)', async () => {
     const r = await fetch(md, { headers: { Accept: 'text/html,application/xhtml+xml,*/*;q=0.8' } })
     expect(r.status).toBe(200)
-    // This rig runs --mashlib-cdn, which wraps viewable types (text/markdown
-    // included) in an HTML data-browser shell whenever Accept explicitly
-    // names text/html (JSS src/mashlib/index.js shouldServeMashlib) — a
-    // pre-existing, unrelated feature. The claim under test is "no new 406",
-    // not the exact content-type served for a browser-navigation Accept.
+    // Navigator round (2026-07-15): --mashlib-cdn is retired on this rig; a
+    // browser-shaped GET of a markdown resource with no materialized
+    // text/html face (wiki-f3.md carries no frontmatter, so instantiate()
+    // never produced a `.html` alternate for it) lands on the fork's own
+    // navigator entity face (src/navigator/views.js) instead of the old
+    // mashlib data-browser shell — same content-type contract (text/html),
+    // different renderer. The claim under test is still "no new 406", not
+    // the exact HTML shape served for a browser-navigation Accept.
     expect(r.headers.get('content-type').split(';')[0]).toBe('text/html')
   })
 })

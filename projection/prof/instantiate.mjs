@@ -28,28 +28,75 @@ const repEntry = (href, rep) => ({ '@id': href, 'dct:format': rep.format, 'dct:c
 // suffix-rep face — spec §5 claims a face 401s like its member; before this,
 // a member tightened to owner-only (an `<member>.acl` exists) got a
 // WORLD-READABLE face under the container's default ACL (and the face
-// showed as a row in anon container listings). Mechanical, format-agnostic:
-// this module never parses the ACL (same P13 discipline as the rest of
-// instantiate()) — it fetches the source's .acl as raw text and
-// string-replaces every occurrence of the source URL with the target URL
-// (the ACL's own acl:accessTo/acl:default target IRIs are the only
-// plausible occurrence of that string in a small owner/private ACL doc).
+// showed as a row in anon container listings).
+//
+// Routes through the write_acl MCP tool rather than a raw content PUT of
+// the ACL body (live-gate finding, task-10, navigator round): a raw PUT of
+// ANY JSON-LD `.acl` document lands on the SAME applyLwsWrite/SHACL
+// admission path as any other write, and the substrate's own base floor
+// shape (okf-base's `sh:targetSubjectsOf rdf:type`, "every card must
+// declare a title") matches an `acl:Authorization` node too — it carries
+// rdf:type but never a title, so the original string-replace mirror
+// (raw PUT of the source's own bytes onto the target `.acl`) 400s on ANY
+// real, profile-bound wiki container. write_acl is the substrate's
+// dedicated WAC write path and is admission-EXEMPT by design (access
+// control is not governed content) — routing through it fixes that
+// live-only-discoverable gap. It also drops the earlier fragile
+// assumption that the source ACL encodes its own target as an absolute
+// IRI byte-identical to sourceUrl (write_acl computes accessTo itself
+// from the target path — see src/mcp/tools.js buildAclDoc in the fork).
+// Extraction (parseAclAuthorizations) is MECHANICAL structured
+// field-pulling (agent/agentClass/mode/default) off the fork's own
+// write_acl JSON-LD shape — access-control metadata, not application
+// content, so this stays within P13's substrate/application separation.
+function parseAclAuthorizations(doc) {
+  const arr = (v) => (v == null ? [] : [].concat(v))
+  const idOf = (v) => (v && typeof v === 'object' ? v['@id'] : v)
+  const localName = (v) => String(idOf(v) ?? '').replace(/^.*[:#]/, '')
+  const isAuthorization = (n) => arr(n['@type']).some((t) => localName(t) === 'Authorization')
+  return arr(doc['@graph'] ?? doc).filter((n) => n && typeof n === 'object' && isAuthorization(n)).map((n) => {
+    const authz = { modes: arr(n['acl:mode']).map(localName).filter(Boolean), isDefault: Boolean(n['acl:default'] ?? n['acl:defaultForNew']) }
+    const agents = arr(n['acl:agent']).map(idOf).filter(Boolean)
+    const agentClasses = arr(n['acl:agentClass']).map(idOf).filter(Boolean)
+    if (agents.length) authz.agents = agents
+    if (agentClasses.length) authz.agentClasses = agentClasses
+    return authz
+  }).filter((a) => a.modes.length && (a.agents?.length || a.agentClasses?.length))
+}
+
 // ORDERING: called BEFORE the face body PUT (see the member-rep loop below)
 // — a crash between the two leaves, at worst, an ACL with no body yet
 // (safe: nothing world-readable), never a world-readable body with no ACL.
 // Never-throw, but fail CLOSED: a source WITH an .acl whose mirror can't be
-// read/written blocks the face body PUT for that rep — a face is only as
-// safe as its ACL, so we refuse to publish one we couldn't secure. A source
-// with NO .acl (inherits the container default, same as before this fix)
-// is the common case and costs one extra GET, mirroring nothing.
+// read/written/parsed blocks the face body PUT for that rep — a face is
+// only as safe as its ACL, so we refuse to publish one we couldn't secure.
+// A source with NO .acl (inherits the container default, same as before
+// this fix) is the common case and costs one extra GET, mirroring nothing.
 async function mirrorAcl(sourceUrl, targetUrl, token, fetchFn) {
   const srcAclUrl = sourceUrl + '.acl'
   const r0 = await fetchFn(srcAclUrl, { headers: { accept: 'application/ld+json', ...authH(token) } })
   if (r0.status === 404) return { ok: true, mirrored: false }
   if (!r0.ok) { console.warn(`[instantiate] ACL mirror: GET ${srcAclUrl} -> ${r0.status}, refusing to publish ${targetUrl} unprotected`); return { ok: false } }
-  const body = (await r0.text()).split(sourceUrl).join(targetUrl)
-  const put = await fetchFn(targetUrl + '.acl', { method: 'PUT', headers: { 'content-type': 'application/ld+json', ...authH(token) }, body })
-  if (!put.ok) { console.warn(`[instantiate] ACL mirror: PUT ${targetUrl}.acl -> ${put.status}, refusing to publish ${targetUrl} unprotected`); return { ok: false } }
+  let authorizations
+  try { authorizations = parseAclAuthorizations(await r0.json()) } catch (e) {
+    console.warn(`[instantiate] ACL mirror: could not parse ${srcAclUrl} (${e.message}), refusing to publish ${targetUrl} unprotected`); return { ok: false }
+  }
+  if (!authorizations.length) {
+    console.warn(`[instantiate] ACL mirror: ${srcAclUrl} had no recognizable acl:Authorization entries, refusing to publish ${targetUrl} unprotected`)
+    return { ok: false }
+  }
+  const mcpUrl = `${new URL(sourceUrl).origin}/mcp`
+  const targetPath = new URL(targetUrl).pathname
+  const put = await fetchFn(mcpUrl, { method: 'POST', headers: { 'content-type': 'application/json', ...authH(token) },
+    body: JSON.stringify({ jsonrpc: '2.0', id: `acl-mirror:${targetPath}`, method: 'tools/call',
+      params: { name: 'write_acl', arguments: { path: targetPath, authorizations } } }) })
+  if (!put.ok) { console.warn(`[instantiate] ACL mirror: write_acl POST for ${targetPath} -> HTTP ${put.status}, refusing to publish ${targetUrl} unprotected`); return { ok: false } }
+  let rpc
+  try { rpc = await put.json() } catch { rpc = null }
+  if (rpc?.result?.isError) {
+    console.warn(`[instantiate] ACL mirror: write_acl refused ${targetPath}: ${JSON.stringify(rpc.result)}, refusing to publish ${targetUrl} unprotected`)
+    return { ok: false }
+  }
   return { ok: true, mirrored: true }
 }
 
