@@ -117,7 +117,13 @@ unpushed SHAs would have invalidated the round's ledger/review packages).
 
 **Seeds (recorded, not built):** **curator round = NEXT** (agentic skill: rules, worklist sources,
 enrichment, adjudication, git-diff channel over `--git`; design memory-inspection views WITH it —
-row-per-memory lifecycle list, pinned-vs-archival planes, `.lwsprov` provenance timeline). Fork
+row-per-memory lifecycle list, pinned-vs-archival planes, `.lwsprov` provenance timeline).
+**MULTI-TENANT STORAGE round (scoped 2026-07-15, Chuck-raised):** the discovery/identity layer is
+single-tenant-shaped — ONE server-scoped storage description/pod-config/uriSpaces, navigator root =
+server-as-pod — vs the LWS model (a storage per user space, per-resource
+`Link rel=storageDescription`); mechanics (WAC, per-container binding) are already multi-user-clean.
+Scoping note `docs/design-notes/multi-tenant-storage.md` (spec grounding + touched-surfaces map +
+open questions); REQUIRED before any multi-user deployment; sequence before or after curator. Fork
 seeds: `conformsToTargets` subject-scoping twin (`src/lws/constraint.js:10-29` is predicate-only —
 feeds linkset/earned-conformsTo/`?conformsTo=` search; diverges from the projection-side fix);
 `AUX_SUFFIX` admission exemption (root cause that forced `write_acl` routing). Navigator/face
