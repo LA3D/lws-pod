@@ -184,6 +184,60 @@ describe('instantiate', () => {
     expect(store.has(`${C}a.md.links.jsonld.acl`)).toBe(false)
   })
 
+  it('C1: write_acl HTTP-200 JSON-RPC error envelope (no result) fails closed (no face published)', async () => {
+    // Review follow-up: an HTTP-200 response carrying a JSON-RPC `error` (no
+    // `result`) previously fell through mirrorAcl's `rpc?.result?.isError`
+    // check as a false negative — `undefined` is falsy, so the face
+    // published world-readable. This pins the fail-closed refusal.
+    const acl = JSON.stringify({
+      '@context': { acl: 'http://www.w3.org/ns/auth/acl#' },
+      '@graph': [{
+        '@id': '#owner', '@type': 'acl:Authorization', 'acl:agent': { '@id': 'https://alice.example/#me' },
+        'acl:accessTo': { '@id': `${C}a.md` },
+        'acl:mode': [{ '@id': 'acl:Read' }, { '@id': 'acl:Write' }, { '@id': 'acl:Control' }],
+      }],
+    })
+    const { store, fetchFn: baseFetch } = podMock({ [`${C}a.md.acl`]: { body: acl, ct: 'application/ld+json' } })
+    const fetchFn = async (url, init = {}) => {
+      if ((init.method ?? 'GET') === 'POST' && url.endsWith('/mcp')) {
+        const req = JSON.parse(init.body)
+        if (req.params.name === 'write_acl')
+          return { ok: true, status: 200, headers: { get: () => null },
+            json: async () => ({ jsonrpc: '2.0', id: req.id, error: { code: -32000, message: 'boom' } }) }
+      }
+      return baseFetch(url, init)
+    }
+    const renderers = { links: async (src) => (src.url.endsWith('a.md') || src.url.endsWith('b.md') ? '{"@id":"x"}' : null) }
+    await instantiate(C, 't', { representations: [SELF, LINKS], context: {} }, { fetchFn, renderers })
+    expect(store.has(`${C}a.md.links.jsonld`)).toBe(false)          // ACL-carrying member's face refused
+    expect(store.has(`${C}a.md.links.jsonld.acl`)).toBe(false)
+    expect(store.has(`${C}b.md.links.jsonld`)).toBe(true)           // other member (no .acl) unaffected — instantiate still completes
+  })
+
+  it('C1: unparseable write_acl response body fails closed (no face published)', async () => {
+    const acl = JSON.stringify({
+      '@context': { acl: 'http://www.w3.org/ns/auth/acl#' },
+      '@graph': [{
+        '@id': '#owner', '@type': 'acl:Authorization', 'acl:agent': { '@id': 'https://alice.example/#me' },
+        'acl:accessTo': { '@id': `${C}a.md` },
+        'acl:mode': [{ '@id': 'acl:Read' }],
+      }],
+    })
+    const { store, fetchFn: baseFetch } = podMock({ [`${C}a.md.acl`]: { body: acl, ct: 'application/ld+json' } })
+    const fetchFn = async (url, init = {}) => {
+      if ((init.method ?? 'GET') === 'POST' && url.endsWith('/mcp')) {
+        const req = JSON.parse(init.body)
+        if (req.params.name === 'write_acl')
+          return { ok: true, status: 200, headers: { get: () => null }, json: async () => { throw new Error('not json') } }
+      }
+      return baseFetch(url, init)
+    }
+    const renderers = { links: async (src) => (src.url.endsWith('a.md') ? '{"@id":"x"}' : null) }
+    await instantiate(C, 't', { representations: [SELF, LINKS], context: {} }, { fetchFn, renderers })
+    expect(store.has(`${C}a.md.links.jsonld`)).toBe(false)
+    expect(store.has(`${C}a.md.links.jsonld.acl`)).toBe(false)
+  })
+
   it('missing renderer: throws by default, skips + reports when onMissingRenderer=skip', async () => {
     const { fetchFn } = podMock()
     await expect(instantiate(C, 't', { representations: [LINKS], context: {} }, { fetchFn })).rejects.toThrow(/links/)

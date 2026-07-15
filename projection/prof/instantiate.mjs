@@ -93,8 +93,12 @@ async function mirrorAcl(sourceUrl, targetUrl, token, fetchFn) {
   if (!put.ok) { console.warn(`[instantiate] ACL mirror: write_acl POST for ${targetPath} -> HTTP ${put.status}, refusing to publish ${targetUrl} unprotected`); return { ok: false } }
   let rpc
   try { rpc = await put.json() } catch { rpc = null }
-  if (rpc?.result?.isError) {
-    console.warn(`[instantiate] ACL mirror: write_acl refused ${targetPath}: ${JSON.stringify(rpc.result)}, refusing to publish ${targetUrl} unprotected`)
+  // Fail-closed on the shape, not just the isError flag: an HTTP-200 JSON-RPC
+  // *error* envelope (`rpc.error`, no `result`) or an unparseable body both
+  // leave `rpc?.result` missing — treat missing/non-object `result` as a
+  // refusal too, or this silently falls through to "success" (review finding).
+  if (!rpc?.result || rpc.result.isError) {
+    console.warn(`[instantiate] ACL mirror: write_acl refused ${targetPath}: ${JSON.stringify(rpc?.result ?? rpc?.error ?? rpc)}, refusing to publish ${targetUrl} unprotected`)
     return { ok: false }
   }
   return { ok: true, mirrored: true }
