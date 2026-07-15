@@ -3,6 +3,8 @@
 import { readFileSync } from 'node:fs'
 
 const CYTOSCAPE = readFileSync(new URL('../node_modules/cytoscape/dist/cytoscape.min.js', import.meta.url), 'utf8')
+// guard against a future re-resolve introducing a literal `</script` that would truncate the page
+const SCRIPT_SAFE = CYTOSCAPE.replace(/<\/script/gi, '<\\/script')
 
 export function renderViz({ edgeKeys }) {
   return `<!doctype html>
@@ -12,12 +14,13 @@ export function renderViz({ edgeKeys }) {
 #cy{width:100%;height:100%}#panel{border-left:1px solid #8884;padding:1rem;overflow:auto}
 #bar{position:fixed;top:.5rem;left:.5rem;display:flex;gap:.5rem;z-index:2}
 input,select{font:inherit;padding:.2rem .4rem}#err{color:#c00;padding:1rem}</style>
-<script>${CYTOSCAPE}</script></head>
+<script>${SCRIPT_SAFE}</script></head>
 <body><div id="cy"></div><aside id="panel"><p>Select a node.</p></aside>
 <div id="bar"><input id="q" placeholder="search"><select id="tf"><option value="">all types</option></select></div>
 <script>
 const EDGE_KEYS = ${JSON.stringify(edgeKeys)};
 const hueOf = (n) => { let h = 0; for (const c of String(n)) h = (h*31 + c.charCodeAt(0)) % 360; return h }; // = html-face.mjs hueOf
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const localName = (t) => String(t).replace(/^.*[#/:]/, '');
 const asArr = (v) => v == null ? [] : (Array.isArray(v) ? v : [v]);
 fetch('graph.jsonld').then((r) => { if (!r.ok) throw new Error('graph.jsonld ' + r.status); return r.json() })
@@ -47,9 +50,10 @@ fetch('graph.jsonld').then((r) => { if (!r.ok) throw new Error('graph.jsonld ' +
   const backlinksOf = (id) => real.filter((e) => e.target === id);
   const show = (n) => {
     const bl = backlinksOf(n.id).map((e) =>
-      \`<li>\${nodes.get(e.source)?.label ?? e.source} <em>\${e.label}</em></li>\`).join('');
-    panel.innerHTML = \`<h2>\${n.label}</h2><p><span style="background:hsl(\${hueOf(n.type)} 60% 88%);border-radius:1rem;padding:0 .5rem">\${n.type}</span></p>
-      <p><a href="\${n.id}">open card</a></p><h3>Cited by</h3><ul>\${bl || '<li>—</li>'}</ul><div id="prev">…</div>\`;
+      \`<li>\${esc(nodes.get(e.source)?.label ?? e.source)} <em>\${esc(e.label)}</em></li>\`).join('');
+    panel.innerHTML = \`<h2>\${esc(n.label)}</h2><p><span style="background:hsl(\${hueOf(n.type)} 60% 88%);border-radius:1rem;padding:0 .5rem">\${esc(n.type)}</span></p>
+      <p><a href="\${esc(n.id)}">open card</a></p><h3>Cited by</h3><ul>\${bl || '<li>—</li>'}</ul><div id="prev">…</div>\`;
+    // <article> comes from the server-rendered html face, which already sanitizes its output — inject as-is.
     fetch(docOf.get(n.id) ?? n.id, { headers: { Accept: 'text/html' } }).then((r) => r.ok ? r.text() : '')
       .then((t) => { const m = t.match(/<article>([\\s\\S]*?)<\\/article>/); if (m) document.getElementById('prev').innerHTML = m[1]; })
       .catch(() => {});

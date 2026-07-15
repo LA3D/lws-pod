@@ -17,4 +17,11 @@ describe('viz face', () => {
     expect(html).not.toMatch(/href="https?:\/\/(?!pod\.example)/)
     expect(html.length).toBeGreaterThan(100_000)              // cytoscape actually embedded
   })
+
+  it('escapes graph-derived strings in the client panel and guards the script embed', async () => {
+    const html = await renderers.viz('https://pod.example/alice/wiki/', [], [])
+    expect(html).toContain('esc(')                                   // client-side escaper wired into show()
+    expect((html.match(/<\/script>/g) || []).length).toBe(2)         // exactly the two intended closers
+    expect(html).not.toMatch(/innerHTML = `[^`]*\$\{n\.label\}/)     // no unescaped label interpolation remains
+  })
 })
