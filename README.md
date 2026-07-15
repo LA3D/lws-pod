@@ -98,7 +98,6 @@ Unit gates need no pod; live gates run against the fork TLS rig (`make cert && m
 | Target | Proves | Needs |
 |---|---|---|
 | `make test-projection` | neutral PROF mechanism + publish checks; wiki renderers/triggers | — |
-| `make test-app` | curation-console unit suite | — |
 | `make test` | base-pod e2e: lifecycle, headless auth, MCP, git | `make up` |
 | `make test-lws` | storage description + per-resource linksets | fork rig |
 | `make test-l3` | SHACL admission floor (teaching 400s) | fork rig |
@@ -160,8 +159,6 @@ substrate itself until an application actually needs push-freshness. Pull-refres
 - `apps/wiki-projector/` — application #1's tooling: markdown cards, identity, the OKF nav
   channel, `renderers.mjs` (content/links/index/graph representations), `triggers/` (CLI
   one-shot + WebSocket CDC watcher, driven by `instantiate()`).
-- `app/` — the **wiki-memory curation console**: static Solid/LWS app, vanilla custom elements,
-  no build step, vendored deps. See `app/README.md`.
 - `tests/` — the live gates (table above) + the base-pod e2e suite.
 - `experiments/` — spikes: `headless-cid/` (LWS-CID auth probe), `agent-eval/` (cold-agent
   battery over the pod's own MCP tools), `keycloak-jss/` (authz spike).

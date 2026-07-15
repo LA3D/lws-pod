@@ -58,7 +58,6 @@ make down               # stop, keep ./data
 make reset              # wipe ./data, rebuild, restart (deletes the local pod by design)
 make test               # substrate e2e (needs the pod up): create -> bearer -> write/read -> MCP -> git
 make test-projection    # projection unit + e2e (see "known state" below)
-make test-app           # curation-console unit tests (no pod needed)
 make test-wiki          # live gate — re-derived wiki family (needs make up-fork-tls; see README)
 ```
 
@@ -94,8 +93,10 @@ fork lives only in the `*.fork*` files + `caddy/`. Full rig notes: `README.md` "
   cards, OKF nav channel) + `renderers.mjs` (the wiki family's representation renderers: content =
   the card itself, `links` = flat `#it` JSON-LD, `index` = the OKF channel, `graph` = the dataset
   aggregate) + `triggers/` (CLI one-shot + WebSocket CDC watcher, now driven by `instantiate()`).
-- **`app/`** — wiki-memory curation console: static Solid/LWS app, vanilla custom elements, no build
-  step, vendored deps. (`app/README.md`)
+- **Human surface** — server-side now, not a client app: llm-wiki HTML faces materialized by
+  `apps/wiki-projector` + the fork's navigator (Drive-shell browsing UI). Design of record
+  `docs/superpowers/specs/2026-07-15-human-viewing-surface-design.md`; the curation console
+  (`app/`) it superseded is retired (git history keeps it).
 - **`experiments/`** — spikes (`headless-cid/` LWS-CID auth probe, `keycloak-jss/` authz spike).
 - **`tests/`** — root Vitest integration suite (the `make test` gate).
 
