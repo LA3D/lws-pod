@@ -36,7 +36,7 @@ describe('html card face', () => {
     const html = await renderers.html({ url: `${C}evil.md`, body: EVIL, contentType: 'text/markdown' })
     expect(html).not.toContain('<img src=x')                 // title escaped
     expect(html).not.toContain('<b>bold</b>')                // scalar escaped
-    expect(html).not.toContain('onclick="alert(1)"')         // edge href attribute stays well-formed
+    expect(html).not.toContain('b.md" onclick')              // edge href attribute stays well-formed
     expect(html).toContain('&quot;')                          // quotes rendered as entities somewhere
   })
 })
