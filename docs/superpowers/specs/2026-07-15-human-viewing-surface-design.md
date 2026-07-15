@@ -14,6 +14,19 @@ note's §4 questions by *reframing the round twice*, not by fixing the SPA. The 
 wiki-memory app design (`docs/superpowers/specs/2026-06-22-wiki-memory-app-design.md`) remains
 as history; its editor-centric premise is explicitly retired here.
 
+> **Grounded deviations (2026-07-15, plan-time exploration of `la3d/lws @ 32398c1` +
+> `projection/prof/`):** (1) the fork's alternates model serves alternates by **303 redirect**
+> (profile conneg redirects to the alternate's own URL; nothing inline-serves with
+> `Content-Location`) — the dispatch rule follows that model: declared `text/html` alternate →
+> **303 to the face**, not bare-200. (2) Container dispatch needs no new code for bound
+> containers: the wiki's rendered index face materializes as literal **`index.html`**, which
+> the fork's existing A2 shadow already serves to browser Accepts under `--lws` (agents escape
+> via non-HTML Accept, as shipped). The navigator replaces only the mashlib fallback.
+> (3) Member face names follow the suffix mechanism verbatim: `a.md` + `.html` → **`a.md.html`**
+> (as `a.md.links.jsonld`). (4) The seeded server-root landing page (`src/ui/server-root.js`)
+> stays the default at `/`; the navigator **root/storage view** is served at `/?view=nav` and
+> linked from every breadcrumb's root segment.
+
 ---
 
 ## 0a. First reframe: viewing surface vs curator (and why the SPA dies)
