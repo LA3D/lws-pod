@@ -4,7 +4,7 @@ ENVFILE = .env.$(ENV)
 COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-compose.$(ENV).yml
 
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
-NPM_DIRS = . projection app apps/wiki-projector experiments/headless-cid
+NPM_DIRS = . projection apps/wiki-projector experiments/headless-cid
 
 .PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-wiki test-projection publish-profiles reinstantiate shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 

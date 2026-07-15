@@ -5,8 +5,8 @@ Linked Web Storage (LWS)** with **W3C PROF profiles**. *That is the substrate's 
 general linked-web-storage pod where structure is imposed by profiles, never baked in — nothing in
 the substrate or the profile mechanism may presuppose any particular application. The **first
 application** built on it is a memory pod (the wiki-memory profile family: OKF projection engine,
-SHACL admission floor, curation console; the pod is the canonical home, Obsidian and git are
-clients), under the thesis that typed, progressively-disclosed memory helps agents more than flat
+SHACL admission floor, human viewing surface (server-side HTML faces + navigator); the pod is the
+canonical home, Obsidian and git are clients), under the thesis that typed, progressively-disclosed memory helps agents more than flat
 retrieval. Other applications = other profiles (data catalogs, RO-Crate, sensor data, …) on the
 same unmodified substrate — `docs/foundations/06-code-placement-audit.md` (P13) is the standing gate on this
 separation.
@@ -20,7 +20,7 @@ branch `la3d/main` = pristine pin of upstream **0.0.210** — and add the LWS st
 (the earlier framing). JSS already ships the **LWS-CID authentication** suite (identity is done),
 plus MCP, headless auth, git versioning, and is JSON-LD-native; it replaced the Community Solid
 Server (CSS), which lacked the agent-identity stack entirely. **L1 (the `lws+json` container) is
-shipped;** the L2/L3/L4 toolkits in *this* repo (projection, SHACL admission, console — see below)
+shipped;** the L2/L3/L4 toolkits in *this* repo (projection, SHACL admission, human surface — see below)
 ride on top of that fork. Current state + the L1–L4 layering + the active branch: **`FOLLOWUP.md` (read first).**
 
 ## Read first (orientation)
@@ -94,7 +94,8 @@ fork lives only in the `*.fork*` files + `caddy/`. Full rig notes: `README.md` "
   the card itself, `links` = flat `#it` JSON-LD, `index` = the OKF channel, `graph` = the dataset
   aggregate) + `triggers/` (CLI one-shot + WebSocket CDC watcher, now driven by `instantiate()`).
 - **Human surface** — server-side now, not a client app: llm-wiki HTML faces materialized by
-  `apps/wiki-projector` + the fork's navigator (Drive-shell browsing UI). Design of record
+  `apps/wiki-projector` + the fork's navigator (Drive-shell browsing UI) (navigator lands on the
+  rig with this round's repin — see FOLLOWUP). Design of record
   `docs/superpowers/specs/2026-07-15-human-viewing-surface-design.md`; the curation console
   (`app/`) it superseded is retired (git history keeps it).
 - **`experiments/`** — spikes (`headless-cid/` LWS-CID auth probe, `keycloak-jss/` authz spike).

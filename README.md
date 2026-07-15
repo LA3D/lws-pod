@@ -159,6 +159,9 @@ substrate itself until an application actually needs push-freshness. Pull-refres
 - `apps/wiki-projector/` — application #1's tooling: markdown cards, identity, the OKF nav
   channel, `renderers.mjs` (content/links/index/graph representations), `triggers/` (CLI
   one-shot + WebSocket CDC watcher, driven by `instantiate()`).
+- **Human surface** — server-side: llm-wiki HTML faces (`card.md.html`, `index.html`, `viz.html`)
+  materialized by `apps/wiki-projector`, plus the fork's navigator views (`?view=nav`). Design:
+  `docs/superpowers/specs/2026-07-15-human-viewing-surface-design.md`.
 - `tests/` — the live gates (table above) + the base-pod e2e suite.
 - `experiments/` — spikes: `headless-cid/` (LWS-CID auth probe), `agent-eval/` (cold-agent
   battery over the pod's own MCP tools), `keycloak-jss/` (authz spike).
