@@ -28,7 +28,7 @@ Nextcloud Viewer), and MCP Apps (`io.modelcontextprotocol/ui`) + Claude Science 
 block); plan `docs/superpowers/plans/2026-07-15-human-viewing-surface.md`; ledger
 `.superpowers/sdd/progress.md` (this round's section).
 
-**Shipped, fork (`la3d/lws-navigator` off `32398c1`, 15 commits, merged `--no-ff` = `9b084e9`,
+**Shipped, fork (`la3d/lws-navigator` off `32398c1`, 12 commits, merged `--no-ff` = `9b084e9`,
 PUSHED; image `lws-pod:fork-navigator`; full fork suite 1673/0/1):**
 - **Face dispatch (T4):** browser-shaped GET/HEAD of a bare name with a declared `text/html`
   alternate → **303 to the face** (the fork's alternates model is redirect-based — grounded
@@ -91,7 +91,7 @@ PUSHED; image `lws-pod:fork-navigator`; full fork suite 1673/0/1):**
   `/id/a` → rendered card; `/?view=nav` → root view; `/alice/wiki/` → index face; `viz.html` →
   graph.
 
-**Review record:** 9 task reviews (sonnet, adversarial, per-task fix loops — highlights: T5
+**Review record:** 10 task reviews (sonnet, adversarial, per-task fix loops — highlights: T5
 predictive-ETag ordering, T6 entity-face type gate (Critical, plan-defect) + `text/html`
 self-exclusion, T7 `-navroot` collision (live-reproduced), T9 `NPM_DIRS` make-setup break) + a
 **fable whole-branch final review** that caught what task gates structurally couldn't: **C1** (face
