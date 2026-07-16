@@ -8,7 +8,7 @@
   "knownVocabGaps": ["https://la3d.github.io/llm-wiki-colab/ontology#mentions"],
   "void": {
     "rootResource": "/alice/",
-    "uriSpace": "id/",
+    "uriSpace": "alice/id/",
     "vocabularies": [
       { "namespace": "https://la3d.github.io/llm-wiki-colab/ontology#", "dataDump": "llm-wiki/ontology.ttl" },
       { "namespace": "https://w3id.org/lws-pod/profile#", "dataDump": "lwsp.ttl" }

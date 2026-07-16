@@ -110,7 +110,7 @@ describe('checkRepresentation', () => {
 
 describe('checkPodConfig — the pod-config.jsonld resolves rail (spec §4b/§7, review #15)', () => {
   const allExist = () => true
-  const manifest = { void: { rootResource: '/alice/', uriSpace: 'id/' } }
+  const manifest = { void: { rootResource: '/alice/', uriSpace: 'alice/id/' } }
   const CONTAINER = '/alice/profiles/'
   const cfg = (o) => JSON.stringify({ profileIndex: '/alice/profiles/index.jsonld', void: '/alice/profiles/void.jsonld', ...o })
   it('passes the real pod-config.jsonld against a manifest that declares void', async () => {
