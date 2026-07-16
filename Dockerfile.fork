@@ -16,10 +16,10 @@ RUN apt-get update \
 # rendering replaces the CDN-loaded mashlib UI) + final-review fixes (stale -nav ETag deferred
 # past face dispatch; missing-face 303 falls through to the entity view; GET/HEAD navigator
 # parity; root storage view gets its own -navroot ETag variant).
-# Merge 9b084e9 (navigator round, onto 32398c1 next-fork). Pin to a full SHA; override with
+# Merge def96a5 (multi-tenant round, onto 9b084e9 navigator). Pin to a full SHA; override with
 # --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=9b084e9323f6d4dc4b36a9213e302c3fa91e2099
+ARG JSS_GIT_REF=def96a5daa9fa67e4cda8accc282ee529452411e
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).

@@ -5,7 +5,17 @@
 // adding a profile family is a manifest entry + files, never a code edit.
 // Usage: node publish/publish.mjs --base https://pod.example [--container /alice/profiles/]
 //        [--bind /alice/concepts/=llm-wiki] [--instantiate <path>=<token>] [--token <bearer>]
-//        [--owner <webid>] [--check] [--no-acl]
+//        [--owner <webid>] [--check] [--no-acl] [--defs <dir>]
+// --defs overrides the source tree PUT to the pod (default: this repo's own
+// projection/profiles/defs) — a second tenant needs its own tenant-pathed
+// index.jsonld/pod-config.jsonld (rootResource/uriSpace/pathPrefix), so a
+// caller stamps a tenant-flavored copy of defs/ and points --defs at it
+// (see scripts/seed-multitenant.sh). NOTE: the shared-schema loader in
+// checks.mjs (profile/context/shape resolution for descriptor validation)
+// still reads from the canonical defs/ tree regardless of this flag — fine
+// as long as the override tree only diverges in index.jsonld/pod-config.jsonld
+// (true for same-shape tenant copies); a tenant with genuinely different
+// profile content would need checks.mjs made defs-root-aware too.
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -17,15 +27,16 @@ import { descriptorToProfile } from '../prof/profile-doc.mjs'
 import { loadProfile } from '../prof/profile-loader.mjs'
 import { instantiate, mergeContexts } from '../prof/instantiate.mjs'
 
-const DEFS = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
-const TYPES = { '.jsonld': 'application/ld+json', '.ttl': 'text/turtle' }
-const LWSPR = 'https://w3id.org/lws-pod/profile/role/'
-const ROLE = 'http://www.w3.org/ns/dx/prof/role/'
-
 function arg(name, dflt = null) {
   const i = process.argv.indexOf(`--${name}`)
   return i > -1 ? process.argv[i + 1] : dflt
 }
+const DEFS_DEFAULT = join(dirname(fileURLToPath(import.meta.url)), '..', 'profiles', 'defs')
+const DEFS = arg('defs', DEFS_DEFAULT)
+const TYPES = { '.jsonld': 'application/ld+json', '.ttl': 'text/turtle' }
+const LWSPR = 'https://w3id.org/lws-pod/profile/role/'
+const ROLE = 'http://www.w3.org/ns/dx/prof/role/'
+
 const binds = process.argv.flatMap((a, i) => (process.argv[i - 1] === '--bind' ? [a] : []))
 const insts = process.argv.flatMap((a, i) => (process.argv[i - 1] === '--instantiate' ? [a] : []))
 const checkOnly = process.argv.includes('--check')
@@ -109,6 +120,11 @@ if (!noAcl && !ownerWebId) {
 
 // 2. Publish the tree.
 const headers = token ? { authorization: `Bearer ${token}` } : {}
+// authFetch: loadProfile's default fetchFn is anonymous — fine for a public
+// profiles tree (alice, post-ACL-provisioning), but a --no-acl private tenant
+// (bob) needs the bearer to re-read its own just-published descriptors during
+// --bind/--instantiate.
+const authFetch = (url, init = {}) => fetch(url, { ...init, headers: { ...init.headers, ...headers } })
 for await (const f of files(DEFS)) {
   const rel = relative(DEFS, f).split(sepEscape()).join('/')
   const url = new URL(rel, root).href
@@ -148,7 +164,7 @@ for (const b of binds) {
   const [path, tokenName] = b.split('=')
   const descriptor = profilesByToken[tokenName]
     ?? (() => { console.error(`--bind: no profile in the manifest has token '${tokenName}'`); process.exit(1) })()
-  const loaded = await loadProfile(descriptor)
+  const loaded = await loadProfile(descriptor, { fetchFn: authFetch })
   const metaUrl = new URL(path + '.meta', base).href
   let meta = {}
   const r0 = await fetch(metaUrl, { headers: { ...headers, accept: 'application/ld+json' } })
@@ -170,7 +186,7 @@ for (const s of insts) {
   const [path, tokenName] = s.split('=')
   const descriptor = profilesByToken[tokenName]
     ?? (() => { console.error(`--instantiate: no profile in the manifest has token '${tokenName}'`); process.exit(1) })()
-  const loaded = await loadProfile(descriptor)
+  const loaded = await loadProfile(descriptor, { fetchFn: authFetch })
   let res
   try {
     res = await instantiate(new URL(path, base).href, token,

@@ -16,16 +16,21 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (navigator round); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-9b084e9323f6d4dc4b36a9213e302c3fa91e2099}"
-    image: lws-pod:fork-navigator
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (multi-tenant round); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-def96a5daa9fa67e4cda8accc282ee529452411e}"
+    image: lws-pod:fork-multitenant
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --idp-issuer to advertise the public
-    # Caddy-fronted issuer (S2, zero fork code), and --lws-config pointing at the ONE pod
-    # resource that declares the LWS service pointers as data ({ profileIndex, void }) —
-    # replaces the old --lws-profile-index/--lws-void path flags outright (spec 2026-07-11
-    # §4, no deprecation aliases). Read lazily + mtime-cached: absent before publish = both
-    # services off (no crash); appears live once `make publish-profiles` writes it, no restart.
+    # Caddy-fronted issuer (S2, zero fork code), and --lws-config pointing at the pod
+    # resource that declares the server-level LWS service pointers as data
+    # ({ profileIndex, void, uriSpaces }) — replaces the old --lws-profile-index/--lws-void
+    # path flags outright (spec 2026-07-11 §4, no deprecation aliases). Multi-tenant round
+    # (A3/A5-C2): this flag drives ONLY the LEGACY server-scoped podConfig (the
+    # /.well-known/void aggregate, transitionally = alice's void); the PER-STORAGE config is
+    # read at the FIXED convention `<storageRoot>profiles/pod-config.jsonld` (server.js
+    # PER_STORAGE_CONFIG_REL), INDEPENDENT of this flag — so bob resolves his own config
+    # regardless. Keep this ABSOLUTE (a relative value would break the legacy void lookup).
+    # Read lazily + mtime-cached: absent before publish = services off (no crash), no restart.
     # mashlib-cdn dropped (navigator round): server-side HTML views replace the CDN mashlib UI.
     command: ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data",
       "--idp", "--mcp", "--conneg", "--git", "--notifications", "--provision-keys",

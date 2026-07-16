@@ -12,6 +12,21 @@ async function fetchJson(url, fetchFn) {
   return r.json()
 }
 
+// jsonld.toRDF (inside descriptorToProfile → jsonldToQuads) resolves remote
+// @context refs through its OWN documentLoader, defaulting to an anonymous
+// fetch — independent of the fetchFn used to fetch the descriptor body
+// above. A private profiles tree (no public-read ACL, e.g. a private-tenant
+// --no-acl publish) 401s on that anonymous context fetch even though the
+// descriptor fetch itself was authenticated. Build a loader riding the same
+// fetchFn so context resolution carries the same auth.
+function authedDocumentLoader(fetchFn) {
+  return async (url) => {
+    const r = await fetchFn(url, { headers: { accept: 'application/ld+json, application/json' } })
+    if (!r.ok) throw new Error(`remote context ${url} -> ${r.status}`)
+    return { contextUrl: null, document: await r.json(), documentUrl: url }
+  }
+}
+
 // The role dispatch table — the ONLY place role IRIs are interpreted (P7).
 // context→parser input, identity-policy/plane-mapping→configs, validation/vocabulary→artifact URLs,
 // derived-view→fetched artifact appended to the derivedViews list,
@@ -41,7 +56,7 @@ async function walk(url, acc, visited, fetchFn) {
   if (visited.has(url)) return
   visited.add(url)
   let d
-  try { d = await descriptorToProfile(await fetchJson(url, fetchFn), url) }
+  try { d = await descriptorToProfile(await fetchJson(url, fetchFn), url, { documentLoader: authedDocumentLoader(fetchFn) }) }
   catch { acc.conformance.push({ iri: url, resolved: false }); return }   // opaque parent (spec §2/§6)
   // Non-PROF parent (valid JSON-LD, zero PROF triples about itself) is opaque
   // too (spec §6) — external standards like w3id.org/ro/crate resolve to real
@@ -59,7 +74,7 @@ export async function loadProfile(descriptorUrl, { fetchFn = fetch } = {}) {
   const acc = { conformance: [], validation: [], vocabulary: [], contexts: [],
     identityPolicy: null, planeMapping: null, derivedViews: [], representations: [], unknownRoles: [] }
   // The root descriptor must resolve — loud (P8 declaration side of the loader).
-  const root = await descriptorToProfile(await fetchJson(descriptorUrl, fetchFn), descriptorUrl)
+  const root = await descriptorToProfile(await fetchJson(descriptorUrl, fetchFn), descriptorUrl, { documentLoader: authedDocumentLoader(fetchFn) })
   const visited = new Set([descriptorUrl])
   for (const p of root.parents) await walk(p, acc, visited, fetchFn)
   await dispatch(root.resources, acc, fetchFn)

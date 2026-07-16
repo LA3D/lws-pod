@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-c
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-nextfork test-wiki test-projection test-viewer publish-profiles reinstantiate shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-nextfork test-wiki test-projection test-viewer publish-profiles reinstantiate seed-multitenant seed-bob shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -241,6 +241,19 @@ publish-profiles:
 # the manifest's --bind/--instantiate flags) is the part that actually needs re-running.
 # Needs `make up-fork-tls` + `make cert` + POD_TOKEN.
 reinstantiate: publish-profiles
+
+# Multi-tenant storage demo rig (spec 2026-07-15): seeds alice (public root,
+# public-read defaults from publish.mjs) + bob (private root — provisioned
+# `visibility:private`, published `--no-acl` so his profiles/wiki tree stays
+# governed by the inherited private-root ACL, own bob-pathed pod-config.jsonld
+# with uriSpaces pathPrefix `/bob/id/`). Idempotent — safe to rerun after a
+# `make down-fork-tls && make up-fork-tls`. Needs `make up-fork-tls` + `make cert`.
+seed-multitenant:
+	scripts/seed-multitenant.sh all
+
+# bob only (skip re-touching alice) — the common case once alice is already seeded.
+seed-bob:
+	scripts/seed-multitenant.sh bob
 
 shell:
 	$(COMPOSE) exec jss bash
