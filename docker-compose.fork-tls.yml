@@ -17,7 +17,7 @@ services:
       dockerfile: Dockerfile.fork
       args:
         # default JSS_GIT_REF is pinned in Dockerfile.fork (multi-tenant round); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-def96a5daa9fa67e4cda8accc282ee529452411e}"
+        JSS_GIT_REF: "${JSS_GIT_REF:-7de911dd64a03d95b7fe29a19650c84bcf1e90ee}"
     image: lws-pod:fork-multitenant
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --idp-issuer to advertise the public

@@ -91,10 +91,23 @@ the plan didn't task it; fixed + faces re-materialized.
   config filename hardcoded (no CLI override); `LWS_STORAGE` absent from `LWS_VOCAB.@graph`
   rdfs:comment (self-description one-liner).
 
-**Human acceptance (spec §4/§7) — remaining for Chuck:** the browser walk — `/?view=nav` (server
-index) → `/alice/?view=nav` (storage view) → a card face + its `alice›wiki›a.md` breadcrumb → a
-graph/viz → confirm `/bob/…` never routes through alice; plus confirm bob (private) is invisible to
-anon in the roster. (T-verified by curl above; the visual walk is Chuck's sign-off.)
+**Human acceptance (spec §4/§7) — Chuck did the §7 browser walk (2026-07-16).** It surfaced ONE
+bug: the navigator "machine view" links (entity-view raw/media-type links + container-view machine
+view) **looped into HTML** for a human — a browser GET of a data resource serves the entity face,
+and the links pointed at the bare URL, so clicking never reached the bytes. **This was the recorded
+navigator-round residual "entity-face force-raw escape", NOT a multi-tenant regression** (the machine
+reps work via `Accept`; storage-description machine views work — fixed routes). **FIXED same day
+(Chuck: "fix now") — a `?raw` force-raw escape:** fork branch `la3d/lws-force-raw` → merged `--no-ff`
+= **`7de911d`** (PUSHED; full suite 1737/0/1; sonnet review — WAC empirically NOT bypassed, one
+`--lws`-off GET/HEAD-parity leak caught + fixed). `?raw` bypasses the entity-face / container-view /
+index.html-shadow / face-303 / legacy-mashlib branches and serves the canonical stored bytes with
+their real Content-Type (`--lws`-only; WAC still enforced upstream); entity-view raw/data-alternate
+links + container-view machine-view link now carry `?raw`. Rig repinned to `7de911d` (image
+`fork-multitenant`, data volume preserved); **browser-verified live**: `a.md?raw` → raw markdown,
+`a.md.links.jsonld?raw` → the JSON-LD, container `?raw` → machine listing; test-viewer 12/12 +
+test-multitenant 6/6 on the new image. Remaining `--lws`-off `?raw` no-op + `?raw` respects conneg
+(a real browser's `*/*` Accept yields the canonical; an artificial `text/html`-only Accept 406s —
+unreachable in practice).
 
 **NEXT (unchanged): the CURATOR ROUND** (agentic skill, own brainstorm — see the human-viewing-surface
 block below for its scope), then a fork round batching the recorded follow-ups above +
