@@ -59,7 +59,7 @@ per-storage.** The token layer is out of scope.
 |---|---|---|
 | D1 | **Description/identity layer becomes per-storage; auth realm/audience stays origin-scoped.** | Keeps the token/validation subsystem (CID `aud=origin`, token exchange) entirely out of the blast radius; WAC already does per-resource access. |
 | D2 | **Each JSS named pod (`/alice/`, `/bob/`) is an LWS storage root. `/` is a server index** (non-storage) listing WAC-visible storages. A single-user *root-pod* deployment keeps `/` as its one storage. | Reuses `createPodStructure`'s existing boundary; matches Solid multi-pod servers; mechanics already per-pod-clean. |
-| D3 | **`createPodStructure` stamps `lws:Storage` on the pod root's `.meta`** = the self-describing, agent-readable marker (source of truth). Resolution: **first path segment → verify marker (cached)**, pure walk-up as fallback. Pod root emits **no `rel=up`**. | Self-description thesis (P13) — tenancy is data, not a hardcoded path rule; cheap per-request; spec-faithful root. |
+| D3 | **Provisioning stamps `lws:Storage` into the pod root's `.lwstypes` sidecar** (the fork's existing type home — NOT `.meta`, which has no rdf:type reader) via `captureDeclaredTypes`, read via `readDeclaredTypes`. Resolution: **first path segment → verify marker (cached)**, pure walk-up as fallback; the marker-check also distinguishes a real pod root from a non-pod top-level path (`/types/…`, `/.well-known/…`). Pod root emits **no `rel=up`**. Applies to BOTH `createPodStructure` (named pods) and `createRootPodStructure` (root pod). | Self-description thesis (P13) — tenancy is data, not a hardcoded rule; reuses the type machinery so storages become **type-searchable**; cheap per-request; spec-faithful root. |
 | D4 | **Each storage's description is a dedicated pod-scoped resource** (`/alice/lws-storage`, `application/lws+json`), advertised by `Link rel="…lws#storageDescription"` on every GET/HEAD under `/alice/`. It **doubles as the per-storage config surface** (services + uriSpaces). | Spec: description URI is free-form, Link-discovered. `.well-known` is RFC 8615 origin-only, so a per-pod well-known is illegitimate. |
 | D5 | **`/.well-known/lws-storage` becomes a server-index resource** whose `id` is the server (not a `Storage`); **`/.well-known/void`** becomes a server-level aggregate. | `.well-known` is origin-scoped; the server still needs an entry point + roster. |
 | D6 | **Per-storage uriSpace prefixes.** alice's `/id/` re-mints to `/alice/id/` (declared in her description); the 303 referent resolver reads the **owning storage's** config via D3. Bob independently gets `/bob/id/`. **Reseed** regenerates cards. | Removes the server-root namespace grab; bob can mint his own names. |
@@ -70,9 +70,11 @@ per-storage.** The token layer is out of scope.
 
 ## 2. Resource shapes
 
-**Pod-root `.meta` (marker).** `createPodStructure` adds `lws:Storage` to the pod root's type set
-in `<root>.meta`. A container is a storage root iff its `.meta` carries this type. (Additive — the
-container stays an `lws:Container`.)
+**Pod-root marker (`.lwstypes`).** Provisioning writes `https://www.w3.org/ns/lws#Storage` into the
+pod root's `.lwstypes` sidecar (`captureDeclaredTypes`) — the fork's existing server-managed type
+home; `.meta` has no rdf:type reader, so it is *not* the marker. A container is a storage root iff
+`readDeclaredTypes(root)` includes `lws:Storage`. Reusing `.lwstypes` means storages are also
+type-searchable (`?type=…lws#Storage`).
 
 **Per-storage description `/alice/lws-storage`** (`application/lws+json`):
 ```json
@@ -105,7 +107,7 @@ WAC-filtered list of storage roots, each pointing at its own description.
 
 | Surface | File (anchor, navigator-round) | Change |
 |---|---|---|
-| Storage-owner resolution | new `src/lws/storage-resolver.js` | `storageRootFor(resourceUrl)` → first-segment + `.meta` marker check (cached); walk-up fallback. The one function every surface below calls. |
+| Storage-owner resolution | new `src/lws/storage-resolver.js` | `storageRootFor(storage, urlPath)` → first-segment + `.lwstypes` marker check via `readDeclaredTypes` (cached); walk-up fallback. Returns the owning storage's root path (or `null` = server scope). The one function every surface below calls. |
 | Description URL | `src/lws/storage-description.js:12` `storageDescriptionUrl()` | Return the **owning storage's** `/…/lws-storage`, not `${origin}/.well-known/lws-storage`. Drop the "Single-storage assumption (L2)" comment. |
 | Description generator | `src/lws/storage-description.js:44,84` `generateStorageDescription` / `buildStorageDescription` | `id` = storage root URL (not `${origin}/`); services pod-scoped; per-storage uriSpaces/config. New `buildServerIndex(origin, storages)`. |
 | Config inputs | `src/lws/storage-description.js:67` `resolveStorageDescriptionInputs` | Read the **owning storage's** pod-config, not the one global. |
@@ -114,7 +116,7 @@ WAC-filtered list of storage roots, each pointing at its own description.
 | Well-known route | `src/server.js:1071` | Serve the **server index** (roster) at `/.well-known/lws-storage`; add per-storage `/{pod}/lws-storage` route. |
 | Referent resolver | `src/lws/referent-resolver.js` (`uriSpacePrefixesFor`, `resolveReferent`) | uriSpaces read from owning-storage config; prefixes pod-scoped. |
 | Navigator chrome | `src/navigator/views.js:27` `crumbHtml`; root/server view | Breadcrumb root = owning storage root; `/?view=nav` = server index. |
-| Provisioning | `src/handlers/container.js:241` `createPodStructure`; `--subdomains` guard `src/server.js:131` | Stamp `lws:Storage` marker; accept a visibility flag → root ACL public-read vs owner-only. `--subdomains`+`--lws` stays refused. |
+| Provisioning | `src/handlers/container.js:241` `createPodStructure` + `src/server.js:1452` `createRootPodStructure`; `--subdomains` guard `src/server.js:131` | Stamp `lws:Storage` into root `.lwstypes` (`captureDeclaredTypes`); accept a visibility flag → root ACL public-read vs owner-only (toggles the `#public` authorization in `generateOwnerAcl`). `--subdomains`+`--lws` stays refused. |
 
 ### lws-pod
 
