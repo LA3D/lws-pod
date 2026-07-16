@@ -37,7 +37,10 @@ title: Beta
 ---
 Beta prose.`
 
-const sd = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+// The referent-resolution capability is advertised per-storage (multi-tenant
+// round) — the well-known root is a ServerIndex with no capability[] of its
+// own, so probe alice's own StorageDescription.
+const sd = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
   .then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
 const hasReferentCap = (sd.capability || []).some((c) => c.type === REFERENT_CAP)
 
@@ -117,15 +120,15 @@ describe.skipIf(!hasReferentCap)('LWS referent identity & discovery (Phase 1+2 l
     expect(types).toContain('http://www.w3.org/ns/dx/connegp/profile/http')
   })
 
-  it('2. name deref (headline): anonymous GET /id/a 303s to the card, with rel="canonical"', async () => {
-    const r = await fetch(`${BASE}/id/a`, { redirect: 'manual' })
+  it('2. name deref (headline): anonymous GET /alice/id/a 303s to the card, with rel="canonical"', async () => {
+    const r = await fetch(`${BASE}/alice/id/a`, { redirect: 'manual' })
     expect(r.status).toBe(303)
     expect(r.headers.get('location')).toBe(`${BASE}${WIKI}a.md`)
     expect(r.headers.get('link')).toContain('rel="canonical"')
   })
 
   it('3. no-oracle: an unminted name 404-hides (not a leaking 303-then-401)', async () => {
-    const r = await fetch(`${BASE}/id/nonexistent-xyz`, { redirect: 'manual' })
+    const r = await fetch(`${BASE}/alice/id/nonexistent-xyz`, { redirect: 'manual' })
     expect(r.status).toBe(404)
   })
 
@@ -155,7 +158,7 @@ describe.skipIf(!hasReferentCap)('LWS referent identity & discovery (Phase 1+2 l
     expect(page.items.some((i) => i.id === `${BASE}${DATASETS}referent-seed.jsonld`)).toBe(true)
 
     const cfg = await fetch(`${BASE}/alice/profiles/pod-config.jsonld`).then((res) => res.json())
-    expect(cfg.uriSpaces).toEqual([{ pathPrefix: '/id/', container: '/alice/wiki/', suffix: '.md' }])
+    expect(cfg.uriSpaces).toEqual([{ pathPrefix: '/alice/id/', container: '/alice/wiki/', suffix: '.md' }])
   })
 })
 

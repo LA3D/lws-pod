@@ -36,8 +36,10 @@ const PMECH = '/alice/profile-mech/'
 const LLM_WIKI = `https://pod.vardeman.me/alice/profiles/llm-wiki/profile.jsonld`
 
 // Top-level probe, matching the existing gates' self-skip pattern: the
-// suite skips (never fails) on a non---lws pod.
-const lws = await fetch(`${BASE}/.well-known/lws-storage`)
+// suite skips (never fails) on a non---lws pod. The well-known root is a
+// ServerIndex (multi-tenant round) — probe alice's own per-storage
+// StorageDescription for the --lws Storage shape this suite exercises.
+const lws = await fetch(`${BASE}/alice/lws-storage`)
   .then(async (r) => r.ok && (await r.json()).type === 'Storage').catch(() => false)
 let token, authedFetch
 
@@ -67,8 +69,15 @@ beforeAll(async () => {
 
 describe.skipIf(!lws)('profile mechanism (live)', () => {
   it('acceptance #1/#2: storage description advertises the index; authority resolved from it', async () => {
-    const { authority, profileIndex } = await resolveStorageAuthority(`${BASE}${PMECH}`)
-    expect(authority).toBe(`${BASE}/`)
+    // PMECH is owner-private (no ACL set, JSS default): an ANONYMOUS HEAD 401s
+    // with no Link header at all, so resolveStorageAuthority's real-resource
+    // read silently falls back to the well-known convention — which, since
+    // the multi-tenant round, is the origin ServerIndex, not this storage's
+    // own description. Authenticate so the mechanism reads the resource's
+    // OWN storageDescription Link (the thing this acceptance is pinning),
+    // same reasoning as discoverBinding's authedFetch elsewhere in this file.
+    const { authority, profileIndex } = await resolveStorageAuthority(`${BASE}${PMECH}`, { fetchFn: authedFetch })
+    expect(authority).toBe(`${BASE}/alice/`)
     expect(profileIndex).toBe(`${BASE}/alice/profiles/index.jsonld`)
     const idx = await readProfileIndex(profileIndex)
     expect(idx.profiles.length).toBeGreaterThanOrEqual(3)

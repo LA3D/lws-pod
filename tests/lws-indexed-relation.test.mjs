@@ -4,7 +4,9 @@ import { BASE, ensurePod, getToken } from './helpers.mjs'
 // Indexed-relation live gate — describedby filter + linkset describedby, against
 // the running FORK pod (--lws). Self-skips on a non-lws pod: TypeSearchService
 // must be advertised (mirrors lws-typeindex/lws-admission/lws-discovery gates).
-const sd = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+// service[] is advertised per-storage (multi-tenant round) — the well-known
+// root is a ServerIndex with no service[] of its own.
+const sd = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
   .then(r => (r.ok ? r.json() : {})).catch(() => ({}))
 const hasSearch = (sd.service || []).some(s => s.type === 'TypeSearchService')
 

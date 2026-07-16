@@ -145,7 +145,9 @@ describe.skipIf(!hasResources)('model-driven read tools (spec 2026-07-06)', () =
     expect(JSON.parse(res.content[0].text)['@context']).toBeTruthy()
     const meta = JSON.parse(res.content[1].text)
     expect(meta.links.up).toBe(`${BASE}/alice/`)
-    expect(meta.links.storageDescription).toBe(`${BASE}/.well-known/lws-storage`)
+    // Multi-tenant round: storageDescription points at the OWNING storage's
+    // own per-storage description, not the server-wide well-known.
+    expect(meta.links.storageDescription).toBe(`${BASE}/alice/lws-storage`)
   })
 
   it('read_resource no-oracle: anonymous read of the owner-private probe is a teaching error', async () => {
@@ -180,7 +182,9 @@ describe.skipIf(!hasResources)('model-driven read tools (spec 2026-07-06)', () =
   })
 
   it('storage description names RFC 9264', async () => {
-    const sd = await (await fetch(`${BASE}/.well-known/lws-storage`)).json()
+    // linkset lives on the per-storage Storage description — the ServerIndex
+    // at the well-known root (multi-tenant round) carries no linkset of its own.
+    const sd = await (await fetch(`${BASE}/alice/lws-storage`)).json()
     expect(sd.linkset.conformsTo).toBe('https://www.rfc-editor.org/rfc/rfc9264')
   })
 

@@ -27,8 +27,21 @@ describe.skipIf(!lwsEnabled)('LWS L2 discovery surface (live --lws pod)', () => 
     })
   })
 
-  it('serves the Storage Description (type:Storage + service[]) with a scheme matching the base', async () => {
+  it('serves a ServerIndex (type:ServerIndex + storage[]) at the well-known root, listing alice', async () => {
     const r = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+    expect(r.status).toBe(200)
+    expect(r.headers.get('content-type')).toMatch(/application\/lws\+json/)
+    const idx = await r.json()
+    expect(idx['@context']).toBe('https://www.w3.org/ns/lws/v1')
+    expect(idx.type).toBe('ServerIndex')
+    expect(idx.id.startsWith(ORIGIN)).toBe(true)
+    const alice = idx.storage.find((s) => s.id.endsWith('/alice/'))
+    expect(alice).toBeTruthy()
+    expect(alice.storageDescription.startsWith(ORIGIN)).toBe(true)
+  })
+
+  it('serves the per-storage Storage Description (type:Storage + service[]) with a scheme matching the base', async () => {
+    const r = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
     expect(r.status).toBe(200)
     expect(r.headers.get('content-type')).toMatch(/application\/lws\+json/)
     const sd = await r.json()

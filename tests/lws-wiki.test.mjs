@@ -12,7 +12,9 @@ const OKF_BASE = `${BASE}/alice/profiles/okf-base.jsonld`
 const DCT = 'http://purl.org/dc/terms/'
 const POWDER = 'http://www.w3.org/2007/05/powder-s#'
 
-const sd = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+// capability[] is advertised per-storage (multi-tenant round) — the
+// well-known root is a ServerIndex with no capability[] of its own.
+const sd = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
   .then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
 const hasConneg = JSON.stringify(sd.capability || []).includes('connegp/profile/http')
 

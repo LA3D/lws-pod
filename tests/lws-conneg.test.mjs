@@ -9,7 +9,9 @@ import { BASE, ensurePod, getToken } from './helpers.mjs'
 // to ZERO quads (silently-inert conneg). This gate passing live proves the
 // @rdfjs/parser-jsonld seam end-to-end, not just in unit tests.
 // Self-skips on a non-conneg pod via the storage-description capability.
-const sd = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+// capability[] is advertised per-storage (multi-tenant round) — the
+// well-known root is a ServerIndex with no capability[] of its own.
+const sd = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
   .then(r => (r.ok ? r.json() : {})).catch(() => ({}))
 const hasConneg = JSON.stringify(sd.capability || []).includes('connegp/profile/http')
 
@@ -329,14 +331,19 @@ describe.skipIf(!hasConneg)('406 wins over 304 (conditional ordering, live)', ()
 // command (no path flags at all now) still produces both service entries and the
 // /.well-known/void 303, sourced from the published pod-config.jsonld.
 describe.skipIf(!hasConneg)('--lws-config drives service presence (live)', () => {
-  it('storage description lists VoidService + ProfileIndexService (from pod-config.jsonld)', async () => {
-    const r = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+  it('per-storage description lists ProfileIndexService (from pod-config.jsonld); VoidService is interim-suppressed there', async () => {
+    const r = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
     const doc = await r.json()
     const types = doc.service.map(s => s.type)
-    expect(types).toContain('VoidService')
     expect(types).toContain('ProfileIndexService')
-    expect(doc.service.find(s => s.type === 'VoidService').serviceEndpoint).toBe(`${BASE}/.well-known/void`)
     expect(doc.service.find(s => s.type === 'ProfileIndexService').serviceEndpoint).toBe(`${BASE}/alice/profiles/index.jsonld`)
+    // Multi-tenant round: VoidService is deliberately NOT advertised on the
+    // per-storage description (buildStorageDescriptionFor passes voidPath:
+    // null — a per-storage entry would point at the server-wide
+    // /.well-known/void route, which reads the legacy server-wide podConfig,
+    // not this storage's own; JSS src/lws/storage-description.js). The route
+    // itself still works — proven by the next test.
+    expect(types).not.toContain('VoidService')
   })
 
   it('/.well-known/void 303s to the pod-config-declared void document', async () => {

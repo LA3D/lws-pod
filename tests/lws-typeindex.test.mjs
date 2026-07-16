@@ -4,7 +4,9 @@ import { BASE, ensurePod, getToken } from './helpers.mjs'
 // L2.5 live gate — Type Index / Type Search surfaces against the running FORK
 // pod (--lws). Self-skips on a non-lws pod: the storage description must
 // advertise TypeIndexService (top-level probe, mirrors lws-admission/lws-discovery).
-const sd = await fetch(`${BASE}/.well-known/lws-storage`, {
+// service[] is advertised per-storage (multi-tenant round) — the well-known
+// root is a ServerIndex with no service[] of its own.
+const sd = await fetch(`${BASE}/alice/lws-storage`, {
   headers: { Accept: 'application/lws+json' },
 }).then(r => (r.ok ? r.json() : {})).catch(() => ({}))
 const lwsTypeIndex = (sd.service || []).some(s => s.type === 'TypeIndexService')

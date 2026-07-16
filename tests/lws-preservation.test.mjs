@@ -9,7 +9,9 @@ import { BASE, ensurePod, getToken } from './helpers.mjs'
 // both directions (Turtle-body-at-.jsonld-name, and the B1 gate hole's mirror image,
 // JSON-LD-body-at-.ttl-name). Self-skips on a non-conneg pod via the storage-description
 // capability — same guard as tests/lws-conneg.test.mjs.
-const sd = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+// capability[] is advertised per-storage (multi-tenant round) — the
+// well-known root is a ServerIndex with no capability[] of its own.
+const sd = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
   .then(r => (r.ok ? r.json() : {})).catch(() => ({}))
 const hasConneg = JSON.stringify(sd.capability || []).includes('connegp/profile/http')
 

@@ -17,7 +17,9 @@ describe('next-fork round (live)', () => {
   })
 
   it('Task 10: the ReferentResolution capability carries structured uriSpace prefixes = the VoID void:uriSpace', async () => {
-    const sd = await (await fetch(`${BASE}/.well-known/lws-storage`)).json()
+    // capability[] is advertised per-storage (multi-tenant round) — the
+    // well-known root is a ServerIndex with no capability[] of its own.
+    const sd = await (await fetch(`${BASE}/alice/lws-storage`)).json()
     const cap = (sd.capability || []).find((c) => c.type === REFERENT_CAP)
     expect(cap, 'ReferentResolution capability advertised').toBeTruthy()
     expect(Array.isArray(cap.uriSpace)).toBe(true)
@@ -55,8 +57,8 @@ describe('next-fork round (live)', () => {
     expect(r.headers.get('accept-patch') || '').toMatch(/application\/merge-patch\+json/)
   })
 
-  it('Task referent/303: a minted /id/ name dereferences by 303 to its backing card (anon)', async () => {
-    const r = await fetch(`${BASE}/id/a`, { redirect: 'manual' })
+  it('Task referent/303: a minted /alice/id/ name dereferences by 303 to its backing card (anon)', async () => {
+    const r = await fetch(`${BASE}/alice/id/a`, { redirect: 'manual' })
     expect(r.status).toBe(303)
     expect(r.headers.get('location') || '').toMatch(/\/alice\/wiki\/a\.md$/)
   })

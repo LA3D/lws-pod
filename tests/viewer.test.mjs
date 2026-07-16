@@ -16,7 +16,9 @@ const DCT = 'http://purl.org/dc/terms/'
 const POWDER = 'http://www.w3.org/2007/05/powder-s#'
 const BROWSER = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 
-const sd = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+// capability[] is advertised per-storage (multi-tenant round) — the
+// well-known root is a ServerIndex with no capability[] of its own.
+const sd = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
   .then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
 const hasConneg = JSON.stringify(sd.capability || []).includes('connegp/profile/http')
 
@@ -176,8 +178,8 @@ describe.skipIf(!hasConneg)('viewer: navigator round live gate (spec 2026-07-15 
     expect(await shadow.text()).toBe(await face.text())
   })
 
-  it('6. GET /id/a w/ browser Accept, follow redirects -> final 200 text/html w/ <h1>Alpha</h1>', async () => {
-    const r = await fetch(`${BASE}/id/a`, { headers: { Accept: BROWSER } })
+  it('6. GET /alice/id/a w/ browser Accept, follow redirects -> final 200 text/html w/ <h1>Alpha</h1>', async () => {
+    const r = await fetch(`${BASE}/alice/id/a`, { headers: { Accept: BROWSER } })
     expect(r.status).toBe(200)
     expect(r.headers.get('content-type').split(';')[0]).toBe('text/html')
     expect(await r.text()).toContain('<h1>Alpha</h1>')
@@ -190,8 +192,17 @@ describe.skipIf(!hasConneg)('viewer: navigator round live gate (spec 2026-07-15 
     expect(await r.text()).toContain('wiki')
   })
 
-  it('8. GET /?view=nav w/ browser Accept -> 200 text/html, contains Storage', async () => {
+  it('8. GET /?view=nav w/ browser Accept -> 200 text/html, ServerIndex lists alice', async () => {
     const r = await fetch(`${BASE}/?view=nav`, { headers: { Accept: BROWSER } })
+    expect(r.status).toBe(200)
+    expect(r.headers.get('content-type').split(';')[0]).toBe('text/html')
+    const body = await r.text()
+    expect(body).toContain('Storages')
+    expect(body).toContain('/alice/')
+  })
+
+  it('8b. GET /alice/?view=nav w/ browser Accept -> 200 text/html, per-storage Storage view', async () => {
+    const r = await fetch(`${BASE}/alice/?view=nav`, { headers: { Accept: BROWSER } })
     expect(r.status).toBe(200)
     expect(r.headers.get('content-type').split(';')[0]).toBe('text/html')
     expect(await r.text()).toContain('Storage')

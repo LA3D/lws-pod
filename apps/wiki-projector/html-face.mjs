@@ -40,13 +40,20 @@ const pageHtml = (title, crumb, main) => `<!doctype html>
 <title>${esc(title)}</title><style>${PAGE_CSS}</style></head>
 <body><nav class="crumb">${crumb}</nav>\n${main}\n</body></html>`
 
+// Multi-tenant: root the breadcrumb at the OWNING storage (first path segment),
+// mirroring the fork navigator's crumbHtml (src/navigator/views.js). The old
+// hardcoded `pod → /?view=nav` root is now the server INDEX, not this storage —
+// so the leading crumb is the storage itself (`alice → /alice/?view=nav`).
 const crumbHtml = (url) => {
   const u = new URL(url)
   const segs = u.pathname.split('/').filter(Boolean)
-  const parts = [`<a href="${esc(u.origin)}/?view=nav">pod</a>`]
-  let path = ''
-  for (let i = 0; i < segs.length - 1; i++) { path += `/${segs[i]}`; parts.push(`<a href="${esc(u.origin + path)}/">${esc(segs[i])}</a>`) }
-  if (segs.length) parts.push(esc(segs[segs.length - 1]))
+  if (!segs.length) return `<a href="${esc(u.origin)}/?view=nav">server</a>`
+  const parts = [segs.length === 1
+    ? esc(segs[0])
+    : `<a href="${esc(u.origin)}/${esc(segs[0])}/?view=nav">${esc(segs[0])}</a>`]
+  let path = `/${segs[0]}`
+  for (let i = 1; i < segs.length - 1; i++) { path += `/${segs[i]}`; parts.push(`<a href="${esc(u.origin + path)}/">${esc(segs[i])}</a>`) }
+  if (segs.length > 1) parts.push(esc(segs[segs.length - 1]))
   return parts.join(' › ')
 }
 

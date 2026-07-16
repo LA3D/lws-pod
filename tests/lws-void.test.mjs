@@ -8,8 +8,15 @@ import { BASE } from './helpers.mjs'
 // the /id/ subject namespace + the profile-walk subsets. Self-skips on a pod
 // that doesn't advertise VoidService (the --lws-void flag is opt-in, same
 // precedent as --lws-profile-index).
-const sd = await fetch(`${BASE}/.well-known/lws-storage`).then(r => (r.ok ? r.json() : {})).catch(() => ({}))
-const voidSvc = (sd.service || []).find(s => s.type === 'VoidService')
+// Multi-tenant round: VoidService is INTERIM-SUPPRESSED from both the
+// ServerIndex (no service[] at all) and the per-storage description
+// (buildStorageDescriptionFor passes voidPath: null deliberately — a
+// per-storage VoidService entry would point at the server-wide
+// /.well-known/void route, which reads the legacy server-wide podConfig,
+// not this storage's own; see JSS src/lws/storage-description.js). The
+// route itself still works (confirmed live: 303 -> /alice/profiles/void.jsonld)
+// so probe it directly instead of the now-absent service advertisement.
+const voidSvc = await fetch(`${BASE}/.well-known/void`, { redirect: 'manual' }).then(r => r.status === 303).catch(() => false)
 
 describe.skipIf(!voidSvc)('VoID gateway (live)', () => {
   it('/.well-known/void 303s to the pod document', async () => {
@@ -29,9 +36,9 @@ describe.skipIf(!voidSvc)('VoID gateway (live)', () => {
     }
   })
 
-  it('uriSpace signposts the /id/ namespace', async () => {
+  it('uriSpace signposts the /alice/id/ namespace', async () => {
     const d = await fetch(`${BASE}/alice/profiles/void.jsonld`).then(r => r.json())
-    expect(d['void:uriSpace']).toBe(`${BASE}/id/`)
+    expect(d['void:uriSpace']).toBe(`${BASE}/alice/id/`)
   })
 
   it('subsets route into the profile walk (conformsTo dereferences)', async () => {
