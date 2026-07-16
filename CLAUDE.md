@@ -133,6 +133,15 @@ Never force-push to `main`, skip hooks, or `git add -A`. Stage specific files.
 
 ## Known state & gotchas
 
+- **The multi-tenant storage round is DONE + LIVE-VERIFIED (2026-07-16)** — the identity/description
+  layer is now PER-STORAGE (each named pod is its own self-describing LWS storage: marker in the root
+  `.lwstypes`, `GET /:pod/lws-storage`, `/.well-known/lws-storage` = WAC-filtered `ServerIndex`,
+  per-storage Link/referent/navigator, provisioning `visibility` flag); auth realm/audience stays
+  origin-scoped (token layer untouched). Fork merge `def96a5` (image `fork-multitenant`), lws-pod
+  `285ccb8`. Two-tenant rig alice(public)+bob(private), full sweep GREEN 305/305 + `make
+  test-multitenant` 6/6. Follow-ups (recorded, not fixed): per-storage VoID route (VoidService
+  interim-suppressed), root-pod self-description degradation. **NEXT = the curator round** (unchanged).
+  See the `FOLLOWUP.md` top block.
 - **The human-viewing-surface round is DONE + LIVE-VERIFIED (2026-07-15)** — llm-wiki html faces
   (`a.md.html` / `index.html` / `viz.html`) materialize via the projector; the fork serves the
   face dispatch (303) + navigator views (container/entity/root) with mashlib retired under

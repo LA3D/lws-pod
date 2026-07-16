@@ -7,10 +7,105 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-07-15 — HUMAN-VIEWING-SURFACE ROUND DONE + LIVE-VERIFIED (the console-on-fork rewire, twice reframed: viewing-surface/curator split + the Drive inversion); `app/` RETIRED; NEXT = the CURATOR ROUND (agentic skill, own brainstorm), then the recorded seeds
+## ▶▶ 2026-07-16 — MULTI-TENANT STORAGE ROUND DONE + LIVE-VERIFIED (per-storage identity/description layer over origin-scoped auth); alice(public)+bob(private) two-tenant rig; NEXT = the CURATOR ROUND (unchanged), then the recorded fork/lws-pod follow-ups
 
-**▶ START HERE.** Supersedes the 2026-07-14 pointer below (its "NEXT = console-on-fork rewire" is
-DONE — this block).
+**▶ START HERE.** Supersedes the 2026-07-15 human-viewing-surface pointer below (that round is DONE;
+this round is the multi-tenant-storage round Chuck sequenced before the curator).
+
+**Round: brainstorm → spec → plan → subagent-driven implementation (A1–A11 fork + B1–B4 lws-pod).**
+Design of record `docs/superpowers/specs/2026-07-15-multi-tenant-storage-design.md` (scoping note
+`docs/design-notes/multi-tenant-storage.md` SUPERSEDED); plan
+`docs/superpowers/plans/2026-07-15-multi-tenant-storage.md`; ledger `.superpowers/sdd/progress.md`
+(multi-tenant section). **Trigger:** Chuck — *"I'm a bit worried our design has broken the multi-user
+nature of the pod."* Verdict: mechanics were multi-user-clean; the **discovery/identity layer was
+single-tenant-shaped** (origin = the one storage). This round makes the identity layer per-storage
+while **auth realm/audience stays origin-scoped (CID-conformant, token layer untouched).**
+
+**Grounding that reframed it (spec-verified): LWS has no "user" — only agents (identity, `sub`) and
+storages (protection realm / self-describing unit); ownership is a WAC `acl:Control` fact, not a
+storage-layer relation; path-scoped storages under one origin is spec-canonical
+(`realm="…/storage_1"`).** So each JSS named pod (`/alice/`, `/bob/`) is an LWS storage; `/` is a
+server index.
+
+**Shipped, fork (`la3d/lws-multitenant` off `9b084e9`, 12 commits, merged `--no-ff` = `def96a5`,
+PUSHED; image `lws-pod:fork-multitenant`; full suite 1725/0/1; whole-branch opus review READY TO
+MERGE, no Critical):**
+- **Marker + resolver (A1/A2):** `lws:Storage` stamped in each pod root's `.lwstypes` at provisioning
+  (both `createPodStructure` + `createRootPodStructure`); `storageRootFor(storage, urlPath)` resolves
+  the owning storage by first-segment + cached marker (positives-only cache — the stale-negative bug
+  the plan predicted, fixed).
+- **Per-storage config (A3):** `podConfigFor(root)` reads `<root>profiles/pod-config.jsonld` — a
+  FIXED convention (const `PER_STORAGE_CONFIG_REL`), **independent of `--lws-config`** (which now
+  drives only the legacy server-void).
+- **Description (A4/A5):** `buildStorageDescriptionFor` (per-storage `id`/self-endpoint; server-wide
+  services stay origin-level — no dead per-storage service routes) + `buildServerIndex`; `GET
+  /:pod/lws-storage` (READ-gated on the pod root — a private pod's description 401s to anon) +
+  `/.well-known/lws-storage` → WAC-filtered `ServerIndex`.
+- **Link (A6):** `storageDescription` Link → the owning storage (`request.storageRootPath`).
+- **MCP (A7):** full HTTP↔MCP parity — same roster filter, same private-pod READ gate on the same
+  subject (the recurring twin-bug class, closed + opus-verified).
+- **Referent (A8):** the 303 resolver reads the owning storage's uriSpaces (cross-tenant hijack proven
+  impossible; no-oracle intact).
+- **Visibility (A9):** `POST /.pods` `visibility` field → owner-only-private root ACL (omits
+  `#public`, keeps owner RWC + default).
+- **Navigator (A10):** `crumbHtml` roots at the owning storage; `/?view=nav` = server index roster;
+  `/:pod/?view=nav` = per-storage view; profile-blind.
+
+**Shipped, lws-pod (`main`, `627abd4..285ccb8`):**
+- **B1** re-mint alice `/id/` → `/alice/id/` (`index.jsonld` void.uriSpace + `pod-config` pathPrefix;
+  `identity.jsonld` unchanged — authority now carries `/alice/` via the per-storage `sd.id`).
+- **B2** rig repin `def96a5`; `publish.mjs --defs` + authenticated profile-loader (real private-tree
+  401 bug); `scripts/seed-multitenant.sh` + `make seed-multitenant`/`seed-bob`.
+- **B3** `tests/lws-multitenant.test.mjs` + `make test-multitenant` (6/6).
+- **B4** projector-side `crumbHtml` rooted at owning storage (spec §3 item the plan missed —
+  controller-caught); 12 gates re-minted to per-storage; **FULL LIVE SWEEP GREEN 305/305**.
+
+**Live-verified end-to-end:** anon ServerIndex = alice-only; bob-token roster = both; `/bob/lws-storage`
+anon-401 / bob-200 (id `…/bob/`); `/bob/id/a` bob-303 → `/bob/wiki/a.md` / anon-404 (no-oracle
+privacy); `/alice/id/a` anon-303; `/.well-known/void` 303 (server-void intact); face breadcrumbs
+`alice›wiki›a.md` / `bob›wiki›a.md`; `/?view=nav` server index; `/bob/?view=nav` anon-401.
+
+**Controller catches worth recording (process):** (1) a bob-seed subagent flipped the compose
+`--lws-config` to relative claiming bob needed it — a MISDIAGNOSIS (`podConfigFor` uses the fixed
+const); it broke `/.well-known/void` (404); reverted to absolute, void restored, bob unaffected.
+(2) The projector `crumbHtml` was still single-tenant (`pod → /?view=nav`) — spec §3 flagged it but
+the plan didn't task it; fixed + faces re-materialized.
+
+**Recorded follow-ups (ship-as-recorded; none block the round):**
+- **Per-storage VoID (fork):** `VoidService` is INTERIM-SUPPRESSED in the per-storage description
+  (IMPORTANT-1, fixed pre-merge) because the `/.well-known/void` route reads the legacy server-wide
+  config — a per-storage description advertising it would misdirect a tenant to another's void. Real
+  fix = a per-storage void route (or server-wide-uniform advertisement). This is the concrete face of
+  the recorded **per-storage service-routes** seed (type-index/search/void/notification per storage).
+- **Root-pod self-description (fork):** `storageRootFor` has no walk-up-to-`/` fallback, so a
+  single-user ROOT-POD deployment degrades — the `/` marker is never read, its resources'
+  `storageDescription` Link points at the (empty) ServerIndex, and referent 303s are disabled. Rig
+  uses NAMED pods so it's off the acceptance path. Fix = a root-pod fallback in `storageRootFor`
+  (non-trivial — `/:pod/lws-storage` can't represent pod=`""`).
+- **HTTP 404/401 oracle (fork, KEEP):** `/:pod/lws-storage` returns 404-unmarked vs 401-private (a
+  mild existence oracle); consistent with the pod root's own 401, MCP collapses both (stricter).
+  Reviewer recommendation: do NOT reconcile.
+- **Minors:** uriSpace-prefix 404/401 differential (inherited no-oracle); `_isRoot` cache never
+  cleared outside tests (safe — monotonic + fresh process per reset); `pod-info` still
+  single-storage-framed (cosmetic); no golden/snapshot for `buildServerIndex`/`For`; per-storage
+  config filename hardcoded (no CLI override); `LWS_STORAGE` absent from `LWS_VOCAB.@graph`
+  rdfs:comment (self-description one-liner).
+
+**Human acceptance (spec §4/§7) — remaining for Chuck:** the browser walk — `/?view=nav` (server
+index) → `/alice/?view=nav` (storage view) → a card face + its `alice›wiki›a.md` breadcrumb → a
+graph/viz → confirm `/bob/…` never routes through alice; plus confirm bob (private) is invisible to
+anon in the roster. (T-verified by curl above; the visual walk is Chuck's sign-off.)
+
+**NEXT (unchanged): the CURATOR ROUND** (agentic skill, own brainstorm — see the human-viewing-surface
+block below for its scope), then a fork round batching the recorded follow-ups above +
+the human-viewing-surface round's own seeds. **Don't re-brainstorm drained/closed seeds.**
+
+---
+
+## ▶▶ 2026-07-15 — HUMAN-VIEWING-SURFACE ROUND DONE + LIVE-VERIFIED (the console-on-fork rewire, twice reframed: viewing-surface/curator split + the Drive inversion); `app/` RETIRED; the CURATOR ROUND is still NEXT (after the 2026-07-16 multi-tenant round above)
+
+**Superseded as START-HERE by the 2026-07-16 multi-tenant-storage block above.** Supersedes the
+2026-07-14 pointer below (its "NEXT = console-on-fork rewire" is DONE — this block).
 
 **The round reframed itself twice during brainstorm (both Chuck-approved, recorded in the spec §0a/§0b
 so they are not re-litigated):** (1) the console's two jobs split — a **human viewing surface**

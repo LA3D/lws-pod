@@ -503,6 +503,22 @@ mechanism). Live gate: `make test-viewer` **11/11 (NEW)**, incl. the private-mem
 mirror (anon 401 on `priv.md.html`, listing omits it) and the stale-`-nav`-ETag → 303 lifecycle
 pin (`FOLLOWUP.md` 2026-07-15 block).
 
+**Multi-tenant storage (2026-07-16, fork `def96a5` / image `fork-multitenant`).** The identity layer
+is now PER-STORAGE, matching the spec's canonical path-scoped model (`realm="…/storage_1"`,
+`lws10-core/Authorization.html`): each JSS named pod is an LWS storage (marker `lws:Storage` in the
+root `.lwstypes`; `storageRootFor` resolves the owner by first path segment). `GET /:pod/lws-storage`
+is that storage's description (`id` = `…/:pod/`, READ-gated on the pod root — a private pod's
+description 401s to anon); `/.well-known/lws-storage` is a **WAC-filtered `ServerIndex`** roster (not
+a `Storage`); the `storageDescription` Link, the referent uriSpaces, and the navigator chrome all
+resolve per-owning-storage; HTTP and MCP surfaces are parity-verified (same roster filter, same
+private-pod READ gate on the same subject). **Auth realm/audience stays origin-scoped** (CID-conformant
+— the token layer is untouched; per-storage is the *description/identity* layer only). Provisioning
+takes a `visibility` flag (public-read vs owner-only-private root ACL). Live-verified on a two-tenant
+rig — alice (public) + bob (private): anon roster = alice-only, dual-READ = both; `/bob/id/a` bob-303
+/ anon-404 (no-oracle). Gate: `make test-multitenant` **6/6 (NEW)**; full sweep GREEN 305/305, no
+single-tenant regression (`FOLLOWUP.md` 2026-07-16 block). Recorded follow-ups: per-storage VoID route
+(VoidService interim-suppressed), root-pod self-description degradation.
+
 ## 5. Git: container clone-able; push materializes files as resources
 
 **Spec.** No Solid/LWS requirement — git-as-storage is entirely an extension.
