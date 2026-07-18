@@ -7,6 +7,170 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
+## ▶▶ 2026-07-18 — LWS + PROF-CONNEG STANDARDS CLOSEOUT RECORDED; NEXT = resource-server MUST fixes, then profile negotiation, then authorization, then the CURATOR ROUND
+
+**▶ START HERE.** Supersedes the 2026-07-16 multi-tenant pointer below as the next-session entry
+point. A live, read-only audit against the pinned `.agents/skills/lws-protocol` sources found that
+the named-storage rig is substantially aligned with LWS storage (storage description,
+`application/lws+json` `items[]`, ETags/ranges on ordinary resources, Type Index/Search), but it
+must not yet claim full LWS conformance. The existing green gates prove features; they do not cover
+every normative response invariant.
+
+**✅ VERIFIED 2026-07-18 (Claude — live rig `7de911d` + fork source at the same ref + pinned
+`.claude/skills/{lws-protocol,prof-conneg,profiles}`).** Every live HTTP finding reproduced; code
+claims confirmed with corrections marked ⚠ inline below. Calibrations that change the framing:
+"ServerIndex" is a JSS concept, not an LWS-spec object; DX-PROF-CONNEG is silent on q-value
+semantics (that's RFC 9110 territory); profile-hierarchy fallback is abstract-model SHOULD, not an
+HTTP-FP itemized requirement; and the spec's own Example 6 shows the post-303 200 *without*
+`rel="profile"`, so the shipped redirect flow already matches the spec. **Chuck approved
+2026-07-18: the curator-round demotion to item 6 stands, and the corrective rounds proceed under
+the calibrated readings.**
+
+**Live findings (2026-07-18, fork rig `7de911d`):**
+
+- `GET /alice/wiki/a.md` returns an ETag, byte ranges, `rel="linkset"`, and the owning
+  `storageDescription`, but its HTTP `Link` header omits the LWS read-operation's required `up` and
+  `type = lws:DataResource` relations. Both facts exist in the negotiated RFC 9264 linkset, so this
+  is response-header parity, not missing model data. Audit GET/HEAD together and preserve the
+  existing LDP type links. ✅ VERIFIED live + code: `up`/`type` land only in the linkset body
+  (`src/lws/linkset.js`), never the data-resource header path (`src/ldp/headers.js` +
+  `handlers/resource.js`); the MUST is real and header-specific (`lws10-core` read-resource +
+  metadata). HEAD parity is maintained by a *duplicated* `handleHead`, so gating GET/HEAD together
+  matters.
+- `GET /alice/lws-storage` returns the correct per-storage `application/lws+json` description but
+  no ETag. Audit every special LWS GET/HEAD surface (per-storage description, ServerIndex, Type
+  Index/Search, fixed well-known resources) against the core read/conditional requirements; add
+  variant-correct ETags and 304 behavior wherever the spec applies rather than patching one route.
+  ✅ VERIFIED: the route sets only Cache-Control + Content-Type (`src/server.js:1166-1191`; Fastify
+  auto-HEAD shares it). ⚠ CALIBRATED: the ETag MUST is the blanket all-GET/HEAD clause — no LWS text
+  names the storage description specifically, and **"ServerIndex" does not exist in the LWS spec**
+  (it is JSS's well-known surface); audit those routes as served resources under the general
+  clause, not against a named spec object.
+- Anonymous `GET /bob/lws-storage` returns `401` without `WWW-Authenticate`, and
+  `/.well-known/lws-configuration` returns `404`. LWS Authorization requires the storage challenge
+  to identify a real authorization server and requires that server to expose RFC 8414 metadata plus
+  RFC 8693 token exchange. This is the already-recorded auth/Keycloak gap, now live-confirmed at the
+  storage boundary. **Do not add a cosmetic challenge or fake metadata endpoint:** JSS currently has
+  a direct bearer resource-server extension, not the authorization-server capability those fields
+  would advertise. ✅ VERIFIED live; requirements confirmed in `lws10-core` `Authorization.html`
+  (challenge with `as_uri`/`realm` REQUIRED — a storage-server obligation; the RFC 8414 metadata +
+  RFC 8693 token exchange bind the *authorization-server role*, which MAY be a separate entity —
+  exactly why the no-cosmetic-challenge stance is right).
+- `docs/foundations/05-jss-spec-conformance.md` still headlines the pre-L1 verdict that JSS diverges
+  from LWS storage even though later fork rounds shipped `application/lws+json` and `items[]`. Keep
+  its history, but replace the summary with a current requirement ledger after the fixes below.
+  ✅ VERIFIED: the live fork serves `application/lws+json` `items[]` while row 4 and five "Verdict
+  unchanged" blocks still read DIVERGES-from-LWS-storage.
+
+**PROF / DX-PROF-CONNEG findings (same live audit, grounded in
+`.agents/skills/{profiles,prof-conneg}`):** The architecture stands: PROF descriptors + resolvable
+artifacts are data; standard roles are reused; missing roles are explicitly minted as
+`prof:ResourceRole`; `dct:conformsTo` (profile) stays distinct from `describedby` (enforcement
+shape); applications materialize representations while the neutral fork only advertises/selects.
+The `lwspr:representation` declaration and instantiation lifecycle are honest project extensions,
+not claims that PROF standardizes rendering. The live HTTP surface is nevertheless an exact-match
+subset, not yet the complete advertised `cnpr:http` functional profile:
+
+- A bare/default response (`GET a.md`) and a direct alternate response (`GET
+  a.md.links.jsonld`) omit the returned representation's `Link: <profile>; rel="profile"`.
+  ⚠ CORRECTED: not "only the negotiated 303" — a negotiated *self*-outcome **200** already carries
+  `Content-Profile` + `rel="profile"` (verified live + `resource.js`/`headers.js` `chosenProfile`);
+  the gap is **un-negotiated** responses (bare 200, direct alternate GET, HEAD). ⚠ CALIBRATED:
+  DX-PROF-CONNEG's own Example 6 shows the post-303 final 200 *without* `rel="profile"`, so the
+  redirect flow as shipped matches the spec — the fix targets the direct-response MUST (R.1.2.a) on
+  bare/alternate/HEAD responses.
+- `parseAcceptProfile` does not discard `q=0` (✅ confirmed, `src/rdf/conneg.js:156-168` —
+  inconsistent with the media-type helpers in the same file, which honor q=0) and treats
+  non-numeric q as `q=1` (✅). ⚠ CORRECTED: numeric out-of-range `q=2` is kept as 2.0 and sorts
+  *above* q=1 — clamp to [0,1] too. ⚠ CALIBRATED: DX-PROF-CONNEG says nothing about q=0 or
+  malformed weights (q-values are a MAY "ordering mechanism"); this fix is RFC 9110 robustness,
+  not a spec-conformance repair. Test multiple values, duplicates, ties, and malformed input.
+- Selection is exact-URI only (✅ confirmed and deliberate — `conneg.js` "EXACT match only — no
+  profile hierarchy (P13)", zero `isProfileOf` in fork src). ⚠ CALIBRATED: hierarchy fallback is
+  abstract-model **SHOULD** (the MUST only orders the attempt: exact, then next-most-specific) and
+  is NOT among the HTTP-FP itemized requirements (A.1.1) — exact-match does not breach `cnpr:http`.
+  A generic cached PROF ancestry index (no application vocabulary) is optional hardening; naming
+  the exact-match subset in the hints is the honest move either way.
+- The design promises `prof:hasToken` negotiation, but the server matches only profile URIs (✅
+  confirmed — zero `hasToken` in fork src; the loader parses it declaration-side only). ⚠
+  CALIBRATED: tokens are an optional MAY-alternative to URIs in the spec, so URI-only is fully
+  conformant once stated; retracting token claims from design/hints is the cheap resolution (the
+  "design promises" premise was not itself re-verified).
+- Several representations share a profile (`a.md` Markdown and `.html` both claim `okf-base`) while
+  selection prefers the default slot without jointly resolving `Accept` media type. Decide whether
+  HTML/viz genuinely conform to those information profiles; mint explicit viewing profiles where
+  they do not, then make media + profile negotiation compose deterministically. ✅ VERIFIED incl.
+  live: `content` + `html` (and `index` + `index-html`) both declare `okf-base`, and `Accept:
+  text/markdown` + llm-wiki `Accept-Profile` 303s to the JSON-LD rep — Accept is ignored once a
+  profile matches.
+- The loader assumes `profile IRI == descriptor document URL` (`@id: ""`) and multi-parent merging
+  has no conflict rule for equally near contexts/configs/representations. Either generalize profile
+  subject discovery or shape-enforce/document the self-document convention; union safe artifacts,
+  reject equal-specificity conflicts, and require the child to resolve them explicitly. ✅ VERIFIED:
+  `profile-doc.mjs` hard-codes subject = descriptor URL; the walk is last-parent-wins for singleton
+  configs and silent union for lists — no equal-specificity conflict rule exists.
+- Write requests carry `Link: rel="profile"`, but unsupported-profile detection + `422` reactive
+  negotiation are deferred. Label the shipped contract **read-side negotiation + write declaration**
+  until the full write-side round exists. ✅ VERIFIED: `instantiate.mjs` PUTs carry the profile
+  Link; the fork src has no profile-422.
+
+**Order of work (reasoned by dependency):**
+
+1. **Fork resource-server conformance closeout (NEXT; bounded, no auth redesign).** Start with a
+   pinned-requirement matrix for LWS core Discovery + Read Resource + media type/container rules.
+   Add failing live/unit gates for data-resource GET/HEAD `up`/LWS `type`, special-route ETags,
+   conditional 304s, and GET/HEAD parity; then fix them. Fold in the already-recorded root-pod
+   `storageRootFor('/')` fallback because discovery cannot be called conformant while a supported
+   root-storage deployment points at an empty ServerIndex. Negative controls: `--lws`-off stays
+   byte-identical; WAC/no-oracle behavior and per-storage links stay unchanged.
+2. **Per-storage service correctness (same fork round if small; otherwise the immediately following
+   fork round).** Implement a real per-storage VoID/service route or explicitly choose uniform
+   server-wide advertisement; then reconcile Type Index/Search/notification endpoint scope. Never
+   advertise a tenant-scoped service that resolves to another tenant's data. This is not itself an
+   LWS-core blocker, but it shares the storage-description builder and should be settled before its
+   conformance surface is declared stable.
+3. **PROF + conneg-by-profile closeout (separate bounded standards round).** Start from a pinned
+   requirement matrix for PROF plus DX-PROF-CONNEG's abstract model and HTTP Headers Functional
+   Profile. Fix direct-response `rel="profile"` (R.1.2.a — bare/alternate/HEAD; the redirect flow
+   already matches spec Example 6), RFC 9110 quality parsing (discard q=0, clamp out-of-range —
+   robustness, not conformance), and combined media/profile selection; profile-hierarchy fallback
+   and tokens are OPTIONAL (SHOULD/MAY) — implement them or explicitly name the exact-match,
+   URI-only subset in hints/design; settle HTML/viewing profile semantics and the
+   loader's identity/conflict conventions. Preserve P13: the fork may resolve generic PROF ancestry
+   and alternate-representation data, but never render or interpret application vocabulary.
+   Acceptance: neutral (non-wiki/non-DCAT) fixtures cover bare/HEAD/303/final responses, exact +
+   ancestor requests, q-values, duplicate-profile/different-media representations, unreadable
+   alternates, tokens (if retained), and 406/304/Vary ordering. Add negative controls for
+   `--lws`-off and explicitly defer full write-side negotiation rather than implying it shipped.
+4. **Authorization-server track (separate design/spec/plan; BEFORE claiming full LWS conformance).**
+   Re-open the grounded Keycloak spike and decide the production authorization-server boundary.
+   Deliver a real `WWW-Authenticate: Bearer` challenge (`as_uri`, `realm`, supported token types),
+   `/.well-known/lws-configuration`, RFC 8414 metadata, RFC 8693 token exchange, and storage-side
+   validation of `iss`/`sub`/`client_id`/`aud`/`exp` plus key rotation. Keep `/idp/credentials` only
+   as an explicitly labeled trusted-local extension; test LWS-CID through the same authorization
+   boundary. Acceptance includes anonymous/private, expired/wrong-audience, revoked-access, and
+   alice/bob realm-isolation cases. Until this ships, describe the project as an **LWS storage and
+   resource-server implementation with selected authentication suites**, not a fully conformant
+   implementation of every LWS module.
+5. **Conformance ledger + claim refresh.** Rewrite the top verdict in
+   `docs/foundations/05-jss-spec-conformance.md` from the pinned normative matrix, separating
+   CONFORMS / EXTENDS / DIVERGES / NOT IMPLEMENTED per LWS module and supported deployment mode;
+   add a distinct adjunct table for PROF and each DX-PROF-CONNEG functional profile so project
+   extensions are never counted as standard requirements. Every CONFORMS row needs a named
+   automated gate; run the full fork + live suite. Preserve closed historical analysis below the
+   current ledger rather than erasing it.
+6. **CURATOR ROUND** *(demotion from standing-NEXT approved by Chuck 2026-07-18)*. Resume the
+   already-recorded agentic-skill brainstorm after the substrate's
+   standards boundary is honest and gated. Then take the remaining human-surface residuals
+   (aggregate leak class, point-in-time ACL mirroring, curator inspection/provenance views) in the
+   order recorded below.
+
+**Explicit non-fixes:** keep the reviewed `/:pod/lws-storage` 404-unmarked vs 401-private existence
+distinction; do not weaken WAC filtering to make counts stable; do not publish dead service routes;
+do not represent MCP/PROF/SHACL/navigator extensions as LWS requirements.
+
+---
+
 ## ▶▶ 2026-07-16 — MULTI-TENANT STORAGE ROUND DONE + LIVE-VERIFIED (per-storage identity/description layer over origin-scoped auth); alice(public)+bob(private) two-tenant rig; NEXT = the CURATOR ROUND (unchanged), then the recorded fork/lws-pod follow-ups
 
 **▶ START HERE.** Supersedes the 2026-07-15 human-viewing-surface pointer below (that round is DONE;
