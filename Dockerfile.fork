@@ -9,17 +9,15 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = navigator round (2026-07-15, la3d/lws HEAD):
-# text/html face dispatch (browser Accept on a card with a materialized face -> 303 to the face;
-# without a face -> navigator entity view) + container/entity/root navigator views (server-side,
-# no client JS required for orientation) + mashlib retired under --lws (the fork's own HTML
-# rendering replaces the CDN-loaded mashlib UI) + final-review fixes (stale -nav ETag deferred
-# past face dispatch; missing-face 303 falls through to the entity view; GET/HEAD navigator
-# parity; root storage view gets its own -navroot ETag variant).
-# Merge 7de911d (multi-tenant + ?raw force-raw, onto 9b084e9 navigator). Pin to a full SHA; override with
-# --build-arg JSS_GIT_REF=...
+# Install the fork from a pinned git ref. Default = resource-server conformance round (2026-07-18,
+# la3d/lws HEAD, R1-R6): `up`/`type` Link headers on every --lws GET/HEAD (data resources keep
+# LDP types, containers get lws:Container) via one choke point (getAllHeaders); ETag + 304 on the
+# generated LWS surfaces (per-storage /lws-storage, /.well-known/lws-storage ServerIndex, the
+# /types Type-Search docs) with Vary: Authorization; root-pod storageRootFor('/') fallback +
+# GET /lws-storage at the root. Merge 48cd8ae (onto 7de911d multi-tenant + ?raw force-raw).
+# Pin to a full SHA; override with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=7de911dd64a03d95b7fe29a19650c84bcf1e90ee
+ARG JSS_GIT_REF=48cd8ae032bca00d992a0bbfb58b417177eed3fe
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
