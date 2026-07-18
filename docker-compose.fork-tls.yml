@@ -16,8 +16,8 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (conformance round); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-48cd8ae032bca00d992a0bbfb58b417177eed3fe}"
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (services round); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-e74a2bb2dbc0ec60a1277595c7a85a9b696d36d2}"
     image: lws-pod:fork-conformance
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --idp-issuer to advertise the public

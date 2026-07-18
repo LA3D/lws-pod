@@ -9,15 +9,13 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = resource-server conformance round (2026-07-18,
-# la3d/lws HEAD, R1-R6): `up`/`type` Link headers on every --lws GET/HEAD (data resources keep
-# LDP types, containers get lws:Container) via one choke point (getAllHeaders); ETag + 304 on the
-# generated LWS surfaces (per-storage /lws-storage, /.well-known/lws-storage ServerIndex, the
-# /types Type-Search docs) with Vary: Authorization; root-pod storageRootFor('/') fallback +
-# GET /lws-storage at the root. Merge 48cd8ae (onto 7de911d multi-tenant + ?raw force-raw).
+# Install the fork from a pinned git ref. Default = per-storage services round (2026-07-18,
+# la3d/lws HEAD): per-storage TypeIndexService/TypeSearchService at /<pod>/types/*, per-storage
+# VoidService at /<pod>/profiles/void.jsonld, NotificationService dropped from the advertised
+# service list. Merge e74a2bb (onto 48cd8ae resource-server conformance).
 # Pin to a full SHA; override with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=48cd8ae032bca00d992a0bbfb58b417177eed3fe
+ARG JSS_GIT_REF=e74a2bb2dbc0ec60a1277595c7a85a9b696d36d2
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
