@@ -7,9 +7,113 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-07-18 — STANDARDS CLOSEOUT: ROUND 1 (resource-server MUST fixes) DONE + LIVE-VERIFIED; NEXT = per-storage service correctness (item 2), then PROF/conneg closeout (item 3), then authorization (item 4), then ledger (item 5), then the CURATOR ROUND
+## ▶▶ 2026-07-18 — PER-STORAGE SERVICES ROUND (closeout item 2) DONE + LIVE-VERIFIED; NEXT = item 3 (PROF/conneg closeout)
 
-**▶ START HERE.** Supersedes the 2026-07-16 multi-tenant pointer below as the next-session entry
+**▶ START HERE.** Supersedes the round-1 pointer below as the next-session entry point.
+
+**Round: brainstorm → spec → plan → subagent-driven implementation (9 fork tasks + 3 lws-pod
+tasks).** Design of record `docs/superpowers/specs/2026-07-18-per-storage-service-design.md`; plan
+`docs/superpowers/plans/2026-07-18-per-storage-services.md`; matrix addendum (Round 2, R7-R11)
+appended to `docs/superpowers/specs/2026-07-18-lws-core-requirement-matrix.md`; ledger
+`.superpowers/sdd/progress.md` (per-storage services section). Sequenced after the resource-server
+conformance round (R1-R6, fork `48cd8ae`) per the round-1 order-of-work below.
+
+**Shipped, fork (`la3d/lws-services` off `48cd8ae`, 6 commits, merged `--no-ff` = `e74a2bb`,
+PUSHED; full suite 1776/0/1; whole-branch fable review READY-WITH-FOLLOWUPS, zero blocking):**
+- **(R9) NotificationService advertisement DROPPED** from every storage description — the entry
+  lacked `subscriptionType` and its `/notification/api` endpoint was dead; the legacy WS
+  `/.notifications` / `Updates-Via` rail stays exactly as-is. A real LWS notifications
+  implementation is recorded below as its own future round, not shipped here.
+- **(R7/R8) Per-storage `GET /:pod/types/index` + `GET`+`POST /:pod/types/search`**: scope test is
+  owning-storage (`storageRootFor(resource) === root`, not path-prefix — a root-storage walk
+  correctly excludes named-storage subtrees); unknown `:pod` → plain 404 (no-oracle,
+  indistinguishable from any other missing path); writes 405 (reserved-name precedent, same as
+  `/:pod/lws-storage`); ETag + If-None-Match→304; GET/POST filter-equivalent (R8).
+- **One Important whole-branch-review finding FIXED IN-ROUND**: the new per-storage `/:pod/types/*`
+  routes now carry the SD route's root-READ gate (C3 parity — anon gets 401 on a private pod's type
+  endpoints, POST covered, live-verified).
+- **VoidService RESTORED as a direct per-storage pointer** (`serviceEndpoint = origin + this
+  tenant's own voidPath` from pod-config, no 303 — the SD is generated from the same pod-config at
+  request time, so indirection buys nothing). **This CLOSES the 2026-07-16 block's "Per-storage
+  VoID (fork)" residual** (marked CLOSED there, pointer up to this block).
+- **ServerIndex gains an extension `service` array**: `TypeIndexService` + `TypeSearchService` at
+  the origin `/types/*` endpoints (honestly hinted as cross-storage, WAC-filtered, whole-server
+  walk) plus `McpService`. Origin `/types/*` itself stays byte-identical (R10's per-request WAC
+  loop unchanged; nothing dead, nothing misadvertised).
+- `authorizedTypeLists` / `authorizedResources` / `collectAuthorizedResources` refactored to take a
+  scope root; dead origin-form `buildStorageDescription` builder deleted (zero callers since R6).
+
+**Shipped, lws-pod (`main`, `05e2712..fe91876` + this closeout):**
+- `afa472a` matrix round-2 addendum (R7-R11 quotes pinned + independently re-verified verbatim).
+- `aaebd25` rig repin: `Dockerfile.fork` **and** `docker-compose.fork-tls.yml` moved to `e74a2bb`
+  (both must move — compose's build-arg fallback shadows the Dockerfile ARG, same gotcha as round
+  1); live rig confirmed running the new ref.
+- `fe91876` NEW `make test-services` (`tests/lws-services.test.mjs`, S1-S6) on the two-tenant rig:
+  alice's SD advertises her own scoped services with no NotificationService; bob's public
+  resources are excluded from alice's scoped type index (WAC alone would admit them — only storage
+  scoping excludes them); VoidService dereferences directly (200, no 303); ServerIndex carries the
+  extension array; conditional/reserved-name/no-oracle posture on the new routes; bob-private
+  posture (anon 401, bob sees his own scoped endpoints).
+- This closeout (task 10): FULL LIVE SWEEP GREEN — 20 gates, 331 assertions total (0 failed).
+
+**Gates:** `make test-services` 6/6 NEW. Full sweep: `test` 9/9 (152 skipped, local base pod) ·
+`test-lws` 7/7 · `test-l3` 2/2 · `test-typeindex` 7/7 · `test-indexed-relation` 4/4 · `test-mcp-v2`
+23/23 · `test-profiles` 6/6 · `test-dcat` 5/5 · `test-graph` 6/6 · `test-conneg` 29/29 ·
+`test-preservation` 6/6 · `test-void` 4/4 · `test-referent` 9/9 · `test-multitenant` 6/6 ·
+`test-nextfork` 5/5 · `test-conformance` 6/6 · `test-services` 6/6 · `test-wiki` 9/9 ·
+`test-projection` 170/170 (134 projection + 36 wiki-projector unit) · `test-viewer` 12/12. ALL
+GREEN.
+
+**Sweep found (unplanned, both fixed in-round, transparently — neither is R7-R11 itself):**
+- `tests/lws-conneg.test.mjs`'s "`--lws-config` drives service presence" case pinned the OLD
+  suppressed-VoidService expectation (`types.not.toContain('VoidService')`). This IS the
+  anticipated per-storage-SD pin drift the brief called out — it landed here, not in
+  typeindex/void/mcp-v2 as guessed. Updated to assert the new direct-pointer shape
+  (`toContain('VoidService')` + `serviceEndpoint` byte-match), live-verified against
+  `/alice/lws-storage`. `tests/lws-void.test.mjs`'s header comment (not an assertion — the gate
+  only ever probed the legacy `/.well-known/void` 303 rail) was reworded for accuracy; no behavior
+  change.
+- `tests/lws-nextfork.test.mjs` had **no `--lws` self-skip guard** — unlike every sibling live-gate
+  file — since it was introduced 2026-07-14 (unchanged since `285ccb8`, well before round 1). Bare
+  `make test` against the LOCAL non-fork pod ran it unconditionally and failed all 5 cases against
+  `alice`'s unrelated long-lived local-pod state (401/204 instead of the fork's 303/405).
+  Pre-existing, unrelated to R7-R11; added the same `lwsEnabled` probe-once guard as
+  `lws-discovery.test.mjs`. `make test` now stays green on the local base pod (9/9, 152 skipped) as
+  the Makefile's own comment always promised.
+
+**NEW FUTURE ROUND (explicit, recorded per spec decision #1):** LWS notifications implementation —
+webhook subscriptions, `subscriptionType` on the service object, subscription containers, signing
+keys (`lws10-notifications`). Not scoped here; the WS `/.notifications` / `Updates-Via` legacy rail
+stays the only live notification mechanism until that round.
+
+**Recorded residuals (record, not fix):**
+- **Mixed root+named deployment** (spec §5): if `/` is marked as a storage AND named pods exist,
+  the root storage's SD still advertises the origin `/types/*` endpoints, whose walk is
+  server-wide — the root storage's index can include named-storage resources (WAC-filtered, but
+  out of the root storage's scope). Fixing this forks the origin routes' semantics by deployment
+  mode; mixed mode isn't a deployed configuration (the rig is named-pod-only).
+- Origin `/types/*` still enumerates private pods' always-public scaffold files (a mild existence
+  oracle, public-ACL-by-design pre-existing class) — the C3 root-READ gate closes only the
+  PER-STORAGE vector, not this one.
+- 404-shape divergence: `callNotFound` vs a bare 404 between the SD route and the new types routes.
+- `/:pod/lws-storage`'s existence check is truthy-not-equality — back-port to equality someday
+  (mixed-mode-only consequence, pre-existing, unchanged by this round).
+- Rate-limit predicate is flag-blind (unguarded by `--lws`/services flags) — matches the
+  pre-existing origin-route pattern, not a new gap.
+- README gate table is stale (5 missing rows) — noted for a future docs pass, not fixed here.
+- **OPERATIONAL GOTCHA:** `POST /.pods` is rate-limited 1/IP/day in-memory — reseeding after a fork
+  rebuild needs a data-preserving `docker restart lws-pod-fork` to clear the counter (T8 finding,
+  restated here since it bites the next session).
+
+**NEXT = standards-closeout item 3 (PROF/conneg closeout)** per the order-of-work in the round-1
+block below (item 2 there is now marked ✅ DONE, pointer up to this block).
+
+---
+
+## ▶▶ 2026-07-18 — STANDARDS CLOSEOUT: ROUND 1 (resource-server MUST fixes) DONE + LIVE-VERIFIED; item 2 (per-storage services) now DONE too, see the block above; NEXT = PROF/conneg closeout (item 3), then authorization (item 4), then ledger (item 5), then the CURATOR ROUND
+
+**Superseded as START-HERE by the PER-STORAGE SERVICES ROUND block above.** Supersedes the
+2026-07-16 multi-tenant pointer below as the next-session entry
 point. A live, read-only audit against the pinned `.agents/skills/lws-protocol` sources found that
 the named-storage rig is substantially aligned with LWS storage (storage description,
 `application/lws+json` `items[]`, ETags/ranges on ordinary resources, Type Index/Search), but it
@@ -150,8 +254,10 @@ subset, not yet the complete advertised `cnpr:http` functional profile:
    `storageRootFor('/')` fallback because discovery cannot be called conformant while a supported
    root-storage deployment points at an empty ServerIndex. Negative controls: `--lws`-off stays
    byte-identical; WAC/no-oracle behavior and per-storage links stay unchanged.
-2. **Per-storage service correctness (same fork round if small; otherwise the immediately following
-   fork round).** Implement a real per-storage VoID/service route or explicitly choose uniform
+2. ✅ **DONE 2026-07-18** (see the PER-STORAGE SERVICES ROUND block above — fork
+   48cd8ae→e74a2bb, R7-R11 closed, 20-gate live sweep green, `make test-services` 6/6 NEW).
+   ~~Per-storage service correctness (same fork round if small; otherwise the immediately following
+   fork round).~~ Implement a real per-storage VoID/service route or explicitly choose uniform
    server-wide advertisement; then reconcile Type Index/Search/notification endpoint scope. Never
    advertise a tenant-scoped service that resolves to another tenant's data. This is not itself an
    LWS-core blocker, but it shares the storage-description builder and should be settled before its
@@ -263,11 +369,16 @@ const); it broke `/.well-known/void` (404); reverted to absolute, void restored,
 the plan didn't task it; fixed + faces re-materialized.
 
 **Recorded follow-ups (ship-as-recorded; none block the round):**
-- **Per-storage VoID (fork):** `VoidService` is INTERIM-SUPPRESSED in the per-storage description
-  (IMPORTANT-1, fixed pre-merge) because the `/.well-known/void` route reads the legacy server-wide
-  config — a per-storage description advertising it would misdirect a tenant to another's void. Real
-  fix = a per-storage void route (or server-wide-uniform advertisement). This is the concrete face of
-  the recorded **per-storage service-routes** seed (type-index/search/void/notification per storage).
+- ✅ **Per-storage VoID (fork): CLOSED 2026-07-18** by the per-storage services round (fork
+  `e74a2bb`, decision #4) — see the PER-STORAGE SERVICES ROUND top block. `VoidService` is now a
+  direct per-storage pointer (`serviceEndpoint = origin + this tenant's own voidPath`, no 303 — the
+  SD is generated from the same pod-config at request time). ~~`VoidService` is INTERIM-SUPPRESSED
+  in the per-storage description (IMPORTANT-1, fixed pre-merge) because the `/.well-known/void`
+  route reads the legacy server-wide config — a per-storage description advertising it would
+  misdirect a tenant to another's void. Real fix = a per-storage void route (or server-wide-uniform
+  advertisement).~~ This was the concrete face of the recorded **per-storage service-routes** seed
+  (type-index/search/void/notification per storage) — type-index/search are also now closed
+  (R7-R11); a real LWS notifications implementation remains a recorded future round.
 - ✅ **Root-pod self-description (fork): CLOSED 2026-07-18** by the conformance round's R6 (fork
   48cd8ae): `storageRootFor` falls back to the `/` marker; `GET /lws-storage` serves the root
   storage description (named-pod mode falls through to LDP, writes reserved root-pod-only);

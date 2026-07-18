@@ -6,10 +6,20 @@ import { BASE, ensurePod, getToken } from './helpers.mjs'
 // security/PATCH/N3-Patch conformance behaviors are exhaustively covered in-process
 // by the fork suite (1626 tests); these are the cheap, high-value cases worth a
 // live pin against the real HTTP/proxy rung.
+//
+// Self-skip guard (added 2026-07-18, task-10 sweep): this file has always run
+// unconditionally, unlike every sibling live-gate file — a real gap, not
+// scope-introduced. `make test` (bare) hits the LOCAL non-`--lws` pod, whose
+// long-lived `alice` account carries unrelated ACL/state from earlier rounds,
+// so all 5 cases here 401/204'd instead of self-skipping. Mirrors
+// lws-discovery.test.mjs's probe-once pattern.
+const lwsEnabled = await fetch(`${BASE}/.well-known/lws-storage`, { headers: { Accept: 'application/lws+json' } })
+  .then(r => r.status === 200).catch(() => false)
+
 const WIKI = '/alice/wiki/'
 const REFERENT_CAP = 'https://w3id.org/lws-pod/capability/ReferentResolution'
 
-describe('next-fork round (live)', () => {
+describe.skipIf(!lwsEnabled)('next-fork round (live)', () => {
   let token
   beforeAll(async () => {
     await ensurePod()

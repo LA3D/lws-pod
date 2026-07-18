@@ -8,14 +8,13 @@ import { BASE } from './helpers.mjs'
 // the /id/ subject namespace + the profile-walk subsets. Self-skips on a pod
 // that doesn't advertise VoidService (the --lws-void flag is opt-in, same
 // precedent as --lws-profile-index).
-// Multi-tenant round: VoidService is INTERIM-SUPPRESSED from both the
-// ServerIndex (no service[] at all) and the per-storage description
-// (buildStorageDescriptionFor passes voidPath: null deliberately — a
-// per-storage VoidService entry would point at the server-wide
-// /.well-known/void route, which reads the legacy server-wide podConfig,
-// not this storage's own; see JSS src/lws/storage-description.js). The
-// route itself still works (confirmed live: 303 -> /alice/profiles/void.jsonld)
-// so probe it directly instead of the now-absent service advertisement.
+// Per-storage services round (2026-07-18, R7-R11, decision #4): VoidService
+// is now a direct per-storage pointer on the storage description too
+// (`tests/lws-conneg.test.mjs` + `tests/lws-services.test.mjs` cover that
+// assertion). This gate stays scoped to the legacy `/.well-known/void` 303
+// rail, which is untouched by that change (still root/server-wide, still
+// reads the legacy podConfig) — probed directly rather than via any SD
+// service-array entry.
 const voidSvc = await fetch(`${BASE}/.well-known/void`, { redirect: 'manual' }).then(r => r.status === 303).catch(() => false)
 
 describe.skipIf(!voidSvc)('VoID gateway (live)', () => {

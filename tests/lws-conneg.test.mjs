@@ -331,19 +331,21 @@ describe.skipIf(!hasConneg)('406 wins over 304 (conditional ordering, live)', ()
 // command (no path flags at all now) still produces both service entries and the
 // /.well-known/void 303, sourced from the published pod-config.jsonld.
 describe.skipIf(!hasConneg)('--lws-config drives service presence (live)', () => {
-  it('per-storage description lists ProfileIndexService (from pod-config.jsonld); VoidService is interim-suppressed there', async () => {
+  it('per-storage description lists ProfileIndexService (from pod-config.jsonld) and VoidService as a direct pointer', async () => {
     const r = await fetch(`${BASE}/alice/lws-storage`, { headers: { Accept: 'application/lws+json' } })
     const doc = await r.json()
     const types = doc.service.map(s => s.type)
     expect(types).toContain('ProfileIndexService')
     expect(doc.service.find(s => s.type === 'ProfileIndexService').serviceEndpoint).toBe(`${BASE}/alice/profiles/index.jsonld`)
-    // Multi-tenant round: VoidService is deliberately NOT advertised on the
-    // per-storage description (buildStorageDescriptionFor passes voidPath:
-    // null — a per-storage entry would point at the server-wide
-    // /.well-known/void route, which reads the legacy server-wide podConfig,
-    // not this storage's own; JSS src/lws/storage-description.js). The route
-    // itself still works — proven by the next test.
-    expect(types).not.toContain('VoidService')
+    // Per-storage services round (2026-07-18, R7-R11, decision #4): VoidService
+    // is RESTORED as a direct per-storage pointer — serviceEndpoint = origin +
+    // this tenant's own voidPath from pod-config.jsonld (the document is pod
+    // data, so no 303 indirection is needed). Supersedes the multi-tenant
+    // round's interim suppression (buildStorageDescriptionFor no longer
+    // forces voidPath: null); the legacy /.well-known/void 303 rail is
+    // untouched (proven by the next test).
+    expect(types).toContain('VoidService')
+    expect(doc.service.find(s => s.type === 'VoidService').serviceEndpoint).toBe(`${BASE}/alice/profiles/void.jsonld`)
   })
 
   it('/.well-known/void 303s to the pod-config-declared void document', async () => {
