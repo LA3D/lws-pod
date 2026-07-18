@@ -27,3 +27,29 @@ Scope notes (calibrations from the verified 2026-07-18 review, FOLLOWUP top bloc
 - Storage-root `up`: linkset body already emits `up` for a storage root (→ origin `/`); the header
   mirrors the linkset for parity. metadata.md requires `up` only for non-root resources; emitting
   it on the storage root too is benign surplus, recorded here deliberately.
+
+---
+
+# Round 2 addendum — per-storage services (2026-07-18)
+
+Pinned rows for the per-storage service correctness round (spec
+`2026-07-18-per-storage-service-design.md`). Quotes verbatim from
+`.claude/skills/lws-protocol/references/`. Status @48cd8ae = fork state after round 1.
+
+| # | Requirement (verbatim source) | Source | Surface | Status @48cd8ae |
+|---|---|---|---|---|
+| R7 | "A storage that supports one of these services MUST advertise it with a service object in the `service` array of its storage description resource" + the Type Index "enumerates the distinct resource types present within a storage as visible to the requesting client" | lws10-searchindex Discovery + Terminology | per-storage SD + `/:pod/types/*` | VIOLATION: every SD advertises the origin-wide endpoints |
+| R8 | "any filter expressible in one MUST be expressible in the other, and equivalent `GET` and `POST` requests MUST return the same result set" | lws10-searchindex GET/POST equivalence | `/:pod/types/search` | origin ✅ · per-storage NEW |
+| R9 | "A storage that supports notifications MUST advertise a service object … with `type` equal to `NotificationService`. … The service object MUST include a `subscriptionType` property" | lws10-notifications Discovery | SD `service` array | VIOLATION: entry lacks `subscriptionType` AND its `/notification/api` endpoint is dead → resolved by REMOVAL; a real LWS notifications implementation is a recorded future round |
+| R10 | "Responses to GET/POST on `TypeIndexService` or `TypeSearchService` include only types and resource URIs that the authenticated client is explicitly authorized to read. … Any count … MUST be computed over this client-specific, authorization-filtered view … against the requesting client's current access" | lws10-searchindex security-authorization | both scopes | ✅ (per-request WAC loop) — per-storage routes inherit the same loop; gated |
+| R11 | "the `service` property is REQUIRED. … `type` … REQUIRED … `serviceEndpoint` … REQUIRED" | lws10-core Discovery data model | every SD | ✅ (StorageDescription self-entry) |
+
+Scope notes:
+- VoID appears nowhere in LWS (only substring "devoid") — `VoidService` and `/.well-known/void`
+  are project extensions; so are `ServerIndex`, `McpService`, `ProfileIndexService`, and the
+  `ReferentResolution` capability. Never counted as spec requirements.
+- The spec defines NO server-wide advertisement mechanism (no storage catalog, no server
+  capability doc) — multi-storage deployments surface as per-storage descriptions + realm scoping.
+- Recorded limitation (spec §5): in a mixed root+named deployment the root storage's SD
+  advertises the origin `/types/*` endpoints, whose walk is server-wide. Recorded, not fixed —
+  mixed mode is not a deployed configuration.
