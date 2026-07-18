@@ -7,7 +7,7 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-07-18 — LWS + PROF-CONNEG STANDARDS CLOSEOUT RECORDED; NEXT = resource-server MUST fixes, then profile negotiation, then authorization, then the CURATOR ROUND
+## ▶▶ 2026-07-18 — STANDARDS CLOSEOUT: ROUND 1 (resource-server MUST fixes) DONE + LIVE-VERIFIED; NEXT = per-storage service correctness (item 2), then PROF/conneg closeout (item 3), then authorization (item 4), then ledger (item 5), then the CURATOR ROUND
 
 **▶ START HERE.** Supersedes the 2026-07-16 multi-tenant pointer below as the next-session entry
 point. A live, read-only audit against the pinned `.agents/skills/lws-protocol` sources found that
@@ -26,7 +26,33 @@ HTTP-FP itemized requirement; and the spec's own Example 6 shows the post-303 20
 2026-07-18: the curator-round demotion to item 6 stands, and the corrective rounds proceed under
 the calibrated readings.**
 
-**Live findings (2026-07-18, fork rig `7de911d`):**
+**✅ ROUND 1 DONE + LIVE-VERIFIED (2026-07-18, same day — subagent-driven, plan
+`docs/superpowers/plans/2026-07-18-resource-server-conformance.md`, matrix
+`docs/superpowers/specs/2026-07-18-lws-core-requirement-matrix.md` R1–R6 ALL CLOSED).** Fork
+`la3d/lws` 7de911d→**48cd8ae** (merge --no-ff, 5 commits, image `fork-conformance`, suite
+1758/0/1): (R1/R2) `up` + LWS `type` Link headers on every `--lws` GET/HEAD via the ONE
+`getAllHeaders` choke point, derived by the SAME helpers as the linkset body (parity by
+construction; lws+json arm's manual up-append removed); (R3/R4) `sendJsonWithEtag`
+(md5-of-body strong ETag + `Vary: Accept, Authorization` + If-None-Match→304-with-ETag) on
+`/.well-known/lws-storage`, `/:pod/lws-storage`, `/types/index` + `/types/search` GET; (R5) linkset
+ETag locked + a REAL parity gap found-and-fixed (HEAD's F3 teaching-406 preempted the linkset
+override — linkset check now precedes it, mirroring GET decision-for-decision); (R6) root-pod
+`storageRootFor` `/`-marker fallback + `GET /lws-storage` (falls through to LDP in named-pod mode;
+writes reserved root-pod-only via `rootPodOnly`; adversarial opus review confirmed the preHandler
+bypass is structurally unreachable in named-pod mode; private-root anon 401 + roster-omission
+wire-tested). lws-pod `dcb40b4`: rig repinned (Dockerfile.fork + docker-compose.fork-tls.yml —
+compose's build-arg fallback shadows the Dockerfile ARG, both must move) + NEW `make
+test-conformance` (6/6). FULL 17-gate live sweep GREEN, 146/146 assertions. **Round-1 recorded
+residuals (record, not fix):** `/types` GET now compact-JSON while POST stays pretty (whitespace
+asymmetry); named-pod mode pays one uncached `/.lwstypes` stat per non-pod top-level request
+(negative `/` probe); navigator crumb renders the root storage as `/`; MCP `localLinks` still
+omits the `type` field (pre-existing HTTP-vs-MCP divergence); `sendJsonWithEtag`'s Vary is a
+second convention alongside `getVaryHeader` (semantically correct here, reconcile someday);
+`resource.js` ~2375 HEAD-parity override block now redundant (harmless). The multi-tenant round's
+"root-pod self-description degradation" residual is CLOSED by R6 (marked below).
+
+**Live findings (2026-07-18, fork rig `7de911d` — the round-1 items below are now FIXED per the
+block above; PROF items and rounds 2-5 remain open):**
 
 - `GET /alice/wiki/a.md` returns an ETag, byte ranges, `rel="linkset"`, and the owning
   `storageDescription`, but its HTTP `Link` header omits the LWS read-operation's required `up` and
@@ -116,7 +142,8 @@ subset, not yet the complete advertised `cnpr:http` functional profile:
 
 **Order of work (reasoned by dependency):**
 
-1. **Fork resource-server conformance closeout (NEXT; bounded, no auth redesign).** Start with a
+1. ✅ **DONE 2026-07-18** (see the ROUND 1 block above — fork 48cd8ae, lws-pod dcb40b4, R1-R6
+   closed, 17-gate live sweep green). ~~Fork resource-server conformance closeout (NEXT; bounded, no auth redesign).~~ Start with a
    pinned-requirement matrix for LWS core Discovery + Read Resource + media type/container rules.
    Add failing live/unit gates for data-resource GET/HEAD `up`/LWS `type`, special-route ETags,
    conditional 304s, and GET/HEAD parity; then fix them. Fold in the already-recorded root-pod
@@ -241,11 +268,11 @@ the plan didn't task it; fixed + faces re-materialized.
   config — a per-storage description advertising it would misdirect a tenant to another's void. Real
   fix = a per-storage void route (or server-wide-uniform advertisement). This is the concrete face of
   the recorded **per-storage service-routes** seed (type-index/search/void/notification per storage).
-- **Root-pod self-description (fork):** `storageRootFor` has no walk-up-to-`/` fallback, so a
-  single-user ROOT-POD deployment degrades — the `/` marker is never read, its resources'
-  `storageDescription` Link points at the (empty) ServerIndex, and referent 303s are disabled. Rig
-  uses NAMED pods so it's off the acceptance path. Fix = a root-pod fallback in `storageRootFor`
-  (non-trivial — `/:pod/lws-storage` can't represent pod=`""`).
+- ✅ **Root-pod self-description (fork): CLOSED 2026-07-18** by the conformance round's R6 (fork
+  48cd8ae): `storageRootFor` falls back to the `/` marker; `GET /lws-storage` serves the root
+  storage description (named-pod mode falls through to LDP, writes reserved root-pod-only);
+  root-pod referent 303s + per-storage links arm automatically. ~~(non-trivial —
+  `/:pod/lws-storage` can't represent pod=`""`)~~ — solved via the bare `/lws-storage` route.
 - **HTTP 404/401 oracle (fork, KEEP):** `/:pod/lws-storage` returns 404-unmarked vs 401-private (a
   mild existence oracle); consistent with the pod root's own 401, MCP collapses both (stricter).
   Reviewer recommendation: do NOT reconcile.
