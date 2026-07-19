@@ -7,6 +7,143 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
+## ▶▶ 2026-07-19 — PROF/CONNEG CLOSEOUT (item 3) DONE + LIVE-VERIFIED; NEXT = item 4 (authorization-server track)
+
+**▶ START HERE.** Supersedes the 2026-07-18 per-storage-services pointer below as the
+next-session entry point.
+
+**Round: brainstorm → spec → plan → subagent-driven implementation (7 fork tasks + 6 lws-pod
+tasks + this closeout).** Design of record
+`docs/superpowers/specs/2026-07-19-prof-conneg-closeout-design.md`; plan
+`docs/superpowers/plans/2026-07-19-prof-conneg-closeout.md`; matrix addendum (Round 3, R12-R17)
+appended to `docs/superpowers/specs/2026-07-18-lws-core-requirement-matrix.md`, all six rows now
+✅ (R12-R16 CLOSED, R17 label-only); ledger `.superpowers/sdd/progress.md` (PROF/conneg closeout
+section); whole-branch fable review `.superpowers/sdd/branch-review-profconneg.md`
+(READY-WITH-FOLLOWUPS). Sequenced after the per-storage services round per the round-1
+order-of-work below.
+
+**Shipped, fork (`la3d/lws-profconneg` off `e74a2bb`, 7 commits, merged `--no-ff` = `c0bc445`,
+PUSHED; full suite 1807/1806/0/1; whole-branch fable review READY-WITH-FOLLOWUPS, 0 Critical, 1
+Important fixed in-round):**
+- **(R12) Un-negotiated profile stamp** — bare 200 GET/HEAD and direct-alternate-face 200 GET/HEAD
+  now carry `Content-Profile` + `Link rel="profile"` via the centralized `getAllHeaders`/
+  `defaultProfileFor` media-equality guard (`d6af67c`), with the entity-face synthetic-view
+  suppression fix (`7199726`) and the whole-branch-review's I1 mashlib-wrapper suppression fix
+  (`6ad9f04`, `--lws`+`--mashlib-cdn` only, verified byte-identical off-flag). Negotiated
+  303-then-self-200 arm unchanged (already matched spec Example 6).
+- **(R13) Accept-Profile q-value robustness** (`92ebc48`) — RFC 9110 robustness, not spec
+  conformance: `parseAcceptProfile` now discards `q=0`, clamps out-of-range weights into [0,1],
+  non-numeric → 1.0, stable ties.
+- **(R14) Joint media+profile selection** (`ce6e60e`) — `negotiateProfile(header, reps,
+  acceptHeader='')` collects every exact-profile match across default+alternates, then
+  disambiguates by `Accept` media (q-ordered, q=0 excluded); tie/no-Accept → default slot then
+  declaration order.
+- **(R15) Profile-axis ETag/precedence pins** (`fe6e9d3`) — claim VERIFIED not falsified: profile
+  selection never changes bytes at a URL (self-or-303), so `VARIANT_KEYS` needed no profile
+  component; 406-beats-304, 304-beats-303 confirmed; tests-only.
+- **(R16) Teaching-surface rewrite** (`5faa4b5`) — SD capability hint, both 406 bodies, and the MCP
+  hint now state the implemented subset explicitly: exact-URI match only, no tokens, no
+  `isProfileOf` hierarchy walking, linkset = the enumeration of valid URIs.
+- **(R17) Write-contract labeling** — docs-only (this task, no fork code): shipped contract =
+  read-side negotiation + write declaration; the §5.4 reactive `422` write-side negotiation MUST is
+  explicitly deferred, not implied shipped.
+
+**Shipped, lws-pod (`main`, `34e98ca..3a71b09` + this closeout):**
+- `34e98ca` matrix round-3 addendum (R12-R17 quotes pinned, RFC 9110 cited by section only).
+- `925c3dc` + `3cc082f` (P3, Task 8) — `projection/publish/checks.mjs` self-document check
+  (`@id` must be `''`) + `projection/prof/profile-loader.mjs` depth-aware nearest-wins singleton
+  resolution with a named equal-depth conflict error (two real defects found+fixed by review: dead
+  child-override clause, diamond visited-set locking a shared ancestor at its first-seen/farther
+  depth).
+- `33acbc5` (P1/P4, Task 9) — minted `llm-wiki/view.profile.jsonld` + `viz.profile.jsonld` (views of
+  the information profile, deliberately not `isProfileOf` it); html/index-html/viz reps repointed;
+  `prof:hasToken` retracted as a negotiation claim everywhere it was asserted (declaration-side
+  metadata only, R16).
+- `cc6d775` (P2, Task 10) — `instantiate()` now writes a `.meta` on every materialized face
+  declaring itself as its own default representation — the data source for R12's stamp on
+  direct-alternate GETs (no fork special-casing).
+- `431fc9e` (rig repin to `c0bc445`) + `b6f9e60` (2 drifted pins, live-verified).
+- `3a71b09` (Task 12) — NEW `make test-profneg` (`tests/lws-profneg.test.mjs`, V1-V11/W1-W5/H1, 17
+  cases).
+- This closeout (Task 13): matrix R12-R17 flipped to ✅ CLOSED with closing commits; the
+  `profile-loader.test.mjs` P3b diamond-relaxation fixture comment corrected (declared JSON array
+  order does NOT control walk order — `jsonldToQuads`'s N-Quads serialization sorts multi-valued
+  `isProfileOf` alphabetically by IRI; the fixture's `aa`/`yy`/`zz` naming happens to also satisfy
+  that order — re-run 30/30 green); FULL LIVE SWEEP GREEN — 21 gates.
+
+**Gates:** `make test-profneg` — 17/17 NEW (V1-V11, W1-W5, H1). Full sweep (21/21 gates ALL GREEN):
+`test` 9/9 (169 skipped, local base pod) · `test-lws` 7/7 · `test-l3` 2/2 · `test-typeindex` 7/7 ·
+`test-indexed-relation` 4/4 · `test-mcp-v2` 23/23 · `test-profiles` 6/6 · `test-dcat` 5/5 ·
+`test-graph` 6/6 · `test-conneg` 29/29 · `test-preservation` 6/6 · `test-void` 4/4 ·
+`test-referent` 9/9 · `test-multitenant` 6/6 · `test-nextfork` 5/5 · `test-conformance` 6/6 ·
+`test-services` 6/6 · `test-wiki` 9/9 · `test-projection` 185/185 (149 projection + 36
+wiki-projector unit — up from the pre-round 134+36 baseline; the 15-test rise is this round's new
+unit coverage: P3a self-document check ×3, P3b singleton nearest-wins/conflict ×8, P2 per-face
+`.meta` ×4; includes `profile-loader.test.mjs` 30/30 after the comment fix) · `test-viewer` 12/12 ·
+`test-profneg` 17/17.
+
+**Recorded residuals (record, not fix):**
+- **W3 (design call, needs a deliberate decision, not yet made):** face-dispatch's 303 overrides an
+  explicitly-resolved Accept-Profile `self` outcome for browser-shaped requests — a SHOULD-level
+  DX-PROF-CONNEG tension at the substrate level (does human-face-dispatch precedence over an honest
+  self-negotiation count as conformant, or does it need an escape hatch?). Not resolved this round;
+  flag for the item-5 ledger rewrite or a dedicated micro-decision.
+- **R12 extension-blind edge** — JSS derives `Content-Type` from the file extension (PUT-header
+  blind), so an extensionless resource never stamps regardless of its `.meta` `dct:format`
+  (conneg-mem fixture proves it; the wiki family is unaffected — cards always carry `.md`).
+- **T8 DAG list-order divergence** — old per-branch-DFS vs the new global depth-DESC walk order
+  differ for asymmetric-depth multi-parent DAGs; `contexts` is order-sensitive but zero live
+  exposure exists (every shipped `isProfileOf` is a single string, never an array, in the current
+  profile defs tree).
+- **N-Quads array-reordering debt** — `jsonldToQuads` (via `jsonld.toRDF` → N-Quads) silently
+  reorders every multi-valued PROF property (`hasResource`, `isProfileOf`, …) alphabetically by
+  IRI, away from authored declaration order — a standalone debt affecting all multi-valued
+  properties, not just the one fixture it was caught in. Not fixed; the profile-loader test-3
+  fixture comment now states the real mechanism instead of implying declared-array-order control.
+- **`instantiate()` status:0 publish-gate hole** — a pre-existing falsy `status: 0` on an
+  ACL-mirror refusal makes `publish.mjs`'s bad-status gate silently pass a blocked face through
+  (fail-closed hole, adjacent to Task 10's work, not introduced by it).
+- **Hierarchy/tokens = optional future hardening** — DX-PROF-CONNEG's profile-hierarchy fallback
+  (abstract-model SHOULD) and token-as-alternative-to-URI (MAY) are both spec-optional; the current
+  exact-URI-only subset conforms to `cnpr:http` without them. Implementing either remains available
+  future hardening, not a conformance gap.
+- **Write-side `422` reactive negotiation = deferred round** — profile-negotiation-http.html §5.4's
+  MUST (reject a submitted payload whose profile isn't supported, teach what is) is explicitly not
+  shipped; R17 records the contract as read-side negotiation + write declaration only.
+- **Branch-review Minors (fork side, `.superpowers/sdd/branch-review-profconneg.md`), recorded not
+  fixed:** M1 (`defaultProfileFor` trusts an href-elsewhere default declaration — client-managed
+  garbage-in, consistent with existing negotiated-self semantics); M2 (a stale `Content-Profile`
+  stamp can survive a 304 after a `.meta`-only edit — the validator doesn't cover `.meta`, same
+  class as pre-existing rep-link staleness); M3 (q-robustness asymmetry between `parseAcceptHeader`,
+  the media axis feeding R14, and `parseAcceptProfile` — deliberately left to preserve `--lws`-off
+  byte-identity, now observable inside R14); M4 (determinism — declaration order + stable sort — is
+  real but was undocumented in two places; two comment lines would close it); M5 (two of R16's six
+  named teaching surfaces, the linkset hint and the MCP resources hint, were correctly left
+  untouched — verified to contain no profile-negotiation language to subset); M6 (R12 false-negative
+  on relabel paths, e.g. a stored ld+json resource served under the P3 `application/json` label
+  suppresses the stamp although the body IS the default rep — conservative miss, safe direction,
+  never a false claim); M7 (carried per-task nits, triaged nothing pre-merge — index.html-shadow
+  container branches structurally can't stamp, deliberate).
+- **`make reinstantiate` vs renderer-backed faces** — `make reinstantiate` does not re-materialize
+  renderer-backed faces (the app CLI trigger is the documented complement; README already says so —
+  the brief wording in an earlier task implied otherwise, corrected in the T11 report only).
+- **`defs.test.mjs` rep-file enumeration gap** — pre-existing, unrelated to this round's changes;
+  the test doesn't enumerate every rep file in the defs tree, so a stray/orphaned rep def wouldn't
+  be caught. Recorded for a future projection-suite hardening pass.
+- **V10 nit** — `tests/lws-profneg.test.mjs` V10 (bare GET and Accept-Profile `<V/md>` GET share an
+  ETag) lacks an explicit `200` status assertion on the negotiated arm (implied by the shared
+  ETag/self outcome, but not asserted directly).
+- **R15 RFC-9110 citation** — this round cited RFC 9110 §12.4.2/§12.5.1 by section number only (no
+  quoted text, adjudicated acceptable for a robustness-not-conformance requirement). The item-5
+  conformance-ledger rewrite should pin a real subsection for each R13/R15 RFC 9110 reference (or
+  explicitly document that none exists at that granularity) rather than carry the generic cite
+  forward.
+
+**NEXT = standards-closeout item 4 (authorization-server track)** per the order-of-work in the
+round-1 block below (item 3 there is now marked ✅ DONE, pointer up to this block).
+
+---
+
 ## ▶▶ 2026-07-18 — PER-STORAGE SERVICES ROUND (closeout item 2) DONE + LIVE-VERIFIED; NEXT = item 3 (PROF/conneg closeout)
 
 **▶ START HERE.** Supersedes the round-1 pointer below as the next-session entry point.
@@ -262,7 +399,9 @@ subset, not yet the complete advertised `cnpr:http` functional profile:
    advertise a tenant-scoped service that resolves to another tenant's data. This is not itself an
    LWS-core blocker, but it shares the storage-description builder and should be settled before its
    conformance surface is declared stable.
-3. **PROF + conneg-by-profile closeout (separate bounded standards round).** Start from a pinned
+3. ✅ **DONE 2026-07-19** (see the PROF/CONNEG CLOSEOUT block above — fork e74a2bb→c0bc445, R12-R17
+   closed, 21-gate live sweep green, `make test-profneg` 17/17 NEW).
+   ~~PROF + conneg-by-profile closeout (separate bounded standards round).~~ Start from a pinned
    requirement matrix for PROF plus DX-PROF-CONNEG's abstract model and HTTP Headers Functional
    Profile. Fix direct-response `rel="profile"` (R.1.2.a — bare/alternate/HEAD; the redirect flow
    already matches spec Example 6), RFC 9110 quality parsing (discard q=0, clamp out-of-range —

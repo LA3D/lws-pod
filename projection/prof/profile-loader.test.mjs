@@ -274,13 +274,23 @@ describe('loadProfile — P3b singleton nearest-wins / conflict rule (spec 2026-
   const at = prof('at', { hasResource: idRes(`${PB}/at-identity.jsonld`) })
   const bt = prof('bt', { hasResource: idRes(`${PB}/bt-identity.jsonld`) })
 
-  // Reviewer's wrong-depth construction: rd -> [aa, zz, yy] (LONG path aa
-  // ordered before the SHORT path zz, to pin the relaxation). aa->bb->shared
-  // reaches `shared` at depth 3 first; zz->shared reaches it again at its
-  // TRUE depth 2. yy->ww puts ww at depth 2 too. `shared` and `ww` disagree
-  // on identityPolicy at their true equal depth (2) — MUST throw. A loader
-  // that pins `shared`'s depth at its first-seen (longer, 3) value would
-  // silently let `ww` (wrongly "nearer" at 2) win instead.
+  // Reviewer's wrong-depth construction: rd declares isProfileOf [aa, zz,
+  // yy] in JSON — but that declared array order does NOT control walk
+  // order. jsonldToQuads (rdf.mjs) runs the descriptor through jsonld.js's
+  // N-Quads serialization, which sorts same-subject/-predicate quads by
+  // object string, so isProfileOf's parents are actually walked in
+  // ALPHABETICAL-BY-IRI order regardless of declaration order: aa, then yy,
+  // then zz ('aa' < 'yy' < 'zz'). This fixture's names were chosen so that
+  // alphabetical order still visits the LONG path (aa->bb->shared, depth 3)
+  // before the SHORT path (zz->shared, depth 2) — which is what the test
+  // needs to pin the relaxation: aa->bb->shared reaches `shared` at depth 3
+  // first; zz->shared reaches it again at its TRUE depth 2. yy->ww puts ww
+  // at depth 2 too. `shared` and `ww` disagree on identityPolicy at their
+  // true equal depth (2) — MUST throw. A loader that pins `shared`'s depth
+  // at its first-seen (longer, 3) value would silently let `ww` (wrongly
+  // "nearer" at 2) win instead. (Standalone debt, not fixed here: this
+  // N-Quads alphabetization reorders every multi-valued PROF property away
+  // from authored order, e.g. hasResource too — recorded in FOLLOWUP.)
   const rd = prof('rd', { isProfileOf: [`${PB}/aa.jsonld`, `${PB}/zz.jsonld`, `${PB}/yy.jsonld`] })
   const aa = prof('aa', { isProfileOf: `${PB}/bb.jsonld` })
   const bb = prof('bb', { isProfileOf: `${PB}/shared.jsonld` })
