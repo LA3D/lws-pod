@@ -27,18 +27,31 @@ function authedDocumentLoader(fetchFn) {
   }
 }
 
+// P3b (spec 2026-07-19 §4): singleton configs resolve NEAREST-WINS by walk
+// depth (child 0, parents 1, grandparents 2, …). Equal-depth disagreement is
+// a hard error naming both sources — silence here was last-writer-wins by
+// walk order, which let a FARTHER ancestor beat a nearer parent (parents-
+// first recursion dispatches grandparents before the next sibling parent).
+function assignSingleton(acc, key, value, depth, source) {
+  const cur = acc._singleton[key]
+  if (!cur || depth < cur.depth) { acc._singleton[key] = { value, depth, source }; acc[key] = value; return }
+  if (depth === cur.depth && JSON.stringify(cur.value) !== JSON.stringify(value))
+    throw new Error(`profile merge conflict: '${key}' from equally-near ${cur.source} and ${source} disagree — the child profile must declare its own`)
+}
+
 // The role dispatch table — the ONLY place role IRIs are interpreted (P7).
-// context→parser input, identity-policy/plane-mapping→configs, validation/vocabulary→artifact URLs,
+// context→parser input, identity-policy/plane-mapping→configs (nearest-wins, P3b),
+// validation/vocabulary→artifact URLs,
 // derived-view→fetched artifact appended to the derivedViews list,
 // representation→fetched config appended to the representations list (conformsTo resolved absolute).
-async function dispatch(resources, acc, fetchFn) {
+async function dispatch(resources, acc, fetchFn, depth) {
   for (const r of resources) {
     for (const role of r.roles) {
       if (role === ROLE + 'validation') { if (!acc.validation.includes(r.artifact)) acc.validation.push(r.artifact) }
       else if (role === ROLE + 'vocabulary') { if (!acc.vocabulary.includes(r.artifact)) acc.vocabulary.push(r.artifact) }
       else if (role === LWSP_ROLE + 'context') acc.contexts.push(await fetchJson(r.artifact, fetchFn))
-      else if (role === LWSP_ROLE + 'identity-policy') acc.identityPolicy = await fetchJson(r.artifact, fetchFn)
-      else if (role === LWSP_ROLE + 'plane-mapping') acc.planeMapping = await fetchJson(r.artifact, fetchFn)
+      else if (role === LWSP_ROLE + 'identity-policy') assignSingleton(acc, 'identityPolicy', await fetchJson(r.artifact, fetchFn), depth, r.artifact)
+      else if (role === LWSP_ROLE + 'plane-mapping') assignSingleton(acc, 'planeMapping', await fetchJson(r.artifact, fetchFn), depth, r.artifact)
       else if (role === LWSP_ROLE + 'derived-view') acc.derivedViews.push(await fetchJson(r.artifact, fetchFn))
       else if (role === LWSP_ROLE + 'representation') {
         const rep = await fetchJson(r.artifact, fetchFn)
@@ -51,8 +64,10 @@ async function dispatch(resources, acc, fetchFn) {
 }
 
 // Depth-first, parents first: floor artifacts land before parent-family
-// artifacts before child's. nearest-wins configs = child assignment overwrites parent's.
-async function walk(url, acc, visited, fetchFn) {
+// artifacts before child's (list fields — union/stack order, unchanged by P3b).
+// Singleton fields (identityPolicy/planeMapping) resolve nearest-wins by the
+// `depth` threaded here, independent of this visiting order (P3b).
+async function walk(url, acc, visited, fetchFn, depth) {
   if (visited.has(url)) return
   visited.add(url)
   let d
@@ -66,18 +81,19 @@ async function walk(url, acc, visited, fetchFn) {
     return
   }
   acc.conformance.push({ iri: url, resolved: true })
-  for (const p of d.parents) await walk(p, acc, visited, fetchFn)
-  await dispatch(d.resources, acc, fetchFn)
+  for (const p of d.parents) await walk(p, acc, visited, fetchFn, depth + 1)
+  await dispatch(d.resources, acc, fetchFn, depth)
 }
 
 export async function loadProfile(descriptorUrl, { fetchFn = fetch } = {}) {
   const acc = { conformance: [], validation: [], vocabulary: [], contexts: [],
-    identityPolicy: null, planeMapping: null, derivedViews: [], representations: [], unknownRoles: [] }
+    identityPolicy: null, planeMapping: null, derivedViews: [], representations: [], unknownRoles: [], _singleton: {} }
   // The root descriptor must resolve — loud (P8 declaration side of the loader).
   const root = await descriptorToProfile(await fetchJson(descriptorUrl, fetchFn), descriptorUrl, { documentLoader: authedDocumentLoader(fetchFn) })
   const visited = new Set([descriptorUrl])
-  for (const p of root.parents) await walk(p, acc, visited, fetchFn)
-  await dispatch(root.resources, acc, fetchFn)
+  for (const p of root.parents) await walk(p, acc, visited, fetchFn, 1)
+  await dispatch(root.resources, acc, fetchFn, 0)
+  delete acc._singleton
   // conformance lists parents (walked or opaque); the root itself is the profile.
   return { id: root.id, token: root.token, ...acc }
 }

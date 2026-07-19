@@ -49,6 +49,15 @@ export async function checkDescriptor(jsonText, url, loader = defsLoader) {
   if (!quads.length) return [`descriptor ${url}: parses to an EMPTY graph (fail-open blocked)`]
   if (!quads.some((q) => q.predicate.value === RDF_TYPE && q.object.value === PROF + 'Profile'))
     return [`descriptor ${url}: no prof:Profile-typed subject`]
+  // P3a (spec 2026-07-19 §4): profile-doc.mjs reads every PROF fact off
+  // subject === descriptorUrl, guaranteed by the authoring convention
+  // `"@id": ""`. Enforce it: a descriptor with a foreign/missing subject
+  // silently reads as zero facts — fail loud instead.
+  let doc = null
+  try { doc = JSON.parse(jsonText) } catch { /* unreachable: jsonldToQuads succeeded above */ }
+  const id = doc?.['@id']
+  if (id !== '' && id !== url)
+    return [`descriptor ${url}: top-level '@id' must be '' (self-document convention; got ${JSON.stringify(id)})`]
   if (jsonText.includes('<PIN>')) return [`descriptor ${url}: unfilled <PIN> version`]
   return validate(quads, await readFile(join(DEFS, 'descriptor-shape.ttl'), 'utf8'))
 }

@@ -249,3 +249,61 @@ describe('discoverBinding', () => {
     expect(out).toEqual([`${B}/llm-wiki/profile.jsonld`])
   })
 })
+
+describe('loadProfile — P3b singleton nearest-wins / conflict rule (spec 2026-07-19 §4)', () => {
+  // Separate namespace from the wiki/dcat fixtures above — small, purpose-built
+  // descriptors isolating the identityPolicy singleton-merge behavior.
+  const PB = 'https://pod.example/p3b'
+  const idRes = (artifact) => [{ '@id': '#i', hasRole: LWSP_ROLE + 'identity-policy', hasArtifact: artifact }]
+  const prof = (token, extra = {}) => ({ '@context': CTX, '@id': '', '@type': 'Profile', hasToken: token, ...extra })
+
+  // Diamond: r1 -> [a1, b1], a1/b1 each declare identity-policy (different bodies).
+  const r1 = prof('r1', { isProfileOf: [`${PB}/a1.jsonld`, `${PB}/b1.jsonld`] })
+  const a1 = prof('a1', { hasResource: idRes(`${PB}/a1-identity.jsonld`) })
+  const b1 = prof('b1', { hasResource: idRes(`${PB}/b1-identity.jsonld`) })
+
+  // Chain: r3 -> a3 -> ga3, a3 and ga3 both declare identity-policy (different bodies).
+  const r3 = prof('r3', { isProfileOf: `${PB}/a3.jsonld` })
+  const a3 = prof('a3', { isProfileOf: `${PB}/ga3.jsonld`, hasResource: idRes(`${PB}/a3-identity.jsonld`) })
+  const ga3 = prof('ga3', { hasResource: idRes(`${PB}/ga3-identity.jsonld`) })
+
+  // Chain: r4 -> a4 -> ga4; ALL THREE declare identity-policy (all different bodies) —
+  // r4's own (depth 0) must win over both ancestors, no conflict raised.
+  const r4 = prof('r4', { isProfileOf: `${PB}/a4.jsonld`, hasResource: idRes(`${PB}/r4-identity.jsonld`) })
+  const a4 = prof('a4', { isProfileOf: `${PB}/ga4.jsonld`, hasResource: idRes(`${PB}/a4-identity.jsonld`) })
+  const ga4 = prof('ga4', { hasResource: idRes(`${PB}/ga4-identity.jsonld`) })
+
+  const P3B_MAP = {
+    [`${PB}/r1.jsonld`]: { body: r1 }, [`${PB}/a1.jsonld`]: { body: a1 }, [`${PB}/b1.jsonld`]: { body: b1 },
+    [`${PB}/a1-identity.jsonld`]: { body: { pathPrefix: 'a1/' } },
+    [`${PB}/b1-identity.jsonld`]: { body: { pathPrefix: 'b1/' } },
+    [`${PB}/r3.jsonld`]: { body: r3 }, [`${PB}/a3.jsonld`]: { body: a3 }, [`${PB}/ga3.jsonld`]: { body: ga3 },
+    [`${PB}/a3-identity.jsonld`]: { body: { pathPrefix: 'a3/' } },
+    [`${PB}/ga3-identity.jsonld`]: { body: { pathPrefix: 'ga3/' } },
+    [`${PB}/r4.jsonld`]: { body: r4 }, [`${PB}/a4.jsonld`]: { body: a4 }, [`${PB}/ga4.jsonld`]: { body: ga4 },
+    [`${PB}/r4-identity.jsonld`]: { body: { pathPrefix: 'r4/' } },
+    [`${PB}/a4-identity.jsonld`]: { body: { pathPrefix: 'a4/' } },
+    [`${PB}/ga4-identity.jsonld`]: { body: { pathPrefix: 'ga4/' } },
+  }
+
+  it('P3b: equal-depth parents disagreeing on identityPolicy throw a named conflict', async () => {
+    await expect(loadProfile(`${PB}/r1.jsonld`, { fetchFn: mockFetch(P3B_MAP) })).rejects.toThrow(/profile merge conflict: 'identityPolicy'/)
+  })
+
+  it('P3b: equal-depth parents AGREEING (identical JSON) do not throw', async () => {
+    const agreeing = { ...P3B_MAP, [`${PB}/b1-identity.jsonld`]: { body: { pathPrefix: 'a1/' } } }
+    const p = await loadProfile(`${PB}/r1.jsonld`, { fetchFn: mockFetch(agreeing) })
+    expect(p.identityPolicy).toEqual({ pathPrefix: 'a1/' })
+  })
+
+  it('P3b: nearer parent beats a farther ancestor regardless of walk order', async () => {
+    // today this already holds for chains (the DAG case above was the bug) — pin it.
+    const p = await loadProfile(`${PB}/r3.jsonld`, { fetchFn: mockFetch(P3B_MAP) })
+    expect(p.identityPolicy).toEqual({ pathPrefix: 'a3/' })
+  })
+
+  it('P3b: the root profile itself (depth 0) overrides every parent without conflict', async () => {
+    const p = await loadProfile(`${PB}/r4.jsonld`, { fetchFn: mockFetch(P3B_MAP) })
+    expect(p.identityPolicy).toEqual({ pathPrefix: 'r4/' })
+  })
+})

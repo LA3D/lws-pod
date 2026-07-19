@@ -82,6 +82,28 @@ describe('declaration-time checks (spec §9 — fail loud at publish)', () => {
   })
 })
 
+describe('checkDescriptor — P3a self-document convention (spec 2026-07-19 §4)', () => {
+  // Same context ref the DEFS descriptor fixtures use (e.g. okf-base.jsonld);
+  // relative, resolved by the default defsLoader off its basename regardless
+  // of the base URL host — no custom loader stub needed.
+  const ctx = 'profiles-compact.context.jsonld'
+  it('P3a: descriptor whose @id is a foreign URL fails the self-document check', async () => {
+    const doc = JSON.stringify({ '@context': ctx, '@id': 'https://elsewhere.example/p', '@type': 'Profile', hasToken: 'x' })
+    const out = await checkDescriptor(doc, 'https://pod.example/profiles/p.jsonld')
+    expect(out.some((f) => f.includes("'@id' must be ''"))).toBe(true)
+  })
+  it('P3a: missing @id fails (blank-node subject reads as zero PROF facts)', async () => {
+    const doc = JSON.stringify({ '@context': ctx, '@type': 'Profile', hasToken: 'x' })
+    const out = await checkDescriptor(doc, 'https://pod.example/profiles/p.jsonld')
+    expect(out.some((f) => f.includes("'@id' must be ''"))).toBe(true)
+  })
+  it("P3a: '@id': '' passes (existing descriptors unchanged)", async () => {
+    // reuse the file's existing known-good descriptor fixture
+    const out = await checkDescriptor(await read('okf-base.jsonld'), 'https://pod.example/profiles/okf-base.jsonld')
+    expect(out.some((f) => f.includes("'@id' must be ''"))).toBe(false)
+  })
+})
+
 describe('checkRepresentation', () => {
   const ok = { id: 'links', suffix: '.links.jsonld', format: 'application/ld+json', conformsTo: 'profile.jsonld' }
   it('passes a well-formed member rep', () => expect(checkRepresentation(JSON.stringify(ok), 'x')).toEqual([]))
