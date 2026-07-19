@@ -1,1 +1,1 @@
-{ "id": "index-html", "target": "index.html", "format": "text/html", "conformsTo": "../okf-base.jsonld" }
+{ "id": "index-html", "target": "index.html", "format": "text/html", "conformsTo": "view.profile.jsonld" }

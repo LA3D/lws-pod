@@ -1,1 +1,1 @@
-{ "id": "viz", "target": "viz.html", "format": "text/html", "conformsTo": "profile.jsonld" }
+{ "id": "viz", "target": "viz.html", "format": "text/html", "conformsTo": "viz.profile.jsonld" }

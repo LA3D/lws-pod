@@ -3,7 +3,8 @@
                 "defaultProfile": { "@id": "https://w3id.org/lws-pod/profile#defaultProfile", "@type": "@id" },
                 "knownVocabGaps": { "@id": "https://w3id.org/lws-pod/profile#knownVocabGaps", "@type": "@id", "@container": "@set" } },
   "@id": "",
-  "profiles": ["substrate-floor.jsonld", "okf-base.jsonld", "llm-wiki/profile.jsonld", "dcat-catalog/profile.jsonld"],
+  "profiles": ["substrate-floor.jsonld", "okf-base.jsonld", "llm-wiki/profile.jsonld",
+               "llm-wiki/view.profile.jsonld", "llm-wiki/viz.profile.jsonld", "dcat-catalog/profile.jsonld"],
   "defaultProfile": "okf-base.jsonld",
   "knownVocabGaps": ["https://la3d.github.io/llm-wiki-colab/ontology#mentions"],
   "void": {

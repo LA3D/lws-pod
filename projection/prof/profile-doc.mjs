@@ -17,6 +17,8 @@ function objectsOf(quads, subject, predicate) {
 export async function descriptorToProfile(doc, descriptorUrl, { documentLoader } = {}) {
   const quads = await jsonldToQuads(doc, descriptorUrl, { documentLoader })
   const id = descriptorUrl
+  // prof:hasToken is declaration-side metadata only; server-side selection is
+  // exact-profile-URI (2026-07-19 closeout, R16).
   const token = objectsOf(quads, id, P.hasToken)[0]?.value ?? null
   const parents = objectsOf(quads, id, P.isProfileOf).map((o) => o.value)
   const resources = objectsOf(quads, id, P.hasResource).map((node) => ({

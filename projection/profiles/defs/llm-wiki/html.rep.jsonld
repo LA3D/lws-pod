@@ -1,1 +1,1 @@
-{ "id": "html", "suffix": ".html", "format": "text/html", "conformsTo": "../okf-base.jsonld" }
+{ "id": "html", "suffix": ".html", "format": "text/html", "conformsTo": "view.profile.jsonld" }

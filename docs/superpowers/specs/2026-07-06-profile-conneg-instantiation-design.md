@@ -133,6 +133,9 @@ surfaces. All `--lws`-gated + additive.
 - **`Accept-Profile: <uri|token>`** on GET/HEAD selects the representation conforming to a profile.
   Tokens map to URIs per PROF `prof:hasToken`; the mapping is surfaced per
   DX-PROF-CONNEG §8.2.1.2 (`Link: <…prof/Profile>; rel="type"; token="…"; anchor=<uri>`).
+  **Retraction (2026-07-19 closeout, R16):** the token half of this never shipped — `prof:hasToken`
+  is declaration-side metadata only; server-side selection is exact-profile-URI, no token, no
+  hierarchy (`Accept-Profile` takes a URI).
 - **Selection is exact-match in the fork.** The fork treats `conformsTo` as opaque (it resolves no
   profile hierarchy — verified 2026-07-06; consistent with `constraint.js`'s "inheritance is
   client-resolver semantics"), so it matches a requested profile URI exactly against a resource's
