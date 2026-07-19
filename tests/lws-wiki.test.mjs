@@ -9,6 +9,7 @@ import { runOnce } from '../apps/wiki-projector/triggers/run.mjs'
 const WIKI = '/alice/wiki/'
 const LLM_WIKI = `${BASE}/alice/profiles/llm-wiki/profile.jsonld`
 const OKF_BASE = `${BASE}/alice/profiles/okf-base.jsonld`
+const VIEW_PROFILE = `${BASE}/alice/profiles/llm-wiki/view.profile.jsonld`
 const DCT = 'http://purl.org/dc/terms/'
 const POWDER = 'http://www.w3.org/2007/05/powder-s#'
 
@@ -97,19 +98,22 @@ describe.skipIf(!hasConneg)('LWS wiki family — instantiation + conneg-by-profi
     expect([200, 201]).toContain(good.status)
   })
 
-  it('member linkset advertises canonical(content/okf-base) + alternate(links/llm-wiki, html/okf-base)', async () => {
+  it('member linkset advertises canonical(content/okf-base) + alternate(links/llm-wiki, html/view-profile)', async () => {
     // Navigator round (2026-07-15): llm-wiki's profile gained a member-level
     // `html` representation (the card face) alongside `links` — a.md now
     // materializes TWO suffix reps, so the alternate array carries both.
     // Order is an instantiate() implementation detail, not a spec claim —
     // compared sorted-by-href instead of pinning array order.
+    // PROF/conneg closeout round (P1): the html face now conforms to its own
+    // minted view profile, not the generic okf-base floor — supersedes this
+    // test's pre-round okf-base pin for the html alternate.
     const r = await fetch(`${BASE}${WIKI}a.md`, { headers: { Accept: 'application/linkset+json', ...auth } })
     expect(r.status).toBe(200)
     const link = (await r.json()).linkset[0]
     expect(link.canonical).toEqual([{ href: `${BASE}${WIKI}a.md`, type: 'text/markdown', formats: OKF_BASE }])
     const sortedAlts = [...link.alternate].sort((a, b) => a.href.localeCompare(b.href))
     expect(sortedAlts).toEqual([
-      { href: `${BASE}${WIKI}a.md.html`, type: 'text/html', formats: OKF_BASE },
+      { href: `${BASE}${WIKI}a.md.html`, type: 'text/html', formats: VIEW_PROFILE },
       { href: `${BASE}${WIKI}a.md.links.jsonld`, type: 'application/ld+json', formats: LLM_WIKI },
     ])
   })
@@ -124,10 +128,14 @@ describe.skipIf(!hasConneg)('LWS wiki family — instantiation + conneg-by-profi
     expect(links.headers.get('location')).toBe(`${BASE}${WIKI}a.md.links.jsonld`)
   })
 
-  it('bare GET unchanged (additivity)', async () => {
+  it('bare GET stays unnegotiated by Accept-Profile, but now stamps Content-Profile from .meta (R12)', async () => {
+    // PROF/conneg closeout round (R12): un-negotiated bare GET/HEAD now carries
+    // Content-Profile derived from the resource's own .meta default representation
+    // — supersedes this test's pre-round "no Content-Profile on bare GET" claim
+    // (Phase-1 additivity meant "unnegotiated by Accept-Profile", not "no header").
     const r = await fetch(`${BASE}${WIKI}a.md`, { headers: auth })
     expect(r.status).toBe(200)
-    expect(r.headers.get('content-profile')).toBeNull()
+    expect(r.headers.get('content-profile')).toBe(`<${OKF_BASE}>`)
     expect(await r.text()).toContain('Alpha prose')
   })
 
