@@ -267,11 +267,33 @@ describe('loadProfile — P3b singleton nearest-wins / conflict rule (spec 2026-
   const a3 = prof('a3', { isProfileOf: `${PB}/ga3.jsonld`, hasResource: idRes(`${PB}/a3-identity.jsonld`) })
   const ga3 = prof('ga3', { hasResource: idRes(`${PB}/ga3-identity.jsonld`) })
 
-  // Chain: r4 -> a4 -> ga4; ALL THREE declare identity-policy (all different bodies) —
-  // r4's own (depth 0) must win over both ancestors, no conflict raised.
-  const r4 = prof('r4', { isProfileOf: `${PB}/a4.jsonld`, hasResource: idRes(`${PB}/r4-identity.jsonld`) })
-  const a4 = prof('a4', { isProfileOf: `${PB}/ga4.jsonld`, hasResource: idRes(`${PB}/a4-identity.jsonld`) })
-  const ga4 = prof('ga4', { hasResource: idRes(`${PB}/ga4-identity.jsonld`) })
+  // True child-override diamond: rt -> [at, bt] equal-depth disagreeing
+  // parents, AND rt ITSELF declares its own identity-policy — the override
+  // escape hatch (spec §4 P3) must suppress the conflict, no throw.
+  const rt = prof('rt', { isProfileOf: [`${PB}/at.jsonld`, `${PB}/bt.jsonld`], hasResource: idRes(`${PB}/rt-identity.jsonld`) })
+  const at = prof('at', { hasResource: idRes(`${PB}/at-identity.jsonld`) })
+  const bt = prof('bt', { hasResource: idRes(`${PB}/bt-identity.jsonld`) })
+
+  // Reviewer's wrong-depth construction: rd -> [aa, zz, yy] (LONG path aa
+  // ordered before the SHORT path zz, to pin the relaxation). aa->bb->shared
+  // reaches `shared` at depth 3 first; zz->shared reaches it again at its
+  // TRUE depth 2. yy->ww puts ww at depth 2 too. `shared` and `ww` disagree
+  // on identityPolicy at their true equal depth (2) — MUST throw. A loader
+  // that pins `shared`'s depth at its first-seen (longer, 3) value would
+  // silently let `ww` (wrongly "nearer" at 2) win instead.
+  const rd = prof('rd', { isProfileOf: [`${PB}/aa.jsonld`, `${PB}/zz.jsonld`, `${PB}/yy.jsonld`] })
+  const aa = prof('aa', { isProfileOf: `${PB}/bb.jsonld` })
+  const bb = prof('bb', { isProfileOf: `${PB}/shared.jsonld` })
+  const zz = prof('zz', { isProfileOf: `${PB}/shared.jsonld` })
+  const yy = prof('yy', { isProfileOf: `${PB}/ww.jsonld` })
+  const shared = prof('shared', { hasResource: idRes(`${PB}/shared-identity.jsonld`) })
+  const ww = prof('ww', { hasResource: idRes(`${PB}/ww-identity.jsonld`) })
+
+  // planeMapping conflict — the symmetric singleton gets the same treatment.
+  const planeRes = (artifact) => [{ '@id': '#pm', hasRole: LWSP_ROLE + 'plane-mapping', hasArtifact: artifact }]
+  const rp = prof('rp', { isProfileOf: [`${PB}/ap.jsonld`, `${PB}/bp.jsonld`] })
+  const ap = prof('ap', { hasResource: planeRes(`${PB}/ap-plane.jsonld`) })
+  const bp = prof('bp', { hasResource: planeRes(`${PB}/bp-plane.jsonld`) })
 
   const P3B_MAP = {
     [`${PB}/r1.jsonld`]: { body: r1 }, [`${PB}/a1.jsonld`]: { body: a1 }, [`${PB}/b1.jsonld`]: { body: b1 },
@@ -280,10 +302,18 @@ describe('loadProfile — P3b singleton nearest-wins / conflict rule (spec 2026-
     [`${PB}/r3.jsonld`]: { body: r3 }, [`${PB}/a3.jsonld`]: { body: a3 }, [`${PB}/ga3.jsonld`]: { body: ga3 },
     [`${PB}/a3-identity.jsonld`]: { body: { pathPrefix: 'a3/' } },
     [`${PB}/ga3-identity.jsonld`]: { body: { pathPrefix: 'ga3/' } },
-    [`${PB}/r4.jsonld`]: { body: r4 }, [`${PB}/a4.jsonld`]: { body: a4 }, [`${PB}/ga4.jsonld`]: { body: ga4 },
-    [`${PB}/r4-identity.jsonld`]: { body: { pathPrefix: 'r4/' } },
-    [`${PB}/a4-identity.jsonld`]: { body: { pathPrefix: 'a4/' } },
-    [`${PB}/ga4-identity.jsonld`]: { body: { pathPrefix: 'ga4/' } },
+    [`${PB}/rt.jsonld`]: { body: rt }, [`${PB}/at.jsonld`]: { body: at }, [`${PB}/bt.jsonld`]: { body: bt },
+    [`${PB}/rt-identity.jsonld`]: { body: { pathPrefix: 'rt/' } },
+    [`${PB}/at-identity.jsonld`]: { body: { pathPrefix: 'at/' } },
+    [`${PB}/bt-identity.jsonld`]: { body: { pathPrefix: 'bt/' } },
+    [`${PB}/rd.jsonld`]: { body: rd }, [`${PB}/aa.jsonld`]: { body: aa }, [`${PB}/bb.jsonld`]: { body: bb },
+    [`${PB}/zz.jsonld`]: { body: zz }, [`${PB}/yy.jsonld`]: { body: yy },
+    [`${PB}/shared.jsonld`]: { body: shared }, [`${PB}/ww.jsonld`]: { body: ww },
+    [`${PB}/shared-identity.jsonld`]: { body: { pathPrefix: 'shared/' } },
+    [`${PB}/ww-identity.jsonld`]: { body: { pathPrefix: 'ww/' } },
+    [`${PB}/rp.jsonld`]: { body: rp }, [`${PB}/ap.jsonld`]: { body: ap }, [`${PB}/bp.jsonld`]: { body: bp },
+    [`${PB}/ap-plane.jsonld`]: { body: { plane: 'a' } },
+    [`${PB}/bp-plane.jsonld`]: { body: { plane: 'b' } },
   }
 
   it('P3b: equal-depth parents disagreeing on identityPolicy throw a named conflict', async () => {
@@ -302,8 +332,42 @@ describe('loadProfile — P3b singleton nearest-wins / conflict rule (spec 2026-
     expect(p.identityPolicy).toEqual({ pathPrefix: 'a3/' })
   })
 
-  it('P3b: the root profile itself (depth 0) overrides every parent without conflict', async () => {
-    const p = await loadProfile(`${PB}/r4.jsonld`, { fetchFn: mockFetch(P3B_MAP) })
-    expect(p.identityPolicy).toEqual({ pathPrefix: 'r4/' })
+  it('P3b: the root\'s own identity-policy overrides two equal-depth disagreeing parents — child override suppresses the conflict', async () => {
+    // TRUE diamond-with-override: rt has two equal-depth parents (at/bt) that
+    // disagree, AND rt declares its own identityPolicy. Spec §4 P3: a child
+    // override suppresses the equal-depth error entirely — no throw, rt wins.
+    const p = await loadProfile(`${PB}/rt.jsonld`, { fetchFn: mockFetch(P3B_MAP) })
+    expect(p.identityPolicy).toEqual({ pathPrefix: 'rt/' })
+  })
+
+  it('P3b: diamond without override — equal-depth parents disagree, root stays silent, still throws naming both', async () => {
+    // Same shape as the very first case above (r1), restated explicitly as
+    // the negative control for the child-override test just above: no
+    // override anywhere in the root means the deferred conflict is never
+    // cleared, so it must still surface after the root's own (empty) dispatch.
+    await expect(loadProfile(`${PB}/r1.jsonld`, { fetchFn: mockFetch(P3B_MAP) })).rejects.toThrow(/profile merge conflict: 'identityPolicy' from equally-near/)
+  })
+
+  it('P3b: diamond relaxation finds the TRUE shortest depth — a shared ancestor first reached via a longer path must not keep the wrong depth', async () => {
+    // Without relaxation, `shared` (reached first via aa->bb->shared at depth
+    // 3) would keep depth 3, letting `ww` (depth 2) silently "win" as the
+    // nearer singleton with NO conflict raised — the wrong, silent outcome.
+    // With true-shortest-path relaxation (zz->shared at depth 2 corrects it),
+    // `shared` and `ww` are genuinely equal-depth and MUST conflict.
+    await expect(loadProfile(`${PB}/rd.jsonld`, { fetchFn: mockFetch(P3B_MAP) })).rejects.toThrow(/profile merge conflict: 'identityPolicy' from equally-near/)
+  })
+
+  it('P3b: planeMapping gets the identical equal-depth conflict treatment (symmetric singleton)', async () => {
+    await expect(loadProfile(`${PB}/rp.jsonld`, { fetchFn: mockFetch(P3B_MAP) })).rejects.toThrow(/profile merge conflict: 'planeMapping' from equally-near/)
+  })
+
+  it('P3b: equal-depth parents whose identity-policy JSON differs only in KEY ORDER do not false-conflict', async () => {
+    const keyOrderMap = {
+      ...P3B_MAP,
+      [`${PB}/a1-identity.jsonld`]: { body: { pathPrefix: 'x/', fragment: '#it' } },
+      [`${PB}/b1-identity.jsonld`]: { body: { fragment: '#it', pathPrefix: 'x/' } },   // same object, keys reordered
+    }
+    const p = await loadProfile(`${PB}/r1.jsonld`, { fetchFn: mockFetch(keyOrderMap) })
+    expect(p.identityPolicy).toEqual({ pathPrefix: 'x/', fragment: '#it' })
   })
 })

@@ -27,16 +27,34 @@ function authedDocumentLoader(fetchFn) {
   }
 }
 
+// Key-sorted recursive stringify — value equality for the conflict check must
+// not depend on JSON key order (two descriptors expressing the identical
+// policy with keys written in a different order are NOT a conflict).
+function canonicalStringify(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v)
+  if (Array.isArray(v)) return `[${v.map(canonicalStringify).join(',')}]`
+  return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonicalStringify(v[k])}`).join(',')}}`
+}
+
 // P3b (spec 2026-07-19 §4): singleton configs resolve NEAREST-WINS by walk
 // depth (child 0, parents 1, grandparents 2, …). Equal-depth disagreement is
-// a hard error naming both sources — silence here was last-writer-wins by
-// walk order, which let a FARTHER ancestor beat a nearer parent (parents-
-// first recursion dispatches grandparents before the next sibling parent).
+// a hard error naming both sources UNLESS a strictly nearer assignment later
+// resolves it — a root that declares its own value is depth 0, dispatched
+// LAST (after every parent), so it always wins and always clears any pending
+// conflict for that key. Conflicts are therefore DEFERRED (recorded, not
+// thrown) here; `loadProfile` throws for whatever is still pending only
+// after the root's own dispatch has had its chance to override.
 function assignSingleton(acc, key, value, depth, source) {
   const cur = acc._singleton[key]
-  if (!cur || depth < cur.depth) { acc._singleton[key] = { value, depth, source }; acc[key] = value; return }
-  if (depth === cur.depth && JSON.stringify(cur.value) !== JSON.stringify(value))
-    throw new Error(`profile merge conflict: '${key}' from equally-near ${cur.source} and ${source} disagree — the child profile must declare its own`)
+  if (!cur || depth < cur.depth) {
+    acc._singleton[key] = { value, depth, source }
+    acc[key] = value
+    delete acc._conflicts[key]   // a strictly-nearer assignment supersedes any prior equal-depth dispute
+    return
+  }
+  if (depth === cur.depth && canonicalStringify(cur.value) !== canonicalStringify(value))
+    acc._conflicts[key] = { key, sourceA: cur.source, sourceB: source }
+  // depth > cur.depth: farther than the nearest already recorded — ignore.
 }
 
 // The role dispatch table — the ONLY place role IRIs are interpreted (P7).
@@ -63,37 +81,80 @@ async function dispatch(resources, acc, fetchFn, depth) {
   }
 }
 
-// Depth-first, parents first: floor artifacts land before parent-family
-// artifacts before child's (list fields — union/stack order, unchanged by P3b).
-// Singleton fields (identityPolicy/planeMapping) resolve nearest-wins by the
-// `depth` threaded here, independent of this visiting order (P3b).
-async function walk(url, acc, visited, fetchFn, depth) {
-  if (visited.has(url)) return
-  visited.add(url)
-  let d
-  try { d = await descriptorToProfile(await fetchJson(url, fetchFn), url, { documentLoader: authedDocumentLoader(fetchFn) }) }
-  catch { acc.conformance.push({ iri: url, resolved: false }); return }   // opaque parent (spec §2/§6)
-  // Non-PROF parent (valid JSON-LD, zero PROF triples about itself) is opaque
-  // too (spec §6) — external standards like w3id.org/ro/crate resolve to real
-  // docs that are not PROF descriptors. Legit descriptors always carry a token.
-  if (!d.token && !d.parents.length && !d.resources.length) {
-    acc.conformance.push({ iri: url, resolved: false })
-    return
+// Phase 1 — COLLECT (P3b diamond fix): BFS over the parent DAG from the
+// root's parents, WITH depth relaxation. A plain "visited once" set (the old
+// code) lets the FIRST path found to a shared ancestor pin its depth even
+// when a later, shorter path reaches the same node — a diamond's shared
+// ancestor could keep a too-large depth and silently lose (or never
+// conflict with) a genuinely equal-depth rival. Here every re-encounter with
+// a SMALLER depth updates the node and re-queues ITS parents at the new
+// depth+1 (no re-fetch — the descriptor is cached in `nodes` the first time
+// it resolves), so every node ends up at its true shortest depth regardless
+// of traversal order. Opaque parents (fetch/parse failure, or non-PROF: no
+// token + no parents + no resources, spec §2/§6) get exactly one conformance
+// entry and no node, by unique URL. `order` = first-encounter index, used
+// only for stable tie-breaking in phase 2.
+async function collect(rootUrl, rootParents, acc, fetchFn) {
+  const nodes = new Map()
+  const opaque = new Set()
+  let order = 0
+  const queue = rootParents.map((url) => ({ url, depth: 1 }))
+  while (queue.length) {
+    const { url, depth } = queue.shift()
+    if (url === rootUrl || opaque.has(url)) continue   // root is depth 0 by construction; opaque never becomes a node
+    const existing = nodes.get(url)
+    if (existing) {
+      if (depth < existing.depth) {
+        existing.depth = depth
+        for (const p of existing.d.parents) queue.push({ url: p, depth: depth + 1 })
+      }
+      continue
+    }
+    let d
+    try { d = await descriptorToProfile(await fetchJson(url, fetchFn), url, { documentLoader: authedDocumentLoader(fetchFn) }) }
+    catch { opaque.add(url); acc.conformance.push({ iri: url, resolved: false }); continue }
+    if (!d.token && !d.parents.length && !d.resources.length) {
+      opaque.add(url); acc.conformance.push({ iri: url, resolved: false }); continue
+    }
+    acc.conformance.push({ iri: url, resolved: true })
+    nodes.set(url, { d, depth, order: order++ })
+    for (const p of d.parents) queue.push({ url: p, depth: depth + 1 })
   }
-  acc.conformance.push({ iri: url, resolved: true })
-  for (const p of d.parents) await walk(p, acc, visited, fetchFn, depth + 1)
-  await dispatch(d.resources, acc, fetchFn, depth)
+  return nodes
+}
+
+// Phase 2 — DISPATCH: each collected node's resources exactly once, ordered
+// by depth DESCENDING (farthest ancestor first), ties by first-encounter
+// order — this reproduces the pre-P3b chain dispatch order exactly (floor
+// artifacts land before parent-family artifacts before child's), so list
+// fields (validation/vocabulary/contexts) keep their existing union/stack
+// order. Singleton fields resolve nearest-wins purely off the `depth`
+// threaded through `assignSingleton`, independent of this order — and since
+// depth only decreases as this loop proceeds, the root's own depth-0
+// dispatch (in `loadProfile`, run separately AFTER this) is always the last,
+// nearest word on any singleton key (P3b child-override).
+async function dispatchAll(nodes, acc, fetchFn) {
+  const ordered = [...nodes.values()].sort((a, b) => b.depth - a.depth || a.order - b.order)
+  for (const n of ordered) await dispatch(n.d.resources, acc, fetchFn, n.depth)
 }
 
 export async function loadProfile(descriptorUrl, { fetchFn = fetch } = {}) {
   const acc = { conformance: [], validation: [], vocabulary: [], contexts: [],
-    identityPolicy: null, planeMapping: null, derivedViews: [], representations: [], unknownRoles: [], _singleton: {} }
+    identityPolicy: null, planeMapping: null, derivedViews: [], representations: [], unknownRoles: [],
+    _singleton: {}, _conflicts: {} }
   // The root descriptor must resolve — loud (P8 declaration side of the loader).
   const root = await descriptorToProfile(await fetchJson(descriptorUrl, fetchFn), descriptorUrl, { documentLoader: authedDocumentLoader(fetchFn) })
-  const visited = new Set([descriptorUrl])
-  for (const p of root.parents) await walk(p, acc, visited, fetchFn, 1)
-  await dispatch(root.resources, acc, fetchFn, 0)
+  const nodes = await collect(descriptorUrl, root.parents, acc, fetchFn)
+  await dispatchAll(nodes, acc, fetchFn)
+  await dispatch(root.resources, acc, fetchFn, 0)   // depth 0, always last: the child-override escape hatch (P3b)
+  // Only NOW — after the root had its chance to override — do any pending
+  // equal-depth singleton disputes actually fail the load.
+  for (const key of Object.keys(acc._conflicts)) {
+    const c = acc._conflicts[key]
+    throw new Error(`profile merge conflict: '${c.key}' from equally-near ${c.sourceA} and ${c.sourceB} disagree — the child profile must declare its own`)
+  }
   delete acc._singleton
+  delete acc._conflicts
   // conformance lists parents (walked or opaque); the root itself is the profile.
   return { id: root.id, token: root.token, ...acc }
 }
