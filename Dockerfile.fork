@@ -9,13 +9,14 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = per-storage services round (2026-07-18,
-# la3d/lws HEAD): per-storage TypeIndexService/TypeSearchService at /<pod>/types/*, per-storage
-# VoidService at /<pod>/profiles/void.jsonld, NotificationService dropped from the advertised
-# service list. Merge e74a2bb (onto 48cd8ae resource-server conformance).
+# Install the fork from a pinned git ref. Default = PROF/conneg closeout round (2026-07-19,
+# la3d/lws HEAD): R12 profile stamps on un-negotiated GET/HEAD (from .meta default reps, media-
+# equality guard, synthetic-view suppression), R13 q robustness, R14 media disambiguation among
+# same-profile reps, R16 exact-match teaching strings. Merge c0bc445 (onto e74a2bb per-storage
+# services round).
 # Pin to a full SHA; override with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=e74a2bb2dbc0ec60a1277595c7a85a9b696d36d2
+ARG JSS_GIT_REF=c0bc445ac9bc30b85c35863071822825f91f1e2e
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).
