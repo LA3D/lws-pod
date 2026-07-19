@@ -238,6 +238,54 @@ describe('instantiate', () => {
     expect(store.has(`${C}a.md.links.jsonld.acl`)).toBe(false)
   })
 
+  it('P2: a member face gets its own .meta declaring itself as default rep', async () => {
+    const { store, fetchFn } = podMock()
+    const renderers = { links: async (src) => (src.url.endsWith('a.md') ? '{"@id":"x"}' : null) }
+    await instantiate(C, 't', { representations: [SELF, LINKS], context: {} }, { fetchFn, renderers })
+    const faceMeta = JSON.parse(store.get(`${C}a.md.links.jsonld.meta`).body)
+    expect(faceMeta['altr:hasDefaultRepresentation']['@id']).toBe(`${C}a.md.links.jsonld`)
+    expect(faceMeta['altr:hasDefaultRepresentation']['dct:format']).toBe('application/ld+json')
+    expect(faceMeta['altr:hasDefaultRepresentation']['dct:conformsTo']['@id']).toBe('https://p.example/fam')
+  })
+
+  it('P2: a container-level face (target rep) gets its own .meta default self-entry', async () => {
+    const { store, fetchFn } = podMock()
+    const renderers = { index: async (_c, sources) => '# fresh' }
+    await instantiate(C, 't', { representations: [INDEX], context: {} }, { fetchFn, renderers })
+    const faceMeta = JSON.parse(store.get(`${C}index.md.meta`).body)
+    expect(faceMeta['altr:hasDefaultRepresentation']['@id']).toBe(`${C}index.md`)
+    expect(faceMeta['altr:hasDefaultRepresentation']['dct:format']).toBe('text/markdown')
+    expect(faceMeta['altr:hasDefaultRepresentation']['dct:conformsTo']['@id']).toBe('https://p.example/base')
+  })
+
+  it('P2: a derived-view (mode) face gets its own .meta default self-entry', async () => {
+    const listing = `<${C}> <http://www.w3.org/ns/ldp#contains> <${C}a.md>, <${C}x.links.jsonld> .`
+    const flat = JSON.stringify({ '@context': {}, '@id': 'https://authority.example/kb/x#it', 'https://schema.org/name': 'X' })
+    const { store, fetchFn } = podMock({
+      [C]: { body: listing, ct: 'text/turtle' },
+      [`${C}x.links.jsonld`]: { body: flat, ct: 'application/ld+json' },
+    })
+    const GRAPH = { id: 'graph', named_graph: 'g.jsonld', push_mode: 'replace', mode: 'dataset', members: '.links.jsonld', format: 'application/ld+json', conformsTo: 'https://p.example/fam' }
+    await instantiate(C, 't', { representations: [SELF, GRAPH], context: {} }, { fetchFn })
+    const faceMeta = JSON.parse(store.get(`${C}g.jsonld.meta`).body)
+    expect(faceMeta['altr:hasDefaultRepresentation']['@id']).toBe(`${C}g.jsonld`)
+    expect(faceMeta['altr:hasDefaultRepresentation']['dct:format']).toBe('application/ld+json')
+    expect(faceMeta['altr:hasDefaultRepresentation']['dct:conformsTo']['@id']).toBe('https://p.example/fam')
+  })
+
+  it('P2: the SOURCE resource .meta advertisement is unchanged (default=self rep, alternates=faces)', async () => {
+    const { store, fetchFn } = podMock()
+    const renderers = { links: async (src) => (src.url.endsWith('a.md') ? '{"@id":"x"}' : null) }
+    await instantiate(C, 't', { representations: [SELF, LINKS], context: {} }, { fetchFn, renderers })
+    const metaA = JSON.parse(store.get(`${C}a.md.meta`).body)
+    expect(metaA['altr:hasDefaultRepresentation']['@id']).toBe(`${C}a.md`)
+    expect(metaA['altr:hasDefaultRepresentation']['dct:format']).toBe('text/markdown')
+    expect(metaA['altr:hasRepresentation'][0]['@id']).toBe(`${C}a.md.links.jsonld`)
+    const metaB = JSON.parse(store.get(`${C}b.md.meta`).body)
+    expect(metaB['altr:hasDefaultRepresentation']['@id']).toBe(`${C}b.md`)
+    expect(metaB['altr:hasRepresentation']).toBeUndefined()
+  })
+
   it('missing renderer: throws by default, skips + reports when onMissingRenderer=skip', async () => {
     const { fetchFn } = podMock()
     await expect(instantiate(C, 't', { representations: [LINKS], context: {} }, { fetchFn })).rejects.toThrow(/links/)

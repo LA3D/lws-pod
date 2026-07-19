@@ -166,6 +166,12 @@ export async function instantiate(containerUrl, token, profile, { renderers = {}
       const put = await fetchFn(target, { method: 'PUT',
         headers: { 'content-type': rep.format, link: `<${rep.conformsTo}>; rel="profile"`, ...authH(token) }, body })
       results.push({ rep: rep.id, target, status: put.status })
+      // P2 (spec 2026-07-19 §4): the face's OWN .meta declares itself as its
+      // default representation, so a direct GET of the face carries its
+      // profile via the fork's un-negotiated stamp (R12) — data, not fork
+      // special-casing. Rides AFTER mirrorAcl: the face's .meta write binds
+      // WRITE-on-subject, and a private member's face ACL is already in place.
+      results.push(await advertise(target, token, repEntry(target, rep), [], fetchFn))
       alternates.push(repEntry(target, rep))
     }
     if (selfRep || alternates.length)
@@ -180,6 +186,7 @@ export async function instantiate(containerUrl, token, profile, { renderers = {}
     if (rep.mode) {
       const out = await materializeDerivedView(containerUrl, token, rep, { context: profile.context ?? {}, fetchFn, skip: containerTargets })
       results.push({ rep: rep.id, target: out.target, status: out.status })
+      results.push(await advertise(out.target, token, repEntry(out.target, rep), [], fetchFn))
       containerAlts.push(repEntry(out.target, rep))
     } else {
       if (!need(rep)) continue
@@ -188,6 +195,7 @@ export async function instantiate(containerUrl, token, profile, { renderers = {}
       const put = await fetchFn(target, { method: 'PUT',
         headers: { 'content-type': rep.format, link: `<${rep.conformsTo}>; rel="profile"`, ...authH(token) }, body })
       results.push({ rep: rep.id, target, status: put.status })
+      results.push(await advertise(target, token, repEntry(target, rep), [], fetchFn))
       containerAlts.push(repEntry(target, rep))
     }
   }
