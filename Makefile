@@ -3,10 +3,14 @@ BASE ?= http://localhost:3838
 ENVFILE = .env.$(ENV)
 COMPOSE = docker compose --env-file $(ENVFILE) -f docker-compose.yml -f docker-compose.$(ENV).yml
 
+# Report-only capability check (Task 3) + its RED counterpart, test-capabilities (Task 4).
+RIG     ?= fork-tls
+CAPBASE ?= https://pod.vardeman.me
+
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-multitenant test-nextfork test-wiki test-projection test-viewer test-conformance test-services test-profneg publish-profiles reinstantiate seed-multitenant seed-bob shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-multitenant test-nextfork test-wiki test-projection test-viewer test-conformance test-services test-profneg capcheck test-capabilities publish-profiles reinstantiate seed-multitenant seed-bob shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -56,6 +60,7 @@ build: $(ENVFILE)
 up: $(ENVFILE)
 	$(COMPOSE) up -d --build
 	@echo "JSS ($(ENV)) up at $(BASE)  (logs: make logs)"
+	@$(MAKE) --no-print-directory capcheck RIG=local
 
 down: $(ENVFILE)
 	$(COMPOSE) down
@@ -244,6 +249,15 @@ test-projection:
 	cd projection && npm test
 	cd apps/wiki-projector && npm test
 
+# Report-only capability verdict (guardrails round 2026-07-21). Never fails a deploy.
+capcheck:
+	@RIG=$(RIG) ./scripts/capcheck.sh
+
+# The RED gate: manifest vs actual. Unlike the 37 skipIf sites across the gate suite,
+# this one cannot skip its way to green.
+test-capabilities:
+	BASE=$(CAPBASE) NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/capabilities.test.mjs
+
 # Publish the profile definitions to the fork TLS pod + bind the demo container.
 # Needs `make up-fork-tls` running + `make cert`'s CA. POD_TOKEN via tests helper flow.
 # ACLs are probe-first (review #1): an existing .acl is never overwritten, so re-runs
@@ -315,6 +329,7 @@ cid-tls:
 up-fork-tls: cert
 	docker compose -f docker-compose.fork-tls.yml up -d --build
 	@echo "fork pod (--lws) behind Caddy TLS at https://pod.vardeman.me/  (curl --cacert certs/rootCA.pem)"
+	@$(MAKE) --no-print-directory capcheck RIG=fork-tls
 
 down-fork-tls:
 	docker compose -f docker-compose.fork-tls.yml down -v
