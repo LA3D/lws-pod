@@ -70,10 +70,17 @@ check), Docker Compose, Caddy TLS.
 
 ### Task 1: Remove the stale `Dockerfile.fork` CMD
 
-`Dockerfile.fork`'s CMD still carries `--mashlib-cdn` and lacks `--idp-issuer` / `--lws-config`,
-so `docker run` without compose yields a different pod than `make up-fork-tls`. Compose always
-supplies `command:`, so the CMD is dead weight. The base `Dockerfile`'s CMD is **load-bearing**
-(`docker-compose.local.yml` never overrides `command`) and must NOT be touched.
+`Dockerfile.fork`'s CMD lacks `--idp-issuer` and `--lws-config`, so `docker run` without compose
+yields a different pod than `make up-fork-tls` — and a missing `--lws-config` means LWS service
+pointers are silently off. Compose always supplies `command:`, so the CMD is dead weight. The base
+`Dockerfile`'s CMD is **load-bearing** (`docker-compose.local.yml` never overrides `command`) and
+must NOT be touched.
+
+**Corrected 2026-07-21:** an earlier draft of this task also claimed the CMD carried
+`--mashlib-cdn`. It does not — that was dropped in the PROF/conneg round, and the drafting read
+predated the rig pull. Notably, that round updated the CMD's mashlib flag while leaving it missing
+`--idp-issuer`/`--lws-config`: a partial update to duplicated config, which is the exact failure
+this task removes.
 
 **Files:**
 - Modify: `Dockerfile.fork` (final CMD block)
@@ -89,8 +96,9 @@ cd /Users/cvardema/dev/git/LA3D/agents/lws-pod
 grep -A3 '^CMD' Dockerfile.fork
 grep -n 'command:' -A6 docker-compose.fork-tls.yml
 ```
-Expected: Dockerfile CMD contains `--mashlib-cdn` and no `--lws-config`; compose `command:`
-contains `--lws-config` and no `--mashlib-cdn`.
+Expected: `Dockerfile.fork`'s CMD has **no** `--lws-config` and **no** `--idp-issuer`, while
+compose's `command:` has both. Neither carries `--mashlib-cdn`. That difference is the drift this
+task removes. If the two flag sets are identical, STOP and report — the premise is gone.
 
 - [ ] **Step 2: Replace CMD with a loud refusal**
 
@@ -98,9 +106,9 @@ Replace the `CMD [...]` block at the end of `Dockerfile.fork` with:
 
 ```dockerfile
 # No default CMD by design (2026-07-21 guardrails round). The flag set is defined in exactly ONE
-# place — docker-compose.fork-tls.yml `command:`. A default here drifted stale (carried
-# --mashlib-cdn after the navigator round dropped it; lacked --idp-issuer and --lws-config), so
-# `docker run` silently produced a different pod than `make up-fork-tls`. Fail loudly instead.
+# place — docker-compose.fork-tls.yml `command:`. A default here drifted stale (missing
+# --idp-issuer and --lws-config for rounds, so LWS service pointers came up silently off), and
+# `docker run` produced a different pod than `make up-fork-tls`. Fail loudly instead.
 CMD ["sh", "-c", "echo '[lws-pod] This image has no default command. Start it via: make up-fork-tls (docker-compose.fork-tls.yml supplies the flag set). See docs/superpowers/specs/2026-07-21-deployment-guardrails-design.md' >&2; exit 64"]
 ```
 

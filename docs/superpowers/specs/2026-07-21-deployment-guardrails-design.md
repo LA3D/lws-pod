@@ -57,14 +57,23 @@ A single expected-capability set cannot describe both. Hence two manifests.
 ### 1.3 Confirmed drift: `Dockerfile.fork` CMD is stale
 
 ```
-Dockerfile.fork CMD:  … --idp --mcp --conneg --mashlib-cdn --git --notifications --provision-keys --lws
-compose  command:     … --idp --mcp --conneg              --git --notifications --provision-keys \
+Dockerfile.fork CMD:  … --idp --mcp --conneg --git --notifications --provision-keys --lws
+compose  command:     … --idp --mcp --conneg --git --notifications --provision-keys \
                           --idp-issuer https://pod.vardeman.me --lws --lws-config /alice/profiles/pod-config.jsonld
 ```
 
-The Dockerfile CMD still carries `--mashlib-cdn` (dropped in the navigator round) and lacks
-`--idp-issuer` and `--lws-config`. `docker run lws-pod:fork-conformance` without compose therefore
-yields a materially different pod than `make up-fork-tls`.
+The Dockerfile CMD lacks `--idp-issuer` and `--lws-config`. `docker run lws-pod:fork-conformance`
+without compose therefore yields a materially different pod than `make up-fork-tls` — and by §1.4,
+a missing `--lws-config` means the LWS service pointers are silently off.
+
+**Correction, 2026-07-21 (found during Task 1 execution).** This section originally also claimed
+the CMD still carried `--mashlib-cdn`. It does not: that flag was dropped from
+`Dockerfile.fork` in the PROF/conneg round pulled into the rig on 2026-07-21, and the drafting read
+predated that pull. The error is instructive rather than embarrassing — a previous round updated
+**one** of the two flag definitions (removing `--mashlib-cdn` from the CMD) while leaving the CMD
+missing `--idp-issuer`/`--lws-config` that compose has carried for rounds. Partial updates to
+duplicated configuration are exactly the failure this layer exists to prevent, and the duplication
+produced one even in the drafting of its own fix.
 
 **Precision, corrected during design:** only `Dockerfile.fork`'s CMD is dead weight, because
 `docker-compose.fork-tls.yml` always overrides `command`. The base `Dockerfile`'s CMD is
