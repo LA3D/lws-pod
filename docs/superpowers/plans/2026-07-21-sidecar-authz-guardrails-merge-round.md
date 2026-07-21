@@ -136,10 +136,15 @@ git add Dockerfile.fork
 git commit -m "$(cat <<'EOF'
 [Agent: Claude] fix(rig): single source of truth for the fork pod flag set
 
-Dockerfile.fork's CMD had drifted stale — carried --mashlib-cdn (dropped in
-the navigator round), lacked --idp-issuer and --lws-config — so `docker run`
-produced a materially different pod than `make up-fork-tls`. Compose always
-overrides `command:`, so the CMD was dead weight. Replaced with a loud exit 64.
+Dockerfile.fork's CMD lacked --idp-issuer and --lws-config, so `docker run`
+without compose produced a materially different pod than `make up-fork-tls` —
+and a missing --lws-config means LWS service pointers come up silently off.
+Compose always overrides `command:`, so the CMD was dead weight. Replaced with
+a loud exit 64 naming the supported start path.
+
+Notably a prior round updated this CMD (dropping --mashlib-cdn) without adding
+the flags compose had carried for rounds — a partial update to duplicated
+config, which is the failure this change removes.
 
 Base Dockerfile CMD is load-bearing (docker-compose.local.yml does not
 override command) and is deliberately unchanged.
