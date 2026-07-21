@@ -609,6 +609,23 @@ The fork has a working harness for exactly this: `startLwsPod(t)` + `callTool()`
   from `src/mcp/tools.js`; `serializeAcl`, `generatePrivateAcl` from `src/wac/parser.js`.
 - Produces: `test/sidecar-authz.test.js`, extended by Tasks 6, 7 and 10.
 
+> **CORRECTED DURING EXECUTION (2026-07-21). The code block below has two defects that were
+> found and fixed by the implementer; the landed `test/sidecar-authz.test.js` at commit
+> `4312e65` is the authoritative version, not this listing.**
+>
+> 1. **The `probe.status === 404` oracle is invalid** — and it was the assertion this task
+>    leaned on hardest. WAC never leaks `.acl` existence through HTTP status: the probe returns
+>    401/403 whether or not the sidecar was written. So the check could not distinguish the two
+>    states it existed to distinguish, and the suite would have been vacuous in precisely the way
+>    the "assert refusal AND absence" rule was written to prevent. Replaced with
+>    `await storage.exists(path)`, which is the real oracle.
+> 2. **The HTTP POST case was anonymous**, so it would have returned 401 regardless of the bug —
+>    a pass for the wrong reason, indistinguishable from a working guard. Fixed by minting an
+>    attacker bearer with `createToken(ATTACKER, 3600)`, following `test/idp-export.test.js`.
+>
+> Both defects are the same meta-error this round keeps surfacing: **an oracle that cannot
+> observe the state it claims to check.** Worth remembering when writing the remaining tasks.
+
 - [ ] **Step 1: Confirm the harness shape before writing against it**
 
 Run:
