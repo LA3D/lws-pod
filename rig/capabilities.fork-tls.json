@@ -1,0 +1,19 @@
+{
+  "rig": "fork-tls",
+  "base": "https://pod.vardeman.me",
+  "cacert": "certs/rootCA.pem",
+  "capabilities": {
+    "lwsEnabled": true,
+    "serverIndex": true,
+    "multiTenant": true,
+    "typeIndexService": true,
+    "typeSearchService": true,
+    "mcpService": true,
+    "voidService": true,
+    "perStorageServices": true,
+    "notifications": true,
+    "git": true,
+    "mashlibCdn": false
+  },
+  "storages": ["alice", "bob"]
+}

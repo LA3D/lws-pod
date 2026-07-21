@@ -1,0 +1,19 @@
+{
+  "rig": "local",
+  "base": "http://localhost:3838",
+  "cacert": null,
+  "capabilities": {
+    "lwsEnabled": false,
+    "serverIndex": false,
+    "multiTenant": false,
+    "typeIndexService": false,
+    "typeSearchService": false,
+    "mcpService": true,
+    "voidService": false,
+    "perStorageServices": false,
+    "notifications": true,
+    "git": true,
+    "mashlibCdn": true
+  },
+  "storages": []
+}
