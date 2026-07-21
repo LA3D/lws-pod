@@ -78,14 +78,57 @@ export async function probeCapabilities(base = BASE) {
     if (!r.ok) return null
     // Ok but not JSON (e.g. `/` serving an HTML index) is a real, parseable answer of
     // "not this shape" — not a probe failure. Only network/429/5xx are probe failures.
-    try { return await r.json() } catch { return null }
+    // Read the body once and try to parse it; a non-JSON ok body (HTML index, etc.) is
+    // returned as raw text rather than swallowed into null, so a caller sniffing for a
+    // marker in the body (e.g. mashlibCdn below) has something to sniff.
+    const text = await r.text()
+    try { return JSON.parse(text) } catch { return text }
   }
 
   const idx = await j(`${base}/.well-known/lws-storage`, lwsHdr)
   const svc = (doc, t) => Boolean(doc?.service?.some((s) => s.type === t))
   const alice = await j(`${base}/alice/lws-storage`, lwsHdr)
-  const mcpDoc = await j(`${base}/mcp`)          // null only on a real 404
-  const rootDoc = await j(`${base}/`)            // parsed opportunistically; may be null
+  // NOT `${base}/` — the bare root always serves JSS's own static "JSS Solid pod" welcome
+  // page (verified live: identical bytes regardless of Accept header or `--mashlib-cdn`),
+  // so it can never carry a mashlib marker to sniff. A normal pod container (alice, already
+  // relied on above for voidService/perStorageServices) renders the actual SolidOS Mashlib
+  // data-browser shell when asked for `text/html` — confirmed live present on lws-pod-local
+  // (--mashlib-cdn) and absent on the fork (--lws retires mashlib), matching both manifests.
+  const mashlibDoc = await j(`${base}/alice/`, { Accept: 'text/html' })
+
+  // GET /mcp is answered by Fastify's built-in 405 dispatch (wrong method, not missing
+  // route) BEFORE the route's own rate-limit hook runs, so a GET-based probe can never
+  // observe a real 429 and — worse — `!r.ok` in j() above would misread that 405 as
+  // absence even though it proves the route exists. A real anonymous JSON-RPC `initialize`
+  // POST is the actual budget-metered surface (see rig/capabilities.hurl and
+  // scripts/capcheck.sh, which solved this same problem for the report-only sibling):
+  // 404 means the route is genuinely absent, 429/5xx/network follow the identical
+  // retry-then-throw discipline as j() above, and any other status (200 success, or a
+  // 4xx JSON-RPC-level error from a route that does exist) means the service is present.
+  const mcpPresent = async (attempt = 0) => {
+    let r
+    try {
+      r = await fetch(`${base}/mcp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+      })
+    } catch (e) {
+      if (attempt < 3) { await sleep(2000 * (attempt + 1)); return mcpPresent(attempt + 1) }
+      throw new Error(`probe ${base}/mcp failed after retries: ${e.message}`)
+    }
+    if (r.status === 404) return false
+    if (r.status === 429 || r.status >= 500) {
+      if (attempt < 3) {
+        const ra = Number(r.headers.get('retry-after'))
+        await sleep(Number.isFinite(ra) && ra > 0 && ra < 120 ? ra * 1000 : 2000 * (attempt + 1))
+        return mcpPresent(attempt + 1)
+      }
+      throw new Error(`probe ${base}/mcp still ${r.status} after retries — cannot determine capabilities`)
+    }
+    return true
+  }
+  const mcpAlive = await mcpPresent()
 
   return {
     lwsEnabled: Boolean(idx),
@@ -98,11 +141,11 @@ export async function probeCapabilities(base = BASE) {
     multiTenant: Array.isArray(idx?.storage) && idx.storage.length > 0,
     typeIndexService: svc(idx, 'TypeIndexService'),
     typeSearchService: svc(idx, 'TypeSearchService'),
-    mcpService: svc(idx, 'McpService') || mcpDoc !== null,
+    mcpService: svc(idx, 'McpService') || mcpAlive,
     voidService: svc(alice, 'VoidService'),
     perStorageServices: svc(alice, 'TypeIndexService'),
     notifications: true,
     git: true,
-    mashlibCdn: /mashlib|databrowser/i.test(JSON.stringify(rootDoc ?? '')),
+    mashlibCdn: /mashlib|databrowser/i.test(JSON.stringify(mashlibDoc ?? '')),
   }
 }
