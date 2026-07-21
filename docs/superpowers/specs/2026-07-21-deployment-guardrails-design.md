@@ -106,6 +106,23 @@ resolves to *skip*, not *fail*.
 
 **Net effect today: drop a flag → pod boots healthy → every gate skips → vitest reports green.**
 
+### 1.5b Second failure mode, observed 2026-07-21: transient 429 → silent full-suite skip
+
+While establishing a known-good baseline, `make test-profneg` reported **17 skipped, 0 passed** —
+the acceptance gate for the PROF/conneg round whose own commit says "live-verified". The pod was
+fine. Its module-load probe had been rate-limited: the anonymous budget is 60/min, a gate run
+burns it, `r.ok` came back false, `.catch(() => ({}))` turned that into `{}`, `hasConneg` went
+false, and 17 assertions silently became a no-op reported as green. Re-run after a quiet period:
+**17/17 passed**. Same artifact on two more gates — `test-conneg` 11-passed/18-skipped → **29/29**,
+`test-mcp-v2` 8-passed/15-skipped → **18 passed**.
+
+This is worse than §1.5's version because it is *transient and non-reproducible*: nothing is
+misconfigured, so re-running later "fixes" it and no one investigates. It also generalizes the
+requirement for L4/L5: **a probe must never conflate "probe failed" with "capability absent."**
+404 is an answer; 429, 5xx, and network errors are not. The capability probe must retry honoring
+`Retry-After` and then **throw**, so an undeterminable state surfaces as a loud error rather than
+a false mismatch — otherwise the guardrail inherits the exact bug it was built to catch.
+
 The self-skip is not itself a bug. It is correct for a stock pod where those services legitimately
 do not exist — which is exactly the `lws-pod-local` rig. What is missing is any declaration of
 which pod this is.
