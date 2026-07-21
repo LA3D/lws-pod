@@ -35,5 +35,9 @@ EXPOSE 3000
 # Same surfaces as the committed image PLUS --lws (the layer under test). mashlib-cdn dropped:
 # the navigator round's server-side HTML views replace the CDN-loaded mashlib UI under --lws.
 ENTRYPOINT ["tini", "--"]
-CMD ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data", \
-     "--idp", "--mcp", "--conneg", "--git", "--notifications", "--provision-keys", "--lws"]
+
+# No default CMD by design (2026-07-21 guardrails round). The flag set is defined in exactly ONE
+# place — docker-compose.fork-tls.yml `command:`. A default here drifted stale (missing
+# --idp-issuer and --lws-config for rounds, so LWS service pointers came up silently off), and
+# `docker run` produced a different pod than `make up-fork-tls`. Fail loudly instead.
+CMD ["sh", "-c", "echo '[lws-pod] This image has no default command. Start it via: make up-fork-tls (docker-compose.fork-tls.yml supplies the flag set). See docs/superpowers/specs/2026-07-21-deployment-guardrails-design.md' >&2; exit 64"]
