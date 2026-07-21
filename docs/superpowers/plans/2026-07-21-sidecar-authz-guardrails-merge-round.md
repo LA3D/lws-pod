@@ -27,11 +27,19 @@ check), Docker Compose, Caddy TLS.
 - **Fork test command:** `npm test` = `node --test --test-concurrency=1 --test-force-exit 'test/*.test.js'`.
 - **No CI exists** in either repo. All verification is local.
 - **Every regression test must be observed FAILING before its fix is written.** A guard test never
-  seen red proves nothing (spec §5).
+  seen red proves nothing (spec §5). Task 5 exists solely to satisfy this for the security fix: it
+  reproduces all three exploits and is RED on the branch until Task 6 lands.
+- **Three verification layers for the auth boundary**, all required:
+  1. Task 5 integration (`startLwsPod` + `callTool` + `request`) — proves the exploit is real and
+     that the guard stops it end-to-end. Asserts refusal **and** sidecar absence, because a tool
+     can return an error after having already written the file.
+  2. Task 6 unit (injected `checkAccessFn`) — proves the mode decision per suffix and
+     create-vs-update. Fast inner loop.
+  3. Phase E live `test-mcp-v2` — proves the guard survives the real container + TLS stack.
 - **Guards fail closed.** Absent WebID + not explicitly internal ⇒ deny.
 - **Loud, never fatal** for boot report (L2) and deploy check (L4). The only permitted red is the
   vitest capability gate (Task 4).
-- **`--lws`-off byte-identity is deliberately broken** by Task 5 only, scoped to aux-suffix write
+- **`--lws`-off byte-identity is deliberately broken** by Task 6 only, scoped to aux-suffix write
   refusals (spec §3).
 - Fork base for the merge: `git merge-base la3d/lws upstream/gh-pages` = `0f4287f` (v0.0.210).
   Upstream target: `0976f3e` (v0.0.219).
@@ -45,15 +53,16 @@ check), Docker Compose, Caddy TLS.
 - Modify `Makefile` — wire `capcheck` into `up` / `up-fork-tls` (Task 3)
 - Create `tests/capabilities.test.mjs` — manifest-vs-actual, **fails** on mismatch (Task 4)
 - Modify `tests/helpers.mjs` — add `loadManifest()`, `probeCapabilities()` (Task 4)
-- Modify `Dockerfile.fork`, `docker-compose.fork-tls.yml` — repin (Task 12)
+- Modify `Dockerfile.fork`, `docker-compose.fork-tls.yml` — repin (Task 13)
 
 **FORK (JavaScriptSolidServer)**
-- Modify `src/lws/write.js` — choke-point guard in `applyLwsWrite` (Task 5)
-- Modify `src/mcp/tools.js` — per-surface guards in `write_resource`, `create_resource` (Task 6)
-- Modify all 7 `applyLwsWrite` call sites — thread `agentWebId` (Task 5)
-- Create `test/sidecar-authz.test.js` — regression suite (Tasks 5-7)
-- Create `src/lws/capability-report.js` — boot ledger (Task 11)
-- Modify `src/server.js` — one call site for the report (Task 11)
+- Modify `src/lws/write.js` — choke-point guard in `applyLwsWrite` (Task 6)
+- Modify `src/mcp/tools.js` — per-surface guards in `write_resource`, `create_resource` (Task 7)
+- Modify all 7 `applyLwsWrite` call sites — thread `agentWebId` (Task 6)
+- Create `test/sidecar-authz.test.js` — exploit reproduction, RED first (Task 5); unit cases
+  appended by Tasks 6 and 10
+- Create `src/lws/capability-report.js` — boot ledger (Task 12)
+- Modify `src/server.js` — one call site for the report (Task 12)
 
 ---
 
@@ -533,7 +542,174 @@ cd /Users/cvardema/dev/git/LA3D/JavaScriptSolidServer
 git checkout la3d/lws && git checkout -b la3d/lws-sidecar-authz
 ```
 
-### Task 5: Choke-point guard in `applyLwsWrite`
+**Tasks 5-8 land as one unit.** Task 5's tests are RED on the branch until Task 6 lands — that is
+the point (they demonstrate the live vulnerability). Do not checkpoint between them.
+
+### Task 5: Reproduce the three exploits against the UNPATCHED tree
+
+Prove the vulnerability exists in our own code with running tests before changing a line of it.
+The fork has a working harness for exactly this: `startLwsPod(t)` + `callTool()` + `request()`
+(`test/helpers.js`), used by `test/mcp-lws-write.test.js`. `ownerCtx(pod)` is just
+`{ webId, origin, federationDepth }`, so an attacker context is hand-buildable.
+
+**Files:**
+- Create: `test/sidecar-authz.test.js`
+
+**Interfaces:**
+- Consumes: `startLwsPod(t, name?)`, `ownerCtx(pod)`, `putFile(pod, path, content, opts)`,
+  `request(urlPath, options)`, `createTestPod(name)` from `test/helpers.js`; `callTool(name, args, ctx)`
+  from `src/mcp/tools.js`; `serializeAcl`, `generatePrivateAcl` from `src/wac/parser.js`.
+- Produces: `test/sidecar-authz.test.js`, extended by Tasks 6, 7 and 10.
+
+- [ ] **Step 1: Confirm the harness shape before writing against it**
+
+Run:
+```bash
+cd /Users/cvardema/dev/git/LA3D/JavaScriptSolidServer
+sed -n '180,215p' test/helpers.js
+sed -n '219,240p' test/helpers.js
+```
+Read what `startLwsPod` returns (`pod.base`, `pod.podName`, `pod.webId`) and what `putFile`
+accepts. **Use the real field names — do not assume the ones written below if they differ.**
+
+- [ ] **Step 2: Write the exploit reproduction**
+
+Create `test/sidecar-authz.test.js`. The load-bearing assertion in each case is **that the sidecar
+does not exist afterward** — a tool can return an error string having already written the file.
+
+```js
+/**
+ * Sidecar privilege-escalation regression suite (2026-07-21).
+ *
+ * Three surfaces could write an `.acl` for a SIBLING resource with only container
+ * Append/Write: HTTP POST+Slug (upstream b9b38ed), MCP create_resource, MCP write_resource.
+ * Each test asserts BOTH that the call is refused AND that no sidecar was created — an
+ * error return after a completed write would pass a naive assertion.
+ *
+ * These tests are RED against the unpatched tree by design: that is the vetting.
+ */
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { callTool } from '../src/mcp/tools.js';
+import { startLwsPod, ownerCtx, putFile, request } from './helpers.js';
+
+const ATTACKER = 'http://attacker.example/profile/card#me';
+
+// An ACL body that grants the attacker Control+Read over the sibling it names.
+const selfGrantingAcl = (base, subject) => JSON.stringify({
+  '@context': { acl: 'http://www.w3.org/ns/auth/acl#' },
+  '@id': '#grab',
+  '@type': 'acl:Authorization',
+  'acl:agent': { '@id': ATTACKER },
+  'acl:accessTo': { '@id': `${base}${subject}` },
+  'acl:mode': [{ '@id': 'acl:Control' }, { '@id': 'acl:Read' }],
+});
+
+// Container ACL granting the attacker Append only — the minimum privilege for the exploit.
+const appendOnlyAcl = (base, container) => JSON.stringify({
+  '@context': { acl: 'http://www.w3.org/ns/auth/acl#' },
+  '@id': '#append',
+  '@type': 'acl:Authorization',
+  'acl:agent': { '@id': ATTACKER },
+  'acl:accessTo': { '@id': `${base}${container}` },
+  'acl:default': { '@id': `${base}${container}` },
+  'acl:mode': [{ '@id': 'acl:Append' }, { '@id': 'acl:Write' }],
+});
+
+async function seedInbox(pod) {
+  const container = `/${pod.podName}/inbox/`;
+  await putFile(pod, `${container}seed.txt`, 'seed');
+  await putFile(pod, `${container}victim`, 'victim resource');
+  await putFile(pod, `${container}.acl`, appendOnlyAcl(pod.base, container));
+  return container;
+}
+
+const attackerCtx = (pod) => ({
+  webId: ATTACKER, origin: pod.base, federationDepth: 0, lwsEnabled: true,
+});
+
+describe('sidecar privilege escalation', () => {
+  test('MCP create_resource cannot plant a sibling .acl with only container Append', async (t) => {
+    const pod = await startLwsPod(t);
+    const container = await seedInbox(pod);
+
+    const res = await callTool('create_resource', {
+      container,
+      slug: 'victim.acl',
+      content: selfGrantingAcl(pod.base, `${container}victim`),
+      contentType: 'application/ld+json',
+    }, attackerCtx(pod));
+
+    assert.equal(res.isError, true, 'create_resource must refuse a sidecar slug');
+    const probe = await request(`${container}victim.acl`);
+    assert.equal(probe.status, 404, 'no .acl sidecar may exist after a refused create');
+  });
+
+  test('MCP write_resource cannot write a sibling .acl with only container Write', async (t) => {
+    const pod = await startLwsPod(t);
+    const container = await seedInbox(pod);
+
+    const res = await callTool('write_resource', {
+      path: `${container}victim.acl`,
+      content: selfGrantingAcl(pod.base, `${container}victim`),
+      contentType: 'application/ld+json',
+    }, attackerCtx(pod));
+
+    assert.equal(res.isError, true, 'write_resource must refuse an .acl without Control');
+    const probe = await request(`${container}victim.acl`);
+    assert.equal(probe.status, 404, 'no .acl sidecar may exist after a refused write');
+  });
+
+  test('HTTP POST with Slug: victim.acl cannot plant a sibling ACL', async (t) => {
+    const pod = await startLwsPod(t);
+    const container = await seedInbox(pod);
+
+    const res = await request(container, {
+      method: 'POST',
+      headers: { Slug: 'victim.acl', 'Content-Type': 'application/ld+json' },
+      body: selfGrantingAcl(pod.base, `${container}victim`),
+    });
+
+    assert.ok(res.status === 401 || res.status === 403,
+      `POST Slug: victim.acl must be refused, got ${res.status}`);
+    const probe = await request(`${container}victim.acl`);
+    assert.equal(probe.status, 404, 'no .acl sidecar may exist after a refused POST');
+  });
+});
+```
+
+- [ ] **Step 3: Run against the unpatched tree — the vetting step**
+
+Run:
+```bash
+node --test --test-force-exit test/sidecar-authz.test.js 2>&1 | tail -30
+```
+Expected: **FAIL — and record exactly how.** Each failure should show either `isError` false or
+the probe returning 200 instead of 404, i.e. the sidecar WAS created. Paste the failure output
+into the task report; it is the evidence that the vulnerability is real in our code, not merely
+inferred from reading it.
+
+If any test passes here, STOP and report: either the exploit does not work as analyzed, or the
+test does not exercise it. Do not proceed to write a guard against a vulnerability you could not
+demonstrate.
+
+- [ ] **Step 4: Commit the failing suite**
+
+```bash
+git add test/sidecar-authz.test.js
+git commit -m "$(cat <<'EOF'
+[Agent: Claude] test(lws): reproduce three sidecar privilege-escalation paths (RED)
+
+Demonstrates the vulnerability in our own code before fixing it. Each test
+asserts refusal AND absence of the sidecar — an error return after a completed
+write would pass a naive assertion. RED by design until the guards land.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Task 6: Choke-point guard in `applyLwsWrite`
 
 `applyLwsWrite` (`src/lws/write.js:15-83`) is the single pipeline all 7 write surfaces funnel
 through, and its `storage.write` runs **unconditionally** (only SHACL admission and type-capture
@@ -704,10 +880,11 @@ function refuse(instance, detail) {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 4: Run the unit tests to verify they pass**
 
 Run: `node --test --test-force-exit test/sidecar-authz.test.js`
-Expected: PASS, 4 tests.
+Expected: the 4 unit cases PASS. Task 5's three integration cases may still fail at this point —
+they need the call sites threaded in Step 5 before the guard can see a WebID.
 
 - [ ] **Step 5: Thread `agentWebId` through all 7 call sites**
 
@@ -723,13 +900,22 @@ git grep -n "request.webId" src/ | head -3
 ```
 If the field is named differently, use the actual name — do not invent one.
 
-- [ ] **Step 6: Run the full fork suite**
+- [ ] **Step 6: Task 5's exploit suite must now flip GREEN**
+
+Run: `node --test --test-force-exit test/sidecar-authz.test.js 2>&1 | tail -20`
+Expected: PASS, 7/7 (3 integration + 4 unit). **Quote this output in the report** — it is the
+before/after pair with Task 5 Step 3 that constitutes the vetting of this fix.
+
+If any integration case still fails, the guard is not reached on that path. Do NOT weaken the test.
+Diagnose which call site is not passing `agentWebId`.
+
+- [ ] **Step 7: Run the full fork suite**
 
 Run: `npm test 2>&1 | tail -20`
 Expected: no NEW failures vs the pre-change baseline. Capture the baseline first if unknown:
 `git stash && npm test 2>&1 | tail -5 && git stash pop`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/lws/write.js src/handlers/container.js src/handlers/resource.js src/mcp/tools.js test/sidecar-authz.test.js
@@ -756,49 +942,25 @@ EOF
 
 ---
 
-### Task 6: Per-surface guards on the MCP tools
+### Task 7: Per-surface guards on the MCP tools
 
 Defense in depth per spec decision 3, and it states the security property where a reader looks for
 it. Mirrors the pattern `write_acl` already uses at `tools.js:197`.
 
 **Files:**
 - Modify: `src/mcp/tools.js` (`write_resource` ~48-64, `create_resource` ~81-95)
-- Modify: `test/sidecar-authz.test.js`
 
 **Interfaces:**
-- Consumes: `wac(ctx, path, mode)` from `src/mcp/wac.js`; `AccessMode`; `sidecarSubject`.
+- Consumes: `wac(ctx, path, mode)` from `src/mcp/wac.js`; `AccessMode`; `sidecarSubject`;
+  `AUX_SUFFIX` from `src/storage/filesystem.js`.
 - Produces: no new exports.
 
-- [ ] **Step 1: Add the failing tests**
+**No new tests in this task.** The two MCP surfaces are already covered by Task 5's exploit
+reproduction, which must be green at the end of this task. Adding unit tests that pin `AUX_SUFFIX`
+and `sidecarSubject` would assert behavior that was never in doubt and would pass on first run,
+violating the plan's observed-failing-first constraint.
 
-Append to `test/sidecar-authz.test.js`:
-
-```js
-import { AUX_SUFFIX } from '../src/storage/filesystem.js';
-import { sidecarSubject } from '../src/utils/url.js';
-
-describe('MCP tool sidecar guards (unit-level policy check)', () => {
-  test('AUX_SUFFIX matches every sidecar kind the tools can be handed', () => {
-    for (const p of ['/a/x.acl', '/a/x.meta', '/a/x.lwstypes', '/a/x.lwsprov']) {
-      assert.ok(AUX_SUFFIX.test(p), `${p} must be recognised as a sidecar`);
-    }
-    assert.ok(!AUX_SUFFIX.test('/a/x.jsonld'));
-  });
-
-  test('sidecarSubject resolves container and resource sidecars', () => {
-    assert.deepEqual(sidecarSubject('/a/x.acl'), { subject: '/a/x', isContainer: false });
-    assert.deepEqual(sidecarSubject('/a/.acl'), { subject: '/a/', isContainer: true });
-    assert.equal(sidecarSubject('/a/x.jsonld'), null);
-  });
-});
-```
-
-- [ ] **Step 2: Run to verify**
-
-Run: `node --test --test-force-exit test/sidecar-authz.test.js`
-Expected: PASS (these assert existing helper behavior and pin it before the tool edits).
-
-- [ ] **Step 3: Guard `write_resource`**
+- [ ] **Step 1: Guard `write_resource`**
 
 In `src/mcp/tools.js`, replace the `authPath` line (~62) with:
 
@@ -820,7 +982,7 @@ In `src/mcp/tools.js`, replace the `authPath` line (~62) with:
   const authPath = (ctx.lwsEnabled && isMeta) ? sidecarSubject(path).subject : path;
 ```
 
-- [ ] **Step 4: Guard `create_resource`**
+- [ ] **Step 2: Guard `create_resource`**
 
 In `create_resource`, immediately after `const childPath = …` (~line 93) insert:
 
@@ -839,15 +1001,21 @@ In `create_resource`, immediately after `const childPath = …` (~line 93) inser
 
 Ensure `AUX_SUFFIX` and `sidecarSubject` are imported at the top of `tools.js`.
 
-- [ ] **Step 5: Run the full suite**
+- [ ] **Step 3: Task 5's exploit suite must now be fully GREEN**
+
+Run: `node --test --test-force-exit test/sidecar-authz.test.js`
+Expected: PASS, 3/3. All three exploit paths refused, no sidecar created in any case. This is the
+task's real acceptance criterion — quote the output in the report.
+
+- [ ] **Step 4: Run the full suite**
 
 Run: `npm test 2>&1 | tail -20`
 Expected: no new failures.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/mcp/tools.js test/sidecar-authz.test.js
+git add src/mcp/tools.js
 git commit -m "$(cat <<'EOF'
 [Agent: Claude] fix(mcp): Control gate on sidecar targets in write_resource/create_resource
 
@@ -863,7 +1031,7 @@ EOF
 
 ---
 
-### Task 7: Land Phase B on `la3d/lws`
+### Task 8: Land Phase B on `la3d/lws`
 
 - [ ] **Step 1: Full suite green**
 
@@ -891,7 +1059,7 @@ EOF
 
 ## Phase C — Upstream 0.0.219 merge (FORK)
 
-### Task 8: Merge `upstream/gh-pages`
+### Task 9: Merge `upstream/gh-pages`
 
 **Files:**
 - Modify (conflicts): `bin/jss.js`, `src/wac/checker.js`
@@ -975,13 +1143,13 @@ EOF
 
 ---
 
-### Task 9: Thread `noDebit` into the Phase B guards
+### Task 10: Thread `noDebit` into the Phase B guards
 
 Exists only because remediation landed before the merge (spec Stage 2a). Inert today — no
 `PaymentCondition` and no ledger file in the pod's `/data` — but a silent double-debit if skipped.
 
 **Files:**
-- Modify: `src/lws/write.js` (the `checkAccessFn` call from Task 5)
+- Modify: `src/lws/write.js` (the `checkAccessFn` call from Task 6)
 - Modify: `src/mcp/wac.js` (pass through a `noDebit` option)
 
 - [ ] **Step 1: Add the failing test**
@@ -1022,7 +1190,7 @@ export async function wac(ctx, path, mode, { noDebit = false } = {}) {
   const { allowed } = await checkAccess({ …, requiredMode: mode, noDebit });
 ```
 
-and pass `{ noDebit: true }` from the two Task 6 guard calls (the secondary Control checks only —
+and pass `{ noDebit: true }` from the two Task 7 guard calls (the secondary Control checks only —
 **not** the primary Append/Write checks, which stay authoritative).
 
 - [ ] **Step 4: Run to verify it passes**
@@ -1062,7 +1230,7 @@ EOF
 
 ## Phase D — Boot capability report (FORK)
 
-### Task 10: `src/lws/capability-report.js`
+### Task 11: `src/lws/capability-report.js`
 
 Sequenced after the merge so its one-line `server.js` edit stays out of the merge's way
 (`server.js` is the fork's highest-conflict file at +537).
@@ -1189,7 +1357,7 @@ EOF
 
 ## Phase E — Rig verification and housekeeping
 
-### Task 11: Repin, rebuild, run every gate
+### Task 12: Repin, rebuild, run every gate
 
 **Files:**
 - Modify: `Dockerfile.fork` (`ARG JSS_GIT_REF`), `docker-compose.fork-tls.yml` (default ref)
@@ -1213,7 +1381,7 @@ cd /Users/cvardema/dev/git/LA3D/agents/lws-pod
 docker compose -f docker-compose.fork-tls.yml up -d --build 2>&1 | tail -5
 sleep 15 && docker logs lws-pod-fork 2>&1 | grep -A8 'capability report'
 ```
-Expected: the ledger from Task 10, with `lws ON` and `lws-config` resolving.
+Expected: the ledger from Task 11, with `lws ON` and `lws-config` resolving.
 
 - [ ] **Step 4: Capability gates**
 
@@ -1247,7 +1415,7 @@ EOF
 )"
 ```
 
-### Task 12: Housekeeping
+### Task 13: Housekeeping
 
 - [ ] **Step 1: Fast-forward `la3d/main`**
 
@@ -1275,18 +1443,28 @@ Summarize: branches landed, gates green, what was NOT pushed (nothing in this pl
 
 ## Self-Review
 
-**Spec coverage.** Sidecar/merge spec: Stage 1 → Tasks 5-7; Stage 2 → Task 8; Stage 2a → Task 9;
-Stage 3 → Task 11; Stage 4 → Task 12. Guardrails spec: L1 → Task 1; L3 → Task 2; L4 → Task 3;
-L5 → Task 4 (refinement flagged in-task); L2 → Task 10.
+**Revision 2026-07-21 (post-pre-flight, Chuck-approved).** Task 5 added: reproduce all three
+exploits against the unpatched tree before any guard is written, asserting refusal **and** sidecar
+absence. Old Tasks 5-12 renumbered to 6-13. Task 7 lost its two helper-pinning unit tests — they
+asserted `AUX_SUFFIX`/`sidecarSubject` behavior that was never in doubt and passed on first run,
+violating the plan's own observed-failing-first constraint. Rig work proceeds on `main` per repo
+convention (Chuck-approved). Task 4's one-gate interpretation of L5 confirmed. `checkAccessFn`
+injection kept, with the three-layer verification scheme now stated in Global Constraints.
 
-**Known gaps, deliberate.** (1) Task 4 implements L5 as one gate rather than 37 predicate edits —
+**Spec coverage.** Sidecar/merge spec: Stage 1 → Tasks 5-8; Stage 2 → Task 9; Stage 2a → Task 10;
+Stage 3 → Task 12; Stage 4 → Task 13. Guardrails spec: L1 → Task 1; L3 → Task 2; L4 → Task 3;
+L5 → Task 4 (refinement flagged in-task); L2 → Task 11.
+
+**Known gaps, deliberate.** (0) Task 5's suite is RED on `la3d/lws-sidecar-authz` until Task 6
+lands — by design, and the reason Tasks 5-8 must land as one unit rather than being checkpointed
+apart. (1) Task 4 implements L5 as one gate rather than 37 predicate edits —
 flagged in-task for Chuck's rejection if unwanted. (2) Tasks 5 and 10 contain verification steps
 (`request.webId` field name, `printConfig` sufficiency, pod-config resolution helper) that instruct
 the implementer to check reality and adapt rather than assume — these are spec §5-flagged
 unverified pins, not placeholders. (3) The Task 3 Step 5 degradation test uses a stopped pod as the
-proxy for a degraded one; a true flag-dropped pod is exercised in Task 11's acceptance.
+proxy for a degraded one; a true flag-dropped pod is exercised in Task 12's acceptance.
 
-**Type consistency.** `applyLwsWrite` gains `agentWebId`, `internal`, `checkAccessFn` in Task 5 and
-uses all three consistently in Task 9. `wac(ctx, path, mode, opts)` gains its 4th param in Task 9
-only, after Task 6 uses the 3-arg form — Task 9 Step 3 defaults `opts` so Task 6's calls stay valid.
+**Type consistency.** `applyLwsWrite` gains `agentWebId`, `internal`, `checkAccessFn` in Task 6 and
+uses all three consistently in Task 10. `wac(ctx, path, mode, opts)` gains its 4th param in Task 10
+only, after Task 7 uses the 3-arg form — Task 10 Step 3 defaults `opts` so Task 7's calls stay valid.
 `loadManifest`/`probeCapabilities`/`expectedCap` are defined in Task 4 and used only there.
