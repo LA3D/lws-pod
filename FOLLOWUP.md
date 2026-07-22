@@ -10,8 +10,10 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 ## ▶▶ 2026-07-21 — SIDECAR-AUTHZ + GUARDRAILS + 0.0.219 MERGE ROUND: COMPLETE + LIVE-VERIFIED (2026-07-22)
 
 **▶ START HERE.** The whole round (13 tasks) is DONE across both repos and live-verified on the
-fork-tls rig. Next entry point = **SEC-1 below** (the one unfinished remediation of the sidecar
-class), then the marker-migration backfill. Do NOT re-run any Phase A–E task.
+fork-tls rig. **SEC-1 is now CLOSED too** (2026-07-22, fork branch
+`la3d/sec1-remotestorage-sidecar-authz` @ `a5694ad` — NOT pushed/merged; see the CLOSED block
+below). Next entry point = the **lws:Storage marker-migration backfill** (still open, below). Do NOT
+re-run any Phase A–E task.
 
 **Round: brainstorm → 2 specs → 1 combined plan → subagent-driven implementation (13 tasks, fork + rig).**
 Specs `docs/superpowers/specs/2026-07-21-sidecar-authz-and-upstream-merge-design.md` and
@@ -55,8 +57,9 @@ the Dockerfile git-ref build could fetch it). RIG `main` repin `5623912` committ
 feature branches + local `la3d/main` (`0976f3e`) NOT pushed. Remaining pushes are Chuck's call.
 
 **Still open (separate tickets, NOT this round):**
-- **SEC-1 below** — remoteStorage no-WAC sidecar write (9th surface of the sidecar-authz class).
-  Unfinished remediation; fix before any pod is exposed to non-owner agents.
+- ~~**SEC-1 below** — remoteStorage no-WAC sidecar write.~~ **DONE 2026-07-22** (fork branch
+  `la3d/sec1-remotestorage-sidecar-authz` @ `a5694ad`, NOT pushed/merged — Chuck's call). See the
+  CLOSED block below.
 - **lws:Storage marker migration gap** — the `.lwstypes` storage-root marker is written only at pod
   provisioning (fork `a8e0c47`, 2026-07-15); pods provisioned earlier silently lose storage
   discovery on upgrade (no crash, no warning). Fine for a wipeable dev rig, NOT for a public pod with
@@ -64,43 +67,50 @@ feature branches + local `la3d/main` (`0976f3e`) NOT pushed. Remaining pushes ar
 
 ---
 
-## 🔓 SEC-1 (OPEN) — remoteStorage no-WAC sidecar write: unfinished sidecar-authz remediation
+## 🔒 SEC-1 (CLOSED 2026-07-22) — remoteStorage no-WAC sidecar write: sidecar-authz remediation complete
 
-**Where:** FORK `la3d/lws`, `src/remotestorage.js` (PUT + DELETE `/storage/:user/*`), registered
-**unconditionally** ("always on — no flag") at `src/server.js:625`.
+**Fix:** FORK branch `la3d/sec1-remotestorage-sidecar-authz` @ `a5694ad` (off `la3d/lws`, NOT
+pushed/merged — Chuck's call). Full fork suite **1952 pass / 0 fail / 1 skip**. Round: red-first
+TDD → adversarial subagent review → two review-driven follow-up fixes, all red-first.
 
-**Severity: HIGH — authenticated-non-owner privilege escalation to full Control of arbitrary
-resources.** Same class Phase B closed on the HTTP + 4 MCP surfaces, reached through a different
-protocol that never had a WAC gate. Confirmed by direct code review 2026-07-22.
+**Was:** `src/remotestorage.js` (registered unconditionally, `ownerWebId:null`) served
+`/storage/:user/*` over the same `./data` tree the Solid/WAC layer reads ACLs from, but its bespoke
+`checkAuth()` authorized **any** authenticated WebID and never consulted WAC; `hasDotfile()` caught
+only leading-dot segments, so a mid-name aux suffix (`victim.acl`/`.meta`/`.lwstypes`/`.lwsprov`)
+passed straight to `storage.write`/`remove`/`stat`. HIGH: an authenticated non-owner could plant a
+self-granting `.acl`, strip a sibling's restrictive one, or **read** any sidecar (GET was a
+disclosure surface the original PUT/DELETE framing missed). 9th surface of the class Phase B closed.
 
-**Why it is open (the exact gaps):**
-1. Registered with `ownerWebId: null` (`src/server.js:627`, "single-user: any authenticated user can
-   access"), so `checkAuth()` authorizes **any** authenticated WebID — not just the owner. Delegated
-   / MCP agents in our threat model hold exactly such tokens.
-2. `hasDotfile()` rejects only path segments that *begin* with `.`, so a mid-name sidecar suffix like
-   `victim.acl` (or `.meta`/`.lwstypes`/`.lwsprov`) passes the filter.
-3. PUT/DELETE write straight to `storage.write` / `storage.remove` — they do **not** route through the
-   `applyLwsWrite` choke point or any `wac()` / `auxSubject()` classification the rest of the round
-   funnels through.
+**How it was fixed (WAC subject-gate, NOT blanket-block — deliberate, see below):**
+- New `checkSidecarAuth` guard in all four handlers (GET/HEAD/PUT/DELETE), run **before** any storage
+  side-effect. Classifies via the shared `auxSubject()` and binds the op to the **SUBJECT's** ACL via
+  `checkAccess`, exactly as `authorizeAclAccess`/`authorizeSidecarAccess` do on the main HTTP surface:
+  `.acl` → CONTROL (all methods); reads → READ-on-subject; `.meta` PUT → CONTROL-to-create /
+  WRITE-to-update; `.meta` DELETE → WRITE; `.lwstypes`/`.lwsprov` writes refused (System-Managed).
+- **Why gate, not blanket-block:** remoteStorage's root has no ACL infra of its own, so the gate
+  fails **closed** by default (like a block *would*) BUT lets the owner — or any agent an ACL grants
+  Control — manage sidecars where the ACL model supports it. Blanket-block would have permanently
+  foreclosed that even in properly-ACL'd deployments. (Chuck's call, 2026-07-22.)
+- **Adversarial-review F1 (case-insensitive FS re-opened the hole):** `AUX_SUFFIX_RE` matched
+  case-sensitively, but a case-insensitive volume — the macOS `make up` rig bind-mounts `./data` —
+  aliases `victim.ACL` onto `victim.acl`, so the classifier skipped the CONTROL check. Fixed at the
+  **shared** classifier: new `AUX_SUFFIX_CI_RE`, `auxSubject` now matches any case and lowercases
+  `kind`. Hardens the HTTP + MCP surfaces too. (Verified live on this host: same-inode confirmed.)
+- **Adversarial-review F4:** remoteStorage container listings emitted aux sidecars as items with
+  ETag/size (existence oracle) — now hidden.
 
-**Exploit path:** authenticated non-owner agent →
-`PUT /storage/me/private/victim.acl` with a body granting itself `acl:Control` → then reads/writes
-`victim` freely. DELETE variant: remove a sibling's restrictive `victim.acl`, dropping it to the
-container default. No `--lws`, no `--public` needed.
+**Residuals (documented, NOT fixed — deliberate):**
+- **F2 — trailing dot/space** (`x.acl.`, `x.acl%20`): a Windows/NTFS-only latent bypass (trailing
+  dots/spaces stripped by that FS). Not exploitable on the Linux/macOS deploy target (bytes preserved
+  → distinct file); *fixing* it would over-tighten Linux by classifying genuinely-distinct files as
+  sidecars. LOW.
+- **F3 — owner sidecar-mgmt needs an ACL:** managing sidecars via remoteStorage requires an ACL
+  granting CONTROL on the subject; a bare root with no ACL fails closed. This is **intended** for the
+  shared-tree model (a `foo.acl` written via remoteStorage *is* the ACL for `foo`), not a bug.
 
-**Fix (own ticket; red-first, mirror Phase B style):**
-- Route remoteStorage PUT/DELETE through `applyLwsWrite` (the shared choke point) — or at minimum add
-  a `wac()` check + `auxSubject()` sidecar classification before `storage.write`/`storage.remove`, so
-  a sidecar target requires CONTROL (`.acl`) / CONTROL-to-create-else-WRITE (`.meta`) on the SUBJECT,
-  exactly as the MCP tools now do.
-- Patch `hasDotfile()` (or add a sidecar-suffix guard) to also catch `AUX_SUFFIX_RE`
-  (`.acl|.meta|.lwstypes|.lwsprov`) appearing mid-name, not only leading-dot segments.
-- Add a RED-first reproduction test (an Append/non-owner agent escalating via `PUT …/victim.acl`),
-  in the style of `test/sidecar-authz.test.js` / the `sidecar-path-invariant` property guard.
-- Re-audit the `.meta`/`.lwstypes`/`.lwsprov` variants and the DELETE path, not just `.acl` PUT.
-
-**Do this before any push that exposes a pod to non-owner agents.** Until then the Phase B
-remediation is incomplete — one escalation surface of the class remains live.
+**Tests:** `test/remotestorage-sidecar-authz.test.js` (23) — 12 escalation-refusal (4 aux suffixes ×
+PUT/DELETE/GET) + 4 no-over-tightening positive controls + 5 F1 case-insensitivity unit + F1 e2e +
+F4 listing. Mirrors `test/sidecar-authz.test.js` style (`storage.exists` oracle, not HTTP status).
 
 ---
 
