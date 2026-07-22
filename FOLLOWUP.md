@@ -46,10 +46,10 @@ acts on. Permanent property test `test/sidecar-path-invariant.test.js` defends t
 tree clean.
 
 **Deferred OUT of this round (separate tickets, not Phase C):**
-- `src/remotestorage.js:264` `PUT /storage/:user/*` — writes any path with **no WAC**, no choke
-  point; `hasDotfile()` only rejects segments *beginning* with `.` so `victim.acl` passes;
-  `checkAuth()` owner-restricts only when `ownerWebId` set. A 9th surface of the sidecar-authz class,
-  different protocol/auth model.
+- **remoteStorage no-WAC sidecar write (9th surface of the sidecar-authz class)** — promoted to its
+  own OPEN SECURITY ticket below (**§ SEC-1**). This is the one member of the class Phase B set out
+  to close but did NOT; treat it as unfinished remediation, not merely "deferred." Fix before any
+  push that exposes a pod to non-owner agents.
 - **lws:Storage marker migration gap** — the `.lwstypes` storage-root marker is written only at pod
   provisioning (fork `a8e0c47`, 2026-07-15); pods provisioned earlier silently lose storage
   discovery on upgrade (no crash, no warning). Cost this session: the fork-tls dev pod had to be
@@ -57,6 +57,46 @@ tree clean.
 
 **Push status:** nothing from this round is pushed. `la3d/lws` local `fbc4192` vs `origin/la3d/lws`
 `c0bc445`; lws-pod `main` ahead of origin. Push is Chuck's call.
+
+---
+
+## 🔓 SEC-1 (OPEN) — remoteStorage no-WAC sidecar write: unfinished sidecar-authz remediation
+
+**Where:** FORK `la3d/lws`, `src/remotestorage.js` (PUT + DELETE `/storage/:user/*`), registered
+**unconditionally** ("always on — no flag") at `src/server.js:625`.
+
+**Severity: HIGH — authenticated-non-owner privilege escalation to full Control of arbitrary
+resources.** Same class Phase B closed on the HTTP + 4 MCP surfaces, reached through a different
+protocol that never had a WAC gate. Confirmed by direct code review 2026-07-22.
+
+**Why it is open (the exact gaps):**
+1. Registered with `ownerWebId: null` (`src/server.js:627`, "single-user: any authenticated user can
+   access"), so `checkAuth()` authorizes **any** authenticated WebID — not just the owner. Delegated
+   / MCP agents in our threat model hold exactly such tokens.
+2. `hasDotfile()` rejects only path segments that *begin* with `.`, so a mid-name sidecar suffix like
+   `victim.acl` (or `.meta`/`.lwstypes`/`.lwsprov`) passes the filter.
+3. PUT/DELETE write straight to `storage.write` / `storage.remove` — they do **not** route through the
+   `applyLwsWrite` choke point or any `wac()` / `auxSubject()` classification the rest of the round
+   funnels through.
+
+**Exploit path:** authenticated non-owner agent →
+`PUT /storage/me/private/victim.acl` with a body granting itself `acl:Control` → then reads/writes
+`victim` freely. DELETE variant: remove a sibling's restrictive `victim.acl`, dropping it to the
+container default. No `--lws`, no `--public` needed.
+
+**Fix (own ticket; red-first, mirror Phase B style):**
+- Route remoteStorage PUT/DELETE through `applyLwsWrite` (the shared choke point) — or at minimum add
+  a `wac()` check + `auxSubject()` sidecar classification before `storage.write`/`storage.remove`, so
+  a sidecar target requires CONTROL (`.acl`) / CONTROL-to-create-else-WRITE (`.meta`) on the SUBJECT,
+  exactly as the MCP tools now do.
+- Patch `hasDotfile()` (or add a sidecar-suffix guard) to also catch `AUX_SUFFIX_RE`
+  (`.acl|.meta|.lwstypes|.lwsprov`) appearing mid-name, not only leading-dot segments.
+- Add a RED-first reproduction test (an Append/non-owner agent escalating via `PUT …/victim.acl`),
+  in the style of `test/sidecar-authz.test.js` / the `sidecar-path-invariant` property guard.
+- Re-audit the `.meta`/`.lwstypes`/`.lwsprov` variants and the DELETE path, not just `.acl` PUT.
+
+**Do this before any push that exposes a pod to non-owner agents.** Until then the Phase B
+remediation is incomplete — one escalation surface of the class remains live.
 
 ---
 
