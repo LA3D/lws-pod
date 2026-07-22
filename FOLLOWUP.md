@@ -7,10 +7,63 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-07-19 — PROF/CONNEG CLOSEOUT (item 3) DONE + LIVE-VERIFIED; NEXT = item 4 (authorization-server track)
+## ▶▶ 2026-07-21 — SIDECAR-AUTHZ + GUARDRAILS + 0.0.219 MERGE ROUND: PHASES A+B DONE; NEXT = Phase C (upstream merge)
 
-**▶ START HERE.** Supersedes the 2026-07-18 per-storage-services pointer below as the
-next-session entry point.
+**▶ START HERE.** Supersedes the 2026-07-19 PROF/conneg pointer below as the next-session entry
+point. This round is IN PROGRESS across two repos — resume mid-round, do not restart.
+
+**Round: brainstorm → 2 specs → 1 combined plan → subagent-driven implementation (13 tasks, fork + rig).**
+Specs `docs/superpowers/specs/2026-07-21-sidecar-authz-and-upstream-merge-design.md` and
+`docs/superpowers/specs/2026-07-21-deployment-guardrails-design.md`; plan
+`docs/superpowers/plans/2026-07-21-sidecar-authz-guardrails-merge-round.md` — **its `SESSION HANDOFF`
+block at the top is the authoritative resume state** (committed copy of the SDD ledger, which lives
+in gitignored `.superpowers/sdd/progress.md`).
+
+**DONE — Phase A (rig guardrails, lws-pod `main`, committed, NOT pushed):** L1 removed the stale
+`Dockerfile.fork` CMD; L3 two capability manifests (`rig/capabilities.{fork-tls,local}.json`); L4
+report-only `capcheck` hurl gate wired into `make up`/`up-fork-tls`; L5 the one RED gate
+(`tests/capabilities.test.mjs`) that can't skip. Every one of these fixed a real *green-by-skipping*
+or *probe-failure-read-as-absent* bug — the guardrails exist because 37 skipIf sites across 20 gate
+files reported green on a degraded pod. Fork pod reseeded + healthy; all live gates green.
+
+**DONE — Phase B (sidecar authz, FORK `la3d/lws` @ `fbc4192`, merged `--no-ff`, NOT pushed; suite
+1806/3fail → 1851/0fail):** spec scoped 3 escalation surfaces; adversarial review found **8**, all
+one root cause (authz on one path-form, operation on another). Structural fix `canonicalPodPath()`
++ `resolvePath()` inside `wac()` so every MCP tool — including future ones — authorizes the node it
+acts on. Permanent property test `test/sidecar-path-invariant.test.js` defends the
+`urlToPath(canonicalPodPath(X)) === urlToPath(X)` invariant (verified it fails when broken).
+
+**NEXT — Phase C+ (all FORK unless noted), per the plan's SESSION HANDOFF checklist:**
+- **Task 9** upstream `gh-pages` (0.0.219) merge off `la3d/lws`; 2 pre-analyzed conflicts
+  (`bin/jss.js` additive, `src/wac/checker.js` = our `aclCache` + their `noDebit`); plugins merge
+  DORMANT; verify upstream `b9b38ed` `handlePost` guard composes with our `applyLwsWrite` guard.
+- **Task 10** thread `noDebit: true` into the Phase B secondary `checkAccess` calls (Stage 2a).
+- **Task 11** loud boot capability report; **Task 12** repin/rebuild/full live gates; **Task 13**
+  housekeeping (`la3d/main` ff to `upstream/gh-pages`).
+
+**Housekeeping already closed this session:** `cth.env` corrected (both WebIDs → the
+`profile/card.jsonld#me` JSS actually mints; bare `card` 404s post-conneg) and committed — fork
+tree clean.
+
+**Deferred OUT of this round (separate tickets, not Phase C):**
+- `src/remotestorage.js:264` `PUT /storage/:user/*` — writes any path with **no WAC**, no choke
+  point; `hasDotfile()` only rejects segments *beginning* with `.` so `victim.acl` passes;
+  `checkAuth()` owner-restricts only when `ownerWebId` set. A 9th surface of the sidecar-authz class,
+  different protocol/auth model.
+- **lws:Storage marker migration gap** — the `.lwstypes` storage-root marker is written only at pod
+  provisioning (fork `a8e0c47`, 2026-07-15); pods provisioned earlier silently lose storage
+  discovery on upgrade (no crash, no warning). Cost this session: the fork-tls dev pod had to be
+  wiped + reseeded. Fine for a dev rig, NOT for a public pod with real data — needs a backfill.
+
+**Push status:** nothing from this round is pushed. `la3d/lws` local `fbc4192` vs `origin/la3d/lws`
+`c0bc445`; lws-pod `main` ahead of origin. Push is Chuck's call.
+
+---
+
+## ▶▶ 2026-07-19 — PROF/CONNEG CLOSEOUT (item 3) DONE + LIVE-VERIFIED (superseded as entry point by the 2026-07-21 round above)
+
+Was the START HERE pointer; superseded 2026-07-21. Supersedes the 2026-07-18 per-storage-services
+pointer below as the next-session entry point.
 
 **Round: brainstorm → spec → plan → subagent-driven implementation (7 fork tasks + 6 lws-pod
 tasks + this closeout).** Design of record
