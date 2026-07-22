@@ -10,10 +10,9 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 ## ▶▶ 2026-07-21 — SIDECAR-AUTHZ + GUARDRAILS + 0.0.219 MERGE ROUND: COMPLETE + LIVE-VERIFIED (2026-07-22)
 
 **▶ START HERE.** The whole round (13 tasks) is DONE across both repos and live-verified on the
-fork-tls rig. **SEC-1 is now CLOSED too** (2026-07-22, fork branch
-`la3d/sec1-remotestorage-sidecar-authz` @ `a5694ad` — NOT pushed/merged; see the CLOSED block
-below). Next entry point = the **lws:Storage marker-migration backfill** (still open, below). Do NOT
-re-run any Phase A–E task.
+fork-tls rig. **SEC-1 is now CLOSED too** (2026-07-22, merged to `la3d/lws` @ `4d01f41` and PUSHED
+to origin; see the CLOSED block below). Next entry point = the **lws:Storage marker-migration
+backfill** (still open, below). Do NOT re-run any Phase A–E task.
 
 **Round: brainstorm → 2 specs → 1 combined plan → subagent-driven implementation (13 tasks, fork + rig).**
 Specs `docs/superpowers/specs/2026-07-21-sidecar-authz-and-upstream-merge-design.md` and
@@ -57,9 +56,8 @@ the Dockerfile git-ref build could fetch it). RIG `main` repin `5623912` committ
 feature branches + local `la3d/main` (`0976f3e`) NOT pushed. Remaining pushes are Chuck's call.
 
 **Still open (separate tickets, NOT this round):**
-- ~~**SEC-1 below** — remoteStorage no-WAC sidecar write.~~ **DONE 2026-07-22** (fork branch
-  `la3d/sec1-remotestorage-sidecar-authz` @ `a5694ad`, NOT pushed/merged — Chuck's call). See the
-  CLOSED block below.
+- ~~**SEC-1 below** — remoteStorage no-WAC sidecar write.~~ **DONE + PUSHED 2026-07-22** (merged to
+  fork `la3d/lws` @ `4d01f41`, pushed to origin). See the CLOSED block below.
 - **lws:Storage marker migration gap** — the `.lwstypes` storage-root marker is written only at pod
   provisioning (fork `a8e0c47`, 2026-07-15); pods provisioned earlier silently lose storage
   discovery on upgrade (no crash, no warning). Fine for a wipeable dev rig, NOT for a public pod with
@@ -69,9 +67,10 @@ feature branches + local `la3d/main` (`0976f3e`) NOT pushed. Remaining pushes ar
 
 ## 🔒 SEC-1 (CLOSED 2026-07-22) — remoteStorage no-WAC sidecar write: sidecar-authz remediation complete
 
-**Fix:** FORK branch `la3d/sec1-remotestorage-sidecar-authz` @ `a5694ad` (off `la3d/lws`, NOT
-pushed/merged — Chuck's call). Full fork suite **1952 pass / 0 fail / 1 skip**. Round: red-first
-TDD → adversarial subagent review → two review-driven follow-up fixes, all red-first.
+**Fix:** merged to fork `la3d/lws` @ `4d01f41` (feature branch
+`la3d/sec1-remotestorage-sidecar-authz` @ `a5694ad`), **PUSHED to origin 2026-07-22**. Rig FOLLOWUP
+commit pushed on `main`. Full fork suite **1952 pass / 0 fail / 1 skip**. Round: red-first TDD →
+adversarial subagent review → two review-driven follow-up fixes, all red-first.
 
 **Was:** `src/remotestorage.js` (registered unconditionally, `ownerWebId:null`) served
 `/storage/:user/*` over the same `./data` tree the Solid/WAC layer reads ACLs from, but its bespoke
