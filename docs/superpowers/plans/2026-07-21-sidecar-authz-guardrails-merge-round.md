@@ -2,6 +2,32 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+---
+
+## SESSION HANDOFF — resume here (written 2026-07-21, end of session 1)
+
+**Phases A and B are DONE. A new session resumes at Phase C (Task 9, the upstream merge).**
+
+**State of the two repos (nothing pushed):**
+- FORK `/Users/cvardema/dev/git/LA3D/JavaScriptSolidServer`, branch **`la3d/lws` @ `fbc4192`** — Phase B landed via `--no-ff` merge of `la3d/lws-sidecar-authz`. Full suite **1851 pass / 0 fail / 1 skipped**. `la3d/lws` was `c0bc445` at session start; the security work is now on it.
+- RIG `/Users/cvardema/dev/git/LA3D/agents/lws-pod`, branch **`main`** — Tasks 1–4 (guardrails) committed. Fork pod running + healthy at `https://pod.vardeman.me`, freshly reseeded (alice+bob), all live gates green. This is the known-good baseline.
+- Full running ledger with every finding: `.superpowers/sdd/progress.md` (gitignored scratch — present on THIS machine; this handoff block is the durable copy).
+
+**What Phase B actually did (scope grew — read before Phase C):** the spec anticipated 3 sidecar privilege-escalation surfaces; adversarial review found **8**, all one root cause (authz decided on one form of a path, operation acted on another). Structural fix: `canonicalPodPath()` + `resolvePath()` inside `wac()` (the shared MCP authz entry) in the fork, plus a permanent property test (`test/sidecar-path-invariant.test.js`) defending `urlToPath(canonicalPodPath(X)) === urlToPath(X)`.
+
+**Resume checklist for the new session:**
+1. `cd` FORK, confirm `git rev-parse --short la3d/lws` == `fbc4192` and `npm test` == 1851 pass / 0 fail.
+2. Re-invoke `superpowers:subagent-driven-development` on this plan; the ledger marks Tasks 1–8 complete — do NOT re-run them.
+3. **Task 9 — upstream 0.0.219 merge.** Branch `la3d/lws-upstream-0.0.219` off `la3d/lws`, `git merge upstream/gh-pages`. Exactly 2 conflicts, both pre-analyzed in the spec §Stage-2 table: `bin/jss.js` (additive both sides) and `src/wac/checker.js` (our `aclCache` + their `noDebit`, orthogonal). Plugins merge **dormant** (spec decision 2). **Note:** upstream's `b9b38ed` `handlePost` guard arrives in this merge and overlaps our HTTP POST+Slug defense — verify they compose, don't fight; our guard is at `applyLwsWrite`, theirs at `handlePost`.
+4. **Task 10 — thread `noDebit: true`** into the Phase B guards' secondary `checkAccess` calls once the merge brings the param (spec Stage 2a). Inert today but a silent double-debit if skipped.
+5. **Task 11** boot capability report; **Task 12** repin/rebuild/full live gates; **Task 13** housekeeping (`la3d/main` ff to `upstream/gh-pages`; resolve dirty `cth.env` — ASK Chuck, it's been dirty across sessions).
+
+**Open items deferred out of this round (NOT Phase C work — separate tickets):**
+- `src/remotestorage.js:264` `PUT /storage/:user/*` writes any path with **no WAC** and no choke point; `hasDotfile()` only rejects segments *beginning* with `.` so `victim.acl` passes; `checkAuth()` restricts to owner only when `ownerWebId` is configured. A 9th surface of the same class, different protocol/auth model. Needs its own investigation.
+- Fork upgrade-migration gap: the `lws:Storage` marker (`.lwstypes`) is written only at pod provisioning (fork `a8e0c47`, 2026-07-15); pods provisioned earlier silently lose storage discovery on upgrade with no warning. Fine for a wipeable dev rig, not for a public pod with data.
+
+---
+
 **Goal:** Close three confirmed sidecar privilege-escalation paths, merge upstream's 23 commits
 (v0.0.210 → v0.0.219) including their WAC fix, and make a pod's deployed capability state explicit
 to the coding agent that deploys it.
