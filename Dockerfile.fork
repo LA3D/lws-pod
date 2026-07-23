@@ -9,14 +9,15 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Install the fork from a pinned git ref. Default = sidecar-authz + upstream 0.0.219 merge round
-# (2026-07-22, la3d/lws HEAD 8441751): Phase B sidecar privilege-escalation remediation (Control
-# gate at the applyLwsWrite choke point + per-surface MCP guards + canonicalPodPath invariant),
-# Phase C upstream 0.0.210->0.0.219 merge (plugins dormant; noDebit threaded through the guards),
-# Phase D loud non-fatal boot capability report.
+# Install the fork from a pinned git ref. Default = governance round (2026-07-23,
+# la3d/lws HEAD 2c2be1f): per-storage solid:owner (`owner` in the lws+json description,
+# Link rel=solid:owner on storage-root GET/HEAD), schema:provider (`provider` on the
+# ServerIndex + root-pod description, via new flag --lws-provider), and a boot-time
+# backfill that stamps missing lws:Storage markers + owner records and logs
+# `[lws-pod] governance backfill: ...`.
 # Pin to a full SHA; override with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=8441751ce44124494162d96df3eb3906df06619f
+ARG JSS_GIT_REF=2c2be1f985a0952c35e4064b982d6615acfdc67f
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).

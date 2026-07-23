@@ -10,7 +10,7 @@ CAPBASE ?= https://pod.vardeman.me
 # Subprojects with their own package.json (all carry a lockfile → npm ci is reproducible).
 NPM_DIRS = . projection apps/wiki-projector experiments/headless-cid
 
-.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-multitenant test-nextfork test-wiki test-projection test-viewer test-conformance test-services test-profneg capcheck test-capabilities publish-profiles reinstantiate seed-multitenant seed-bob shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
+.PHONY: setup doctor doctor-tls build up down logs reset test test-lws test-l3 test-typeindex test-indexed-relation test-mcp-v2 test-profiles test-dcat test-graph test-conneg test-preservation test-void test-referent test-multitenant test-governance test-nextfork test-wiki test-projection test-viewer test-conformance test-services test-profneg capcheck test-capabilities publish-profiles reinstantiate seed-multitenant seed-bob shell cert up-tls down-tls cid-tls up-fork-tls down-fork-tls
 
 # One-shot bootstrap for a clean checkout: env file + every subproject's deps. Idempotent; run
 # once after `git clone`. node_modules and .env.local are gitignored, so a fresh checkout has
@@ -207,6 +207,12 @@ test-profneg:
 test-multitenant:
 	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls && make seed-multitenant' first"; exit 1; }
 	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-multitenant.test.mjs
+
+# Governance live gate (solid:owner + schema:provider + boot-time backfill). Needs
+# up-fork-tls + `make seed-multitenant` (alice public + bob private).
+test-governance:
+	@[ -f certs/rootCA.pem ] || { echo "run 'make cert && make up-fork-tls && make seed-multitenant' first"; exit 1; }
+	BASE=https://pod.vardeman.me NODE_EXTRA_CA_CERTS=$(CURDIR)/certs/rootCA.pem npx vitest run tests/lws-governance.test.mjs
 
 # Cold-agent affordance harness (experiments/agent-eval). -dry = plumbing smoke
 # (MCP handshake + read surface, no API key); full run needs ANTHROPIC_API_KEY.

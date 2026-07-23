@@ -16,8 +16,8 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (sidecar-authz + upstream 0.0.219 round); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-8441751ce44124494162d96df3eb3906df06619f}"
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (governance round: solid:owner + schema:provider + backfill); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-2c2be1f985a0952c35e4064b982d6615acfdc67f}"
     image: lws-pod:fork-conformance
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --idp-issuer to advertise the public
@@ -32,10 +32,15 @@ services:
     # regardless. Keep this ABSOLUTE (a relative value would break the legacy void lookup).
     # Read lazily + mtime-cached: absent before publish = services off (no crash), no restart.
     # mashlib-cdn dropped (navigator round): server-side HTML views replace the CDN mashlib UI.
+    # --lws-provider (governance round): advertises schema:provider on the ServerIndex + root-pod
+    # description. Rig-local operator value: alice is this deployment's primary owner (the
+    # unified-operator model where the operator's default storage is a named storage). Point
+    # this at an external org URI later without code change.
     command: ["jss", "start", "-p", "3000", "-h", "0.0.0.0", "-r", "/data",
       "--idp", "--mcp", "--conneg", "--git", "--notifications", "--provision-keys",
       "--idp-issuer", "https://pod.vardeman.me",
-      "--lws", "--lws-config", "/alice/profiles/pod-config.jsonld"]
+      "--lws", "--lws-config", "/alice/profiles/pod-config.jsonld",
+      "--lws-provider", "https://pod.vardeman.me/alice/profile/card#me"]
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.
     expose:
       - "3000"
