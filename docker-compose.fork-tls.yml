@@ -16,8 +16,9 @@ services:
       context: .
       dockerfile: Dockerfile.fork
       args:
-        # default JSS_GIT_REF is pinned in Dockerfile.fork (governance round: solid:owner + schema:provider + backfill); override here if needed.
-        JSS_GIT_REF: "${JSS_GIT_REF:-2c2be1f985a0952c35e4064b982d6615acfdc67f}"
+        # default JSS_GIT_REF is pinned in Dockerfile.fork (governance round: solid:owner + schema:provider + backfill,
+        # plus the post-merge fix — storage-root owner Link is GET/HEAD-only, closing the anonymous-OPTIONS leak); override here if needed.
+        JSS_GIT_REF: "${JSS_GIT_REF:-1f3106f16a42ae9cb9cc75fac49eaf2dc3d12cb9}"
     image: lws-pod:fork-conformance
     container_name: lws-pod-fork
     # Same flags as the Dockerfile's default CMD, plus --idp-issuer to advertise the public

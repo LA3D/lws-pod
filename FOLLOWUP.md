@@ -50,10 +50,21 @@ capability-report row (the capability report prints before `onReady` runs); the 
 **Fork:** branch `la3d/governance-backfill` merged to `la3d/lws` @ `2c2be1f`, full suite **1974 pass /
 0 fail / 1 skip** (+22 vs the 1952 baseline), **PUSHED** to origin (Chuck-authorized, 2026-07-22).
 
+**Post-merge fix (2026-07-23):** a final whole-branch review (as opposed to the task-scoped reviews
+that only gated GET/HEAD) caught that anonymous `OPTIONS` on a private storage root still leaked the
+owner Link — `OPTIONS` bypasses WAC as a CORS preflight, and the owner-Link code path wasn't
+method-gated. Fixed + live-verified same day: `la3d/lws` @ `1f3106f` (full suite **1978 pass / 0 fail
+/ 1 skip**), storage-root owner Link is now GET/HEAD-only. `JSS_LWS_PROVIDER` env support and
+provider-URI validation rode along in the same commit. Record-only residuals: the backfill's
+`baseUrl` edge for legacy single-user pods healed without `--idp-issuer`, and a stale A6 root-pod
+comment in `server.js`.
+
 **Rig:** repin commit `d3cd8db` + provider-URI fix `c09db07` (provider must dereference → alice's
-real `card.jsonld#me`). Live-verified: backfill stamped 2 owner records for alice+bob on first boot,
-`(clean)` on restart; `make test-governance` NEW **5/5**; `test-multitenant` 6/6, `test-services`
-6/6, `test-conformance` 6/6, capcheck clean.
+real `card.jsonld#me`), then repin to `1f3106f` for the OPTIONS owner-leak fix. Live-verified:
+backfill stamped 2 owner records for alice+bob on first boot, `(clean)` on restart and on the
+`1f3106f` rebuild; `make test-governance` **6/6** (adds the anonymous-OPTIONS live gate);
+`test-multitenant` 6/6, `test-conformance` 6/6; live `curl -X OPTIONS .../bob/` confirms no
+`solid/terms#owner` Link.
 
 **Deferred / recorded (NOT built):**
 - **Implicit owner Control in WAC** — queued into the authorization-server track (order-of-work item

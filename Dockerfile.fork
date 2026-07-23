@@ -10,14 +10,17 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Install the fork from a pinned git ref. Default = governance round (2026-07-23,
-# la3d/lws HEAD 2c2be1f): per-storage solid:owner (`owner` in the lws+json description,
+# la3d/lws HEAD 1f3106f): per-storage solid:owner (`owner` in the lws+json description,
 # Link rel=solid:owner on storage-root GET/HEAD), schema:provider (`provider` on the
-# ServerIndex + root-pod description, via new flag --lws-provider), and a boot-time
+# ServerIndex + root-pod description, via new flag --lws-provider), a boot-time
 # backfill that stamps missing lws:Storage markers + owner records and logs
-# `[lws-pod] governance backfill: ...`.
+# `[lws-pod] governance backfill: ...`, PLUS the post-merge whole-branch-review fix:
+# the storage-root owner Link is now GET/HEAD-only — anonymous OPTIONS on a private
+# storage used to leak the owner Link (OPTIONS bypasses WAC as CORS preflight) — and
+# JSS_LWS_PROVIDER env support + provider-URI validation.
 # Pin to a full SHA; override with --build-arg JSS_GIT_REF=...
 ARG JSS_GIT_REPO=https://github.com/LA3D/JavaScriptSolidServer.git
-ARG JSS_GIT_REF=2c2be1f985a0952c35e4064b982d6615acfdc67f
+ARG JSS_GIT_REF=1f3106f16a42ae9cb9cc75fac49eaf2dc3d12cb9
 RUN npm install -g "git+${JSS_GIT_REPO}#${JSS_GIT_REF}"
 
 # Same local-dev SSRF relax knob as the committed Dockerfile (default OFF).

@@ -37,6 +37,12 @@ describe('governance surfaces (live)', () => {
     expect(root.headers.get('link') ?? '').not.toContain(OWNER_REL)
   })
 
+  it('anonymous OPTIONS on a private storage root carries no owner Link', async () => {
+    const res = await fetch(`${BASE}/bob/`, { method: 'OPTIONS' })
+    expect(res.status).toBeLessThan(500)
+    expect(res.headers.get('link') ?? '').not.toContain('http://www.w3.org/ns/solid/terms#owner')
+  })
+
   it('.lwsowner is write-refused live', async () => {
     const res = await fetch(`${BASE}/alice/.lwsowner`, {
       method: 'PUT',
