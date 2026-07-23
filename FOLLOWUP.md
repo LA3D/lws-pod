@@ -7,12 +7,73 @@ For the forward plan and order of operations, see **`docs/ROADMAP.md`**.
 
 ---
 
-## ▶▶ 2026-07-21 — SIDECAR-AUTHZ + GUARDRAILS + 0.0.219 MERGE ROUND: COMPLETE + LIVE-VERIFIED (2026-07-22)
+## ▶▶ 2026-07-22 — GOVERNANCE ROUND (pod governance layer + marker/owner backfill): COMPLETE + LIVE-VERIFIED
 
-**▶ START HERE.** The whole round (13 tasks) is DONE across both repos and live-verified on the
-fork-tls rig. **SEC-1 is now CLOSED too** (2026-07-22, merged to `la3d/lws` @ `4d01f41` and PUSHED
-to origin; see the CLOSED block below). Next entry point = the **lws:Storage marker-migration
-backfill** (still open, below). Do NOT re-run any Phase A–E task.
+**▶ START HERE.** The whole round is DONE on the fork and live-verified on the fork-tls rig. Next
+entry point = **standards-closeout item 4, the authorization-server track** (the implicit-owner
+Control-in-WAC deferral below is now queued into that track — it closes the owner-lockout gap and
+SEC-1 F3 when it lands). Do NOT re-run any of the 10 tasks below.
+
+**Round: brainstorm → spec → plan → subagent-driven implementation (8 fork tasks + 2 rig tasks, every
+task independently reviewed).** Spec
+`docs/superpowers/specs/2026-07-22-pod-governance-and-marker-backfill-design.md`; plan
+`docs/superpowers/plans/2026-07-22-pod-governance-and-marker-backfill.md`; task ledger in gitignored
+`.superpowers/sdd/progress.md`. 8 fork tasks = 6 planned + Task 4b (MCP-parity add-on) + 2
+review-driven fix rounds.
+
+**Vocabulary (CDIF/ODRL-reviewed, Chuck-approved):** storage→owner = `solid:owner`; owner→storage =
+`pim:storage` (already emitted, unchanged); deployment→operator = `schema:provider` (config-only
+`--lws-provider`, surfaced on the `ServerIndex` + root-pod description, **never** per-tenant). ODRL
+compatibility is structural only (parties are URIs; a future `odrl:hasPolicy` slot, not built).
+`dct:publisher` (DCAT-surface alias) deferred, not built.
+
+**Records — NEW System-Managed sidecar `.lwsowner`** (JSON array of owner URIs, `>=1`) on every
+storage root, written at provisioning; joins the reserved class at every choke point. Shared aux
+regexes (incl. `SIDECAR_SUFFIX`) are now **case-INSENSITIVE**, extending the SEC-1 F1 policy beyond
+`.acl`/`.meta`/`.lwstypes`/`.lwsprov`; that change also fixed a **pre-existing unauthenticated 500**
+on GET of uppercase sidecar paths and a **pre-existing case-bypass** of the System-Managed write
+refusal. An 8th choke point (missed by the SEC-1 sweep) was found + fixed: `SYS_SIDECAR` in
+`ldp/container.js`. The MCP description mirror now has owner/provider parity (Task 4b).
+
+**Surfacing:** `owner` in the per-storage `lws+json` description; `Link
+rel="http://www.w3.org/ns/solid/terms#owner"` on storage-root GET/HEAD (A6-pattern request field,
+READ-gated by inheritance; members never carry it). `provider` surfaced the same way as above.
+`solid:`/`owner`/`provider` context terms added.
+
+**Backfill:** boot-time `onReady` self-heal, roster-only (IDP username index via new
+`accounts.listUsernames` — keyed off raw `account.podName` after a review-caught casing bug — plus
+single-user config + the root profile card), merge-never-overwrite, loud-never-fatal (fully
+try/caught), idempotent. Deviation from spec §5 recorded: the summary is its own log line, not a
+capability-report row (the capability report prints before `onReady` runs); the provider config line
+**is** in the capability report.
+
+**Fork:** branch `la3d/governance-backfill` merged to `la3d/lws` @ `2c2be1f`, full suite **1974 pass /
+0 fail / 1 skip** (+22 vs the 1952 baseline), **PUSHED** to origin (Chuck-authorized, 2026-07-22).
+
+**Rig:** repin commit `d3cd8db` + provider-URI fix `c09db07` (provider must dereference → alice's
+real `card.jsonld#me`). Live-verified: backfill stamped 2 owner records for alice+bob on first boot,
+`(clean)` on restart; `make test-governance` NEW **5/5**; `test-multitenant` 6/6, `test-services`
+6/6, `test-conformance` 6/6, capcheck clean.
+
+**Deferred / recorded (NOT built):**
+- **Implicit owner Control in WAC** — queued into the authorization-server track (order-of-work item
+  4); closes the owner-lockout gap and SEC-1 F3 when it lands.
+- ODRL policies (structural compat only, no `odrl:hasPolicy` slot built).
+- Owner-change API — operator edits the `.lwsowner` sidecar by hand for now.
+- Out-of-roster tree adoption — manual remedy: write the `.lwstypes` marker + `.lwsowner` by hand.
+- MCP has no dispatch path for a bare root-pod `/lws-storage` description (pre-existing, recorded in
+  the Task 4b review).
+- The MixedCase backfill regression test only exercises its bug on case-SENSITIVE filesystems (green
+  on APFS proves nothing).
+
+---
+
+## ▶▶ 2026-07-21 — SIDECAR-AUTHZ + GUARDRAILS + 0.0.219 MERGE ROUND: COMPLETE + LIVE-VERIFIED (2026-07-22) (superseded as entry point by the 2026-07-22 governance round above)
+
+Was the START HERE pointer; superseded 2026-07-22. The whole round (13 tasks) is DONE across both
+repos and live-verified on the fork-tls rig. **SEC-1 is now CLOSED too** (2026-07-22, merged to
+`la3d/lws` @ `4d01f41` and PUSHED to origin; see the CLOSED block below). Do NOT re-run any Phase A–E
+task.
 
 **Round: brainstorm → 2 specs → 1 combined plan → subagent-driven implementation (13 tasks, fork + rig).**
 Specs `docs/superpowers/specs/2026-07-21-sidecar-authz-and-upstream-merge-design.md` and
@@ -58,10 +119,10 @@ feature branches + local `la3d/main` (`0976f3e`) NOT pushed. Remaining pushes ar
 **Still open (separate tickets, NOT this round):**
 - ~~**SEC-1 below** — remoteStorage no-WAC sidecar write.~~ **DONE + PUSHED 2026-07-22** (merged to
   fork `la3d/lws` @ `4d01f41`, pushed to origin). See the CLOSED block below.
-- **lws:Storage marker migration gap** — the `.lwstypes` storage-root marker is written only at pod
+- ~~**lws:Storage marker migration gap** — the `.lwstypes` storage-root marker is written only at pod
   provisioning (fork `a8e0c47`, 2026-07-15); pods provisioned earlier silently lose storage
   discovery on upgrade (no crash, no warning). Fine for a wipeable dev rig, NOT for a public pod with
-  real data — needs a backfill.
+  real data — needs a backfill.~~ **DONE 2026-07-22** (governance round, see top block).
 
 ---
 
