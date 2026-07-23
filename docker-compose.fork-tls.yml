@@ -40,7 +40,7 @@ services:
       "--idp", "--mcp", "--conneg", "--git", "--notifications", "--provision-keys",
       "--idp-issuer", "https://pod.vardeman.me",
       "--lws", "--lws-config", "/alice/profiles/pod-config.jsonld",
-      "--lws-provider", "https://pod.vardeman.me/alice/profile/card#me"]
+      "--lws-provider", "https://pod.vardeman.me/alice/profile/card.jsonld#me"]
     # http only — NOT published to the host; reachable solely via Caddy on the compose network.
     expose:
       - "3000"

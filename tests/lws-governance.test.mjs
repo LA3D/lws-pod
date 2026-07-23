@@ -12,7 +12,7 @@ describe('governance surfaces (live)', () => {
     // `curl .../alice/lws-storage | jq .owner` and the boot-time backfill log line).
     expect(desc.owner).toEqual([`${BASE}/alice/profile/card.jsonld#me`])
     const idx = await (await fetch(`${BASE}/.well-known/lws-storage`)).json()
-    expect(idx.provider).toBe(`${BASE}/alice/profile/card#me`)
+    expect(idx.provider).toBe(`${BASE}/alice/profile/card.jsonld#me`)
   })
 
   it('alice root GET and HEAD both carry Link rel=solid:owner', async () => {
